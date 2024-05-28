@@ -1,22 +1,25 @@
 use chrono::NaiveDate;
 use gtk::{pango, prelude::*};
-use relm4::factory::FactoryVecDeque;
+use relm4::factory::{FactoryHashMap, FactoryVecDeque};
 use relm4::prelude::*;
+
+use crate::icalendar::Event;
 
 use super::event_list_day_entry;
 
 #[derive(Debug)]
 pub struct Widget {
   date: NaiveDate,
+  // day_entries: FactoryHashMap<String, event_list_day_entry::Widget>,
   day_entries: FactoryVecDeque<event_list_day_entry::Widget>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Input {
   Update,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Output {}
 
 #[relm4::component(pub)]
@@ -59,7 +62,7 @@ impl Component for Widget {
     &mut self,
     input: Self::Input,
     _sender: ComponentSender<Self>,
-    root: &Self::Root,
+    _root: &Self::Root,
   ) {
     match input {
       Input::Update => {
@@ -70,7 +73,7 @@ impl Component for Widget {
   fn init(
     (date): Self::Init,
     root: Self::Root,
-    sender: ComponentSender<Self>,
+    _sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
     let model = Self {
       date,

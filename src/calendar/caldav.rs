@@ -20,9 +20,22 @@ use chrono::NaiveDate;
 use ureq::Agent;
 use url::Url;
 
+use crate::config::Config;
+use crate::icalendar::event_builder::EventBuilder;
+use crate::icalendar::{Calendar, Event, UidMap, UuidMap, EVENT_DEFAULT_COLOR};
+
 pub enum Credentials {
   Basic(String, String),
   Bearer(String),
+}
+
+impl From<&Config> for Credentials {
+  fn from(config: &Config) -> Self {
+    Self::Basic(
+      config.ical.username.clone(),
+      config.ical.password.as_ref().unwrap().clone(),
+    )
+  }
 }
 
 impl core::fmt::Debug for Credentials {
@@ -89,7 +102,7 @@ impl CaldavClient {
         message: e.to_string(),
       })?;
 
-    log::trace!("CalDAV propfind response: {:?}", content);
+    // log::trace!("CalDAV propfind response: {:?}", content);
     let reader = content.as_bytes();
 
     let root = xmltree::Element::parse(reader)?;
@@ -160,8 +173,7 @@ impl CaldavClient {
   }
 
   /// Get calendars for the given credentials.
-  pub fn get_calendars(&self) -> Result<Vec<CalendarRef>, Error> {
-    let mut calendars = Vec::new();
+  pub fn get_calendars(&self) -> Result<UuidMap<Calendar>, Error> {
     let result = match self.get_home_set_url(&self.base_url) {
       Ok(homeset_url) => self.propfind_get(
         &homeset_url,
@@ -183,63 +195,15 @@ impl CaldavClient {
       result?.1
     };
 
-    for response in &root.children {
-      if let Some(response) = response.as_element() {
-        let name = response
-          .get_child("propstat")
-          .and_then(|e| e.get_child("prop"))
-          .and_then(|e| e.get_child("displayname"))
-          .and_then(|e| e.get_text());
-        let color = response
-          .get_child("propstat")
-          .and_then(|e| e.get_child("prop"))
-          .and_then(|e| e.get_child("calendar-color"))
-          .and_then(|e| e.get_text());
-        let is_calendar = response
-          .get_child("propstat")
-          .and_then(|e| e.get_child("prop"))
-          .and_then(|e| e.get_child("resourcetype"))
-          .map(|e| e.get_child("calendar").is_some())
-          .unwrap_or(false);
-        let supports_vevents = response
-          .get_child("propstat")
-          .and_then(|e| e.get_child("prop"))
-          .and_then(|e| e.get_child("supported-calendar-component-set"))
-          .map(|e| {
-            for c in &e.children {
-              if let Some(child) = c.as_element() {
-                if child.name == "comp" {
-                  if let Some(name) = child.attributes.get("name") {
-                    if (name == "VEVENT") || (name == "VTODO") {
-                      return true;
-                    }
-                  }
-                }
-              }
-            }
-            false
-          })
-          .unwrap_or(false);
-        let href = response.get_child("href").and_then(|e| e.get_text());
-
-        if !is_calendar || !supports_vevents {
-          continue;
-        }
-        if let Some((href, name)) = href.and_then(|href| name.map(|name| (href, name))) {
-          if let Ok(url) = self.base_url.join(&href) {
-            calendars.push(CalendarRef {
-              url,
-              name: name.to_string(),
-              color: color.map(|c| c.into()),
-            })
-          } else {
-            log::error!("Could not parse url: {}/{}", &self.base_url, href);
-          }
-        } else {
-          continue;
-        }
-      }
-    }
+    let calendars = root.children
+      .iter()
+      .filter_map(|c| c.as_element())
+      .filter_map(Calendar::from_xml)
+      .filter_map(|mut calendar| {
+        self.base_url.join(&calendar.url_str).ok()?.as_str().clone_into(&mut calendar.url_str);
+        Some((calendar.uid, calendar))
+      })
+      .collect::<UuidMap<_>>();
 
     Ok(calendars)
   }
@@ -247,12 +211,12 @@ impl CaldavClient {
   /// Get ICAL formatted events from the CalDAV server.
   pub fn get_events(
       &self,
-      request: String,
-      calendar_url: &Url,
-  ) -> Result<Vec<EventRef>, Error> {
+      request: &String,
+      calendar_ref: &Calendar,
+  ) -> Result<UidMap<Event>, Error> {
     let auth = self.get_auth_header();
     let content = self.agent
-      .request("REPORT", calendar_url.as_str())
+      .request("REPORT", calendar_ref.url_str.as_str())
       .set("Authorization", &auth)
       .set("Depth", "1")
       .set("Content-Type", "application/xml")
@@ -263,42 +227,27 @@ impl CaldavClient {
         message: e.to_string(),
       })?;
 
-    log::trace!("Read CalDAV events: {:?}", content);
     let reader = content.as_bytes();
-
     let root = xmltree::Element::parse(reader)?;
-    let mut events = Vec::new();
-    for c in &root.children {
-      if let Some(child) = c.as_element() {
-        let href = child.get_child("href").and_then(|e| e.get_text());
-        let etag = child
-          .get_child("propstat")
-          .and_then(|e| e.get_child("prop"))
-          .and_then(|e| e.get_child("getetag"))
-          .and_then(|e| e.get_text())
-          .map(|e| e.to_string());
-        let data = child
-          .get_child("propstat")
-          .and_then(|e| e.get_child("prop"))
-          .and_then(|e| e.get_child("calendar-data"))
-          .and_then(|e| e.get_text());
-        if href.is_none() || etag.is_none() || data.is_none() {
-          continue;
-        }
 
-        if let Some((href, data)) = href.and_then(|href| data.map(|data| (href, data))) {
-          if let Ok(url) = self.base_url.join(&href) {
-            events.push(EventRef {
-              url,
-              data: data.to_string(),
-              etag,
-            })
-          } else {
-            log::error!("Could not parse url {}/{}", &self.base_url, href)
-          }
-        }
-      }
-    }
+    let events = root.children
+        .iter()
+        .filter_map(|c| c.as_element())
+        .map(|element| EventBuilder::from(element)
+            .set_calendar_uid_opt(Some(calendar_ref.uid))
+            .set_color_opt(calendar_ref.color.clone())
+            .with_default_color(EVENT_DEFAULT_COLOR)
+            .with_base_url(&self.base_url)
+            .build()
+        )
+        .filter_map(|result| match result {
+            Ok(event) => Some((calendar_ref.uid, event.uid, event)),
+            Err(e) => {
+              log::error!("Error parsing event: {:?}", e);
+              None
+            }
+        })
+        .collect::<UidMap<_>>();
 
     Ok(events)
   }
@@ -307,12 +256,12 @@ impl CaldavClient {
   pub fn get_todos(
       &self,
       request: String,
-      calendar_ref: &CalendarRef,
-  ) -> Result<Vec<EventRef>, Error> {
+      calendar_ref: &Calendar,
+  ) -> Result<UidMap<Event>, Error> {
     let auth = self.get_auth_header();
 
     let content = self.agent
-      .request("REPORT", calendar_ref.url.as_str())
+      .request("REPORT", calendar_ref.url_str.as_str())
       .set("Authorization", &auth)
       .set("Depth", "1")
       .set("Content-Type", "application/xml")
@@ -323,42 +272,27 @@ impl CaldavClient {
         message: e.to_string(),
       })?;
 
-    log::trace!("Read CalDAV events: {:?}", content);
     let reader = content.as_bytes();
-
     let root = xmltree::Element::parse(reader)?;
-    let mut todos = Vec::new();
-    for c in &root.children {
-      if let Some(child) = c.as_element() {
-        let href = child.get_child("href").and_then(|e| e.get_text());
-        let etag = child
-          .get_child("propstat")
-          .and_then(|e| e.get_child("prop"))
-          .and_then(|e| e.get_child("getetag"))
-          .and_then(|e| e.get_text())
-          .map(|e| e.to_string());
-        let data = child
-          .get_child("propstat")
-          .and_then(|e| e.get_child("prop"))
-          .and_then(|e| e.get_child("calendar-data"))
-          .and_then(|e| e.get_text());
-        if href.is_none() || etag.is_none() || data.is_none() {
-          continue;
-        }
 
-        if let Some((href, data)) = href.and_then(|href| data.map(|data| (href, data))) {
-          if let Ok(url) = self.base_url.join(&href) {
-            todos.push(EventRef {
-              url,
-              data: data.to_string(),
-              etag,
-            })
-          } else {
-            log::error!("Could not parse url {}/{}", &self.base_url, href)
+    let todos = root.children
+      .iter()
+      .filter_map(|c| c.as_element())
+      .map(|element| EventBuilder::from(element)
+          .set_calendar_uid_opt(Some(calendar_ref.uid))
+          .set_color_opt(calendar_ref.color.clone())
+          .with_default_color(EVENT_DEFAULT_COLOR)
+          .with_base_url(&self.base_url)
+          .build()
+      )
+      .filter_map(|result| match result {
+          Ok(event) => Some((calendar_ref.uid, event.uid, event)),
+          Err(e) => {
+            log::error!("Error parsing event: {:?}", e);
+            None
           }
-        }
-      }
-    }
+      })
+      .collect::<UidMap<_>>();
 
     Ok(todos)
   }
@@ -366,44 +300,41 @@ impl CaldavClient {
   /// Save the given event on the CalDAV server.
   /// If no event for the events url exist it will create a new event.
   /// Otherwise this is an update operation.
-  pub fn save_event(&self, event_ref: EventRef) -> Result<EventRef, Error> {
-    let auth = self.get_auth_header();
+  // pub fn save_event(&self, event: &mut Event) -> Result<(), Error> {
+  //   let auth = self.get_auth_header();
 
-    let response = self.agent
-      .put(event_ref.url.as_str())
-      .set("Content-Type", "text/calendar")
-      .set("Content-Length", &event_ref.data.len().to_string())
-      .set("Authorization", &auth)
-      .send(event_ref.data.as_bytes())?;
+  //   let response = self.agent
+  //     .put(event.url.as_str())
+  //     .set("Content-Type", "text/calendar")
+  //     .set("Content-Length", &event.to_string().len().to_string())
+  //     .set("Authorization", &auth)
+  //     .send(event.to_string().as_bytes())?;
 
-    if let Some(etag) = response.header("ETag") {
-      Ok(EventRef {
-        etag: Some(etag.into()),
-        ..event_ref
-      })
-    } else {
-      Ok(EventRef {
-        etag: None,
-        ..event_ref
-      })
-    }
-  }
+  //   if let Some(etag) = response.header("ETag") {
+  //     event.etag(Some(etag.to_string()));
+  //   } else {
+  //     event.etag(None);
+
+  //     return Err(Error {
+  //       kind: ErrorKind::Parsing,
+  //       message: format!("No ETag in response for event: {:?}", event),
+  //     });
+  //   }
+
+  //   Ok(())
+  // }
 
   /// Delete the given event from the CalDAV server.
-  pub fn remove_event(&self, event_ref: EventRef) -> Result<(), Error> {
+  pub fn remove_event(&self, event: Event) -> Result<(), Error> {
     let auth = self.get_auth_header();
 
     let _response = self.agent
-      .delete(event_ref.url.as_str())
+      .delete(event.url.as_str())
       .set("Authorization", &auth)
       .call()?;
 
     Ok(())
   }
-}
-
-pub struct DavQuery {
-  
 }
 
 pub static USER_PRINCIPAL_REQUEST: &str = r#"
@@ -487,28 +418,14 @@ pub fn request_todos(filter: String) -> String {
 </c:calendar-query>"#, filter)
 }
 
-#[derive(Clone, Debug)]
-pub struct CalendarRef {
-  pub url: Url,
-  pub name: String,
-  pub color: Option<String>,
-}
-
-#[derive(Clone, Debug)]
-pub struct EventRef {
-  pub etag: Option<String>,
-  pub url: Url,
-  pub data: String,
-}
-
 /// Errors that may occur during CalDAV operations.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Error {
   pub kind: ErrorKind,
   pub message: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ErrorKind {
   Http,
   Parsing,

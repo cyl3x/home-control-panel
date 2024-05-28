@@ -11,21 +11,23 @@ use gtk::gdk::Display;
 
 pub use chrono::prelude::*;
 pub use gtk::prelude::*;
+use logger::LogExt;
 pub use relm4::prelude::*;
 
 mod app;
 pub mod calendar;
 mod cli;
 mod config;
-// mod core;
+pub mod icalendar;
 mod components;
+mod logger;
 
 fn main() {
+  logger::init();
+
   let cli = cli::Cli::parse();
 
-  env_logger::init();
-
-  let config = config::init(cli.config).unwrap();
+  let config = config::init(cli.config).log_error("Could not load the configuration file").unwrap();
 
   clapper::init().expect("Could not initialize the video player.");
 
@@ -39,5 +41,5 @@ fn main() {
     gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
   );
 
-  app.run::<App>(config);
+  app.with_args(vec![]).run::<App>(config);
 }

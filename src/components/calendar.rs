@@ -1,33 +1,38 @@
 use chrono::NaiveDate;
 use gtk::prelude::*;
 use relm4::prelude::*;
+use url::Url;
 
-use crate::calendar::CalDavProvider;
+use crate::calendar::caldav::Credentials;
+use crate::calendar::{caldav, CalendarService, GridService, GRID_ROWS};
 use crate::components::calendar_row;
-use crate::calendar::{GRID_COLS, GRID_ROWS};
+use crate::icalendar::EventChange;
 
 
 #[derive(Debug)]
 pub struct Widget {
-  provider: CalDavProvider,
+  grid_service: GridService,
+  calendar_manager: CalendarService,
   event_rows: [Controller<calendar_row::Widget>; GRID_ROWS],
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Input {
   NextMonth,
   PreviousMonth,
-  DayClicked(usize),
-  RefreshGrid(NaiveDate),
+  DayClicked(NaiveDate),
+  RefreshGrid,
+  Sync,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Output {
+  CalDavError(caldav::Error),
 }
 
 #[relm4::component(pub)]
 impl Component for Widget {
-  type Init = CalDavProvider;
+  type Init = (Credentials, Url);
   type Input = Input;
   type Output = Output;
   type CommandOutput = ();
@@ -55,7 +60,7 @@ impl Component for Widget {
             set_valign: gtk::Align::Start,
             set_hexpand: true,
             set_vexpand: true,
-            set_row_homogeneous: true,
+            // set_row_homogeneous: true,
             set_column_homogeneous: true,
             set_row_spacing: 4,
 
@@ -70,7 +75,7 @@ impl Component for Widget {
         },
 
         #[template_child] month_label {
-          #[watch] set_text: &model.provider.selected().format_localized("%B %Y", chrono::Locale::de_DE).to_string(),
+          #[watch] set_text: &model.grid_service.current().format_localized("%B %Y", chrono::Locale::de_DE).to_string(),
         },
 
         #[template_child] prev_button {
@@ -97,84 +102,115 @@ impl Component for Widget {
   ) {
     match input {
       Input::NextMonth => {
-        let date = self.provider.next_month();
-        sender.input(Input::RefreshGrid(date));
+        self.grid_service.next_month();
+        sender.input(Input::RefreshGrid);
       }
       Input::PreviousMonth => {
-        let date = self.provider.prev_month();
-        sender.input(Input::RefreshGrid(date));
+        self.grid_service.prev_month();
+        sender.input(Input::RefreshGrid);
       }
-      Input::DayClicked(clicked_idx) => {
-        let prev_idx = self.provider.selected_idx();
+      Input::DayClicked(date) => {
+        let prev_date = self.grid_service.current();
+        let prev_idx = self.grid_service.current_idx();
 
-        let clicked_row_idx = clicked_idx / GRID_COLS;
-        let prev_row_idx = prev_idx / GRID_COLS;
+        let clicked_row_idx = self.grid_service.row_idx(date);
+        let prev_row_idx = self.grid_service.current_row_idx();
 
-        if self.provider.select_idx(clicked_idx).is_some() {
-          sender.input(Input::RefreshGrid(self.provider.selected()));
+        if self.grid_service.set_date(date).is_some() {
+          sender.input(Input::RefreshGrid);
         } else {
-          self.event_rows[prev_row_idx].emit(calendar_row::Input::Select(prev_idx, self.provider.date(prev_idx), self.provider.selected()));
-          self.event_rows[clicked_row_idx].emit(calendar_row::Input::Select(clicked_idx, self.provider.date(clicked_idx), self.provider.selected()));
+          self.event_rows[prev_row_idx].emit(calendar_row::Input::SelectDayLabel(
+            prev_idx,
+            prev_date,
+            self.grid_service.current(),
+          ));
+          self.event_rows[clicked_row_idx].emit(calendar_row::Input::SelectDayLabel(
+            self.grid_service.current_idx(),
+            date,
+            self.grid_service.current(),
+          ));
         }
       }
-      Input::RefreshGrid(date) => {
+      Input::Sync => {
+        let changeset = match self.calendar_manager.sync(self.grid_service.current()) {
+          Ok(changeset) => changeset,
+          Err(error) => {
+            sender.output(Output::CalDavError(error)).unwrap();
+
+            return;
+          },
+        };
+        
+        for event_changes in CalendarService::generate_grid_from_changeset(self.grid_service.start_end(), &changeset) {
+          for event_change in event_changes {
+            for idx in self.grid_service.intersecting_rows(event_change.start_date(), event_change.end_date()) {
+              self.event_rows[idx].emit(match event_change {
+                EventChange::Added(event) => calendar_row::Input::Add((*event).clone()),
+                EventChange::Changed(event) => calendar_row::Input::Update((*event).clone()),
+                EventChange::Removed(event) => calendar_row::Input::Remove(event.uid),
+              });
+            }
+          }
+        }
+      }
+      Input::RefreshGrid => {
+        let date = self.grid_service.current();
+
         for row_idx in 0..GRID_ROWS {
-          self.event_rows[row_idx].emit(calendar_row::Input::UpdateDates(date, self.provider.date_row(row_idx)));
+          self.event_rows[row_idx].emit(calendar_row::Input::UpdateDayLabels(date, self.grid_service.row(row_idx)));
         }
 
         for row in &self.event_rows {
           row.emit(calendar_row::Input::Reset);
         }
     
-        let grid = self.provider.calendar_grid();
-    
-        for (event_start_idx, events) in grid.into_iter().enumerate() {
-          for (event_end_idx, event) in events {
-            let row_idx = event_start_idx / GRID_COLS;
-            let last_row_idx = event_end_idx / GRID_COLS;
-    
-            let matched_rows = &self.event_rows[row_idx..=last_row_idx];
-            for matched_row in matched_rows {
-              matched_row.emit(calendar_row::Input::Add((event_start_idx, event_end_idx, event.clone())));
+        for events in self.calendar_manager.generate_grid(self.grid_service.start_end()) {
+          for event in events {
+            for idx in self.grid_service.intersecting_rows(event.start_date(), event.end_date()) {
+              self.event_rows[idx].emit(calendar_row::Input::Add((*event).clone()));
             }
           }
-        }
-    
-        for row in &self.event_rows {
-          row.emit(calendar_row::Input::Finish);
         }
       }
     }
   }
 
   fn init(
-    provider: Self::Init,
+    (credendials, url): Self::Init,
     root: Self::Root,
     sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
-    let selected_date = provider.selected();
+    let grid_service = GridService::new(chrono::Utc::now().naive_utc().date());
 
     let event_rows = core::array::from_fn(|row_idx| {
       calendar_row::Widget::builder()
-      .launch(row_idx * GRID_COLS)
-      .forward(sender.input_sender(), |output| match output {
-        calendar_row::Output::Clicked(idx) => Input::DayClicked(idx),
-      })
+        .launch(grid_service.row(row_idx))
+        .forward(sender.input_sender(), |output| match output {
+          calendar_row::Output::Clicked(date) => Input::DayClicked(date),
+        })
     });
 
     let model = Self {
-      provider,
+      grid_service,
+      calendar_manager: CalendarService::new(credendials, url),
       event_rows,
     };
 
     let widgets = view_output!();
 
     for (row_idx, event_row) in model.event_rows.iter().enumerate() {
-      event_row.emit(calendar_row::Input::UpdateDates(selected_date, model.provider.date_row(row_idx)));
+      event_row.emit(calendar_row::Input::UpdateDayLabels(model.grid_service.current(), model.grid_service.row(row_idx)));
       widgets.calendar_grid.attach(event_row.widget(), 0, (row_idx * 2 + 1) as i32, 7, 1);
     }
 
-    sender.input(Input::RefreshGrid(model.provider.selected()));
+    sender.input(Input::Sync);
+
+    gtk::glib::timeout_add_seconds(30, gtk::glib::clone!(@strong sender => move || {
+      println!("Syncing calendar");
+      sender.input(Input::Sync);
+
+      gtk::glib::ControlFlow::Continue
+    }));
     
     ComponentParts { model, widgets }
   }

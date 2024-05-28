@@ -1,7 +1,7 @@
 use gtk::{pango, prelude::*};
 use relm4::prelude::*;
 
-#[derive(Default, Debug, PartialEq, Eq)]
+#[derive(Default, Debug)]
 pub struct Widget {
   summary: String,
   description: String,
@@ -10,12 +10,12 @@ pub struct Widget {
 
 pub type UpdateWidget = (String, String, String, Option<String>);
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Input {
   Update(UpdateWidget),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Output {}
 
 #[relm4::factory(pub)]
@@ -70,7 +70,7 @@ impl FactoryComponent for Widget {
     },
   }
 
-  fn update_with_view(&mut self, widgets: &mut Self::Widgets, input: Self::Input, _sender: FactorySender<Self>) {
+  fn update_with_view(&mut self, widgets: &mut Self::Widgets, input: Self::Input, sender: FactorySender<Self>) {
     match input {
       Input::Update((summary, description, tooltip, color)) => {
         self.summary = summary;
@@ -84,6 +84,8 @@ impl FactoryComponent for Widget {
         }
       }
     }
+
+    self.update_view(widgets, sender);
   }
 
   fn init_model(init: Self::Init, _index: &Self::Index, sender: FactorySender<Self>) -> Self {

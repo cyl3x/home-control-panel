@@ -17,6 +17,7 @@
 }
 
 .calendar-event {
+  color: black;
   background-color: burlywood;
   border-radius: 4px;
   padding: 4px;
@@ -25,4 +26,21 @@
 .calendar-day {
   border-radius: 4px;
   padding: 4px;
+}
+
+.notification-overlay-box {
+  background-color: @insensitive_bg_color;
+  color: @insensitive_fg_color;
+  border: 3px solid @theme_selected_bg_color;
+  border-right: 0;
+  padding: 16px;
+}
+
+.notification-overlay-box .error {
+  border-color: @destructive_bg_color;
+  -gtk-icon-source: dialog-error;
+}
+
+.notification-overlay-box .success {
+  border-color: @success_bg_color;
 }
