@@ -16,14 +16,18 @@
 
 //! CalDAV client implementation using ureq.
 
+use std::collections::BTreeMap;
+
 use chrono::NaiveDate;
 use ureq::Agent;
 use url::Url;
+use uuid::Uuid;
 
 use crate::config::Config;
 use crate::icalendar::event_builder::EventBuilder;
-use crate::icalendar::{Calendar, Event, UidMap, UuidMap, EVENT_DEFAULT_COLOR};
+use crate::icalendar::{Calendar, Event, EVENT_DEFAULT_COLOR};
 
+#[derive(Clone)]
 pub enum Credentials {
   Basic(String, String),
   Bearer(String),
@@ -44,7 +48,7 @@ impl core::fmt::Debug for Credentials {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CaldavClient {
   credentials: Credentials,
   agent: Agent,
@@ -173,7 +177,7 @@ impl CaldavClient {
   }
 
   /// Get calendars for the given credentials.
-  pub fn get_calendars(&self) -> Result<UuidMap<Calendar>, Error> {
+  pub fn get_calendars(&self) -> Result<BTreeMap<Uuid, Calendar>, Error> {
     let result = match self.get_home_set_url(&self.base_url) {
       Ok(homeset_url) => self.propfind_get(
         &homeset_url,
@@ -203,7 +207,7 @@ impl CaldavClient {
         self.base_url.join(&calendar.url_str).ok()?.as_str().clone_into(&mut calendar.url_str);
         Some((calendar.uid, calendar))
       })
-      .collect::<UuidMap<_>>();
+      .collect();
 
     Ok(calendars)
   }
@@ -213,7 +217,7 @@ impl CaldavClient {
       &self,
       request: &String,
       calendar_ref: &Calendar,
-  ) -> Result<UidMap<Event>, Error> {
+  ) -> Result<BTreeMap<Uuid, Event>, Error> {
     let auth = self.get_auth_header();
     let content = self.agent
       .request("REPORT", calendar_ref.url_str.as_str())
@@ -241,13 +245,13 @@ impl CaldavClient {
             .build()
         )
         .filter_map(|result| match result {
-            Ok(event) => Some((calendar_ref.uid, event.uid, event)),
+            Ok(event) => Some((event.uid, event)),
             Err(e) => {
               log::error!("Error parsing event: {:?}", e);
               None
             }
         })
-        .collect::<UidMap<_>>();
+        .collect();
 
     Ok(events)
   }
@@ -257,7 +261,7 @@ impl CaldavClient {
       &self,
       request: String,
       calendar_ref: &Calendar,
-  ) -> Result<UidMap<Event>, Error> {
+  ) -> Result<BTreeMap<Uuid, Event>, Error> {
     let auth = self.get_auth_header();
 
     let content = self.agent
@@ -286,13 +290,13 @@ impl CaldavClient {
           .build()
       )
       .filter_map(|result| match result {
-          Ok(event) => Some((calendar_ref.uid, event.uid, event)),
+          Ok(event) => Some((event.uid, event)),
           Err(e) => {
             log::error!("Error parsing event: {:?}", e);
             None
           }
       })
-      .collect::<UidMap<_>>();
+      .collect();
 
     Ok(todos)
   }

@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
-use chrono::{Datelike, Days, NaiveDate};
+use chrono::{Datelike, NaiveDate};
 use gtk::prelude::*;
 use relm4::prelude::*;
 use uuid::Uuid;
 
 use crate::calendar::GRID_COLS;
-use crate::icalendar::{Event, UuidMap};
+use crate::icalendar::{CalendarMapChange, Event};
 
 use super::calendar_event;
 
@@ -27,7 +27,7 @@ impl GridPos {
 pub struct Widget {
   start: NaiveDate,
   end: NaiveDate,
-  event_labels: UuidMap<Controller<calendar_event::Widget>>,
+  event_labels: BTreeMap<Uuid, Controller<calendar_event::Widget>>,
   space_manager: SpaceManager,
   day_labels: [gtk::Label; GRID_COLS]
 }
@@ -41,6 +41,16 @@ pub enum Input {
   Clicked(f64),
   UpdateDayLabels(NaiveDate, [NaiveDate; GRID_COLS]),
   SelectDayLabel(usize, NaiveDate, NaiveDate),
+}
+
+impl From<CalendarMapChange> for Input {
+  fn from(event_change: CalendarMapChange) -> Self {
+    match event_change {
+      CalendarMapChange::Added(event) => Self::Add(event),
+      CalendarMapChange::Changed(event) => Self::Update(event),
+      CalendarMapChange::Removed(event) => Self::Remove(event.uid),
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -76,24 +86,14 @@ impl Component for Widget {
   ) {
     match input {
       Input::Add(event) => {
-        if event.start_date() > self.end || event.end_date() < self.start {
+        if !event.is_between_dates(self.start, self.end) {
           self.remove(&event.uid);
 
           return;
         }
 
-        let start_clamped = event.start_date().clamp(self.start, self.end + Days::new(1));
-        let end_clamped = event.end_date().clamp(self.start, self.end + Days::new(1));
-        let width = (end_clamped - start_clamped).num_days().max(1) as usize;
-        let col = (start_clamped - self.start).num_days() as usize;
-
-        if width == 0 {
-          eprintln!("Event '{}' has zero width", event.summary);
-
-          self.remove(&event.uid);
-
-          return; // event ends before the start of the row
-        }
+        let width = event.days_between_dates(self.start, self.end).max(1) as usize;
+        let col = (event.start_date().clamp(self.start, self.end) - self.start).num_days() as usize;
         
         let (label_uid, grid_pos) = self.add_or_get(event, col, width);
         let label = self.event_labels.get(&label_uid).unwrap();

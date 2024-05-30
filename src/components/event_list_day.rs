@@ -10,7 +10,6 @@ use super::event_list_day_entry;
 #[derive(Debug)]
 pub struct Widget {
   date: NaiveDate,
-  // day_entries: FactoryHashMap<String, event_list_day_entry::Widget>,
   day_entries: FactoryVecDeque<event_list_day_entry::Widget>,
 }
 

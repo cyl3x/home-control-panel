@@ -6,7 +6,7 @@ use url::Url;
 use crate::calendar::caldav::Credentials;
 use crate::calendar::{caldav, CalendarService, GridService, GRID_ROWS};
 use crate::components::calendar_row;
-use crate::icalendar::EventChange;
+use crate::icalendar::CalendarMap;
 
 
 #[derive(Debug)]
@@ -21,7 +21,6 @@ pub enum Input {
   NextMonth,
   PreviousMonth,
   DayClicked(NaiveDate),
-  RefreshGrid,
   Sync,
 }
 
@@ -30,12 +29,20 @@ pub enum Output {
   CalDavError(caldav::Error),
 }
 
+
+#[derive(Debug)]
+pub enum Command {
+  RebuildGrid,
+  Sync(CalendarMap),
+  CalDavError(caldav::Error),
+}
+
 #[relm4::component(pub)]
 impl Component for Widget {
   type Init = (Credentials, Url);
   type Input = Input;
   type Output = Output;
-  type CommandOutput = ();
+  type CommandOutput = Command;
 
   view! {
     #[root]
@@ -103,11 +110,11 @@ impl Component for Widget {
     match input {
       Input::NextMonth => {
         self.grid_service.next_month();
-        sender.input(Input::RefreshGrid);
+        sender.command_sender().send(Command::RebuildGrid).unwrap();
       }
       Input::PreviousMonth => {
         self.grid_service.prev_month();
-        sender.input(Input::RefreshGrid);
+        sender.command_sender().send(Command::RebuildGrid).unwrap();
       }
       Input::DayClicked(date) => {
         let prev_date = self.grid_service.current();
@@ -117,7 +124,7 @@ impl Component for Widget {
         let prev_row_idx = self.grid_service.current_row_idx();
 
         if self.grid_service.set_date(date).is_some() {
-          sender.input(Input::RefreshGrid);
+          sender.command_sender().send(Command::RebuildGrid).unwrap();
         } else {
           self.event_rows[prev_row_idx].emit(calendar_row::Input::SelectDayLabel(
             prev_idx,
@@ -132,28 +139,40 @@ impl Component for Widget {
         }
       }
       Input::Sync => {
-        let changeset = match self.calendar_manager.sync(self.grid_service.current()) {
-          Ok(changeset) => changeset,
-          Err(error) => {
-            sender.output(Output::CalDavError(error)).unwrap();
+        let client = self.calendar_manager.client().clone();
+        let date = self.grid_service.current();
 
-            return;
-          },
-        };
-        
-        for event_changes in CalendarService::generate_grid_from_changeset(self.grid_service.start_end(), &changeset) {
-          for event_change in event_changes {
-            for idx in self.grid_service.intersecting_rows(event_change.start_date(), event_change.end_date()) {
-              self.event_rows[idx].emit(match event_change {
-                EventChange::Added(event) => calendar_row::Input::Add((*event).clone()),
-                EventChange::Changed(event) => calendar_row::Input::Update((*event).clone()),
-                EventChange::Removed(event) => calendar_row::Input::Remove(event.uid),
-              });
-            }
+        sender.spawn_oneshot_command(move || {
+          CalendarService::fetch(client, date).map_or_else(
+            Command::CalDavError,
+            Command::Sync,
+          )
+        });
+      }
+    }
+  }
+
+  fn update_cmd(
+    &mut self,
+    command: Self::CommandOutput,
+    sender: ComponentSender<Self>,
+    _root: &Self::Root,
+  ) {
+    match command {
+      Command::CalDavError(error) => sender.output(Output::CalDavError(error)).unwrap(),
+      Command::Sync(new_calendar_map) => {
+        for (_, _, event_change) in self.calendar_manager.apply_map(new_calendar_map) {
+          if !event_change.is_between_dates(self.grid_service.start(), self.grid_service.end()) {
+            continue;
+          }
+
+          let range = self.grid_service.intersecting_rows(event_change.start, event_change.end);
+          for row in &self.event_rows[range] {
+            row.emit(calendar_row::Input::from(event_change.clone()));
           }
         }
       }
-      Input::RefreshGrid => {
+      Command::RebuildGrid => {
         let date = self.grid_service.current();
 
         for row_idx in 0..GRID_ROWS {
@@ -164,11 +183,14 @@ impl Component for Widget {
           row.emit(calendar_row::Input::Reset);
         }
     
-        for events in self.calendar_manager.generate_grid(self.grid_service.start_end()) {
-          for event in events {
-            for idx in self.grid_service.intersecting_rows(event.start_date(), event.end_date()) {
-              self.event_rows[idx].emit(calendar_row::Input::Add((*event).clone()));
-            }
+        for event in self.calendar_manager.events() {
+          if !event.is_between_dates(self.grid_service.start(), self.grid_service.end()) {
+            continue;
+          }
+
+          let range = self.grid_service.intersecting_rows(event.start, event.end);
+          for row in &self.event_rows[range] {
+            row.emit(calendar_row::Input::Add((*event).clone()));
           }
         }
       }
@@ -205,7 +227,7 @@ impl Component for Widget {
 
     sender.input(Input::Sync);
 
-    gtk::glib::timeout_add_seconds(30, gtk::glib::clone!(@strong sender => move || {
+    gtk::glib::timeout_add_seconds(5*60, gtk::glib::clone!(@strong sender => move || {
       println!("Syncing calendar");
       sender.input(Input::Sync);
 

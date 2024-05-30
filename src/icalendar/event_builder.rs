@@ -1,4 +1,8 @@
-use icalendar::{Component as _, DatePerhapsTime};
+use std::str::FromStr;
+
+use chrono::{DateTime, NaiveTime, Utc, TimeZone};
+use chrono_tz::Tz;
+use icalendar::{CalendarDateTime, Component as _, DatePerhapsTime};
 use url::Url;
 use uuid::Uuid;
 
@@ -12,7 +16,9 @@ pub enum EventBuilderError {
   InvalidUid(String),
   NoSummary,
   NoStart,
+  InvalidStart,
   NoEnd,
+  InvalidEnd,
   NoUrl,
   InvalidUrl(String),
 }
@@ -38,7 +44,9 @@ impl EventBuilder {
     let calendar_uid = self.calendar_uid.ok_or(EventBuilderError::NoCalendarUid)?;
     let summary = self.summary.ok_or(EventBuilderError::NoSummary)?;
     let start = self.start.ok_or(EventBuilderError::NoStart)?;
+    let start = date_perhaps_time_to_date_time(start).ok_or(EventBuilderError::InvalidStart)?;
     let end = self.end.ok_or(EventBuilderError::NoEnd)?;
+    let end = date_perhaps_time_to_date_time(end).ok_or(EventBuilderError::InvalidStart)?;
     let url_str = self.url.ok_or(EventBuilderError::NoUrl)?;
     let url = Url::parse(&url_str).map_err(|err| EventBuilderError::InvalidUrl(err.to_string()))?;
 
@@ -141,4 +149,15 @@ impl From<&xmltree::Element> for EventBuilder {
       .set_url_opt(extract::href(element))
       .set_etag_opt(extract::etag(element))
   }
+}
+
+fn date_perhaps_time_to_date_time(date: DatePerhapsTime) -> Option<DateTime<Utc>> {
+  Some(match date {
+    DatePerhapsTime::DateTime(dt) => match dt {
+      CalendarDateTime::Floating(dt) => dt.and_utc(),
+      CalendarDateTime::WithTimezone { date_time, tzid } => Tz::from_str(&tzid).ok()?.from_local_datetime(&date_time).single()?.with_timezone(&Utc),
+      CalendarDateTime::Utc(dt) => dt,
+    },
+    DatePerhapsTime::Date(dt) => dt.and_time(NaiveTime::default()).and_utc(),
+  })
 }

@@ -19,6 +19,7 @@ strip = "debuginfo"
 anyhow = "1.0.83"
 base64 = "0.13"
 chrono = { version = "0.4.38", features = ["unstable-locales"] }
+chrono-tz = "0.9.0"
 clap = { version = "4.5.4", features = ["derive"] }
 clapper = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs" }
 clapper-gtk = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs" }
