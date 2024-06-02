@@ -1,18 +1,19 @@
+use chrono::NaiveDateTime;
 use gtk::{pango, prelude::*};
 use relm4::prelude::*;
+use uuid::Uuid;
 
-#[derive(Default, Debug)]
+use crate::icalendar::Event;
+
+#[derive(Debug)]
 pub struct Widget {
-  summary: String,
-  description: String,
-  tooltip: String,
+  event: Event,
+  now: NaiveDateTime,
 }
-
-pub type UpdateWidget = (String, String, String, Option<String>);
 
 #[derive(Debug, Clone)]
 pub enum Input {
-  Update(UpdateWidget),
+  TickNow(NaiveDateTime),
 }
 
 #[derive(Debug, Clone)]
@@ -20,76 +21,70 @@ pub enum Output {}
 
 #[relm4::factory(pub)]
 impl FactoryComponent for Widget {
-  type Init = UpdateWidget;
+  type Init = Event;
   type Input = Input;
   type Output = Output;
-  type ParentWidget = gtk::Box;
+  type ParentWidget = gtk::ListBox;
   type CommandOutput = ();
+  type Index = Uuid;
 
   view! {
-    #[root]
     gtk::Box {
-      add_css_class: "calendar-event-list-entry",
       set_orientation: gtk::Orientation::Horizontal,
       set_hexpand: true,
-      set_halign: gtk::Align::Fill,
-      set_valign: gtk::Align::Start,
-      #[watch] set_tooltip: &self.tooltip,
+      set_spacing: 4,
+      #[watch] set_tooltip: &self.event.tooltip(),
+      #[watch] set_widget_name: &self.event.start.to_string(),
 
-      #[name(calendar_color_box)]
       gtk::Box {
-        add_css_class: "calendar-event-list-entry-color-box",
+        inline_css: "border-radius: 4px;",
+        #[watch] inline_css: &format!("background-color: {};", self.event.color()),
         set_vexpand: true,
         set_size_request: (8, -1),
       },
 
       gtk::Box {
         set_orientation: gtk::Orientation::Vertical,
-        set_hexpand: true,
         set_vexpand: true,
+        set_hexpand: true,
 
         gtk::Label {
-          set_hexpand: true,
-          set_halign: gtk::Align::Fill,
-          set_valign: gtk::Align::Start,
+          set_halign: gtk::Align::Start,
           set_can_focus: false,
           set_ellipsize: pango::EllipsizeMode::End,
-          #[watch] set_text: &self.summary,
+          #[watch] set_text: &self.event.summary,
         },
 
         gtk::Label {
           add_css_class: "dim-label",
-          set_hexpand: true,
-          set_halign: gtk::Align::Fill,
-          set_valign: gtk::Align::Start,
+          set_halign: gtk::Align::Start,
           set_can_focus: false,
           set_ellipsize: pango::EllipsizeMode::End,
-          #[watch] set_text: &self.description,
+          #[watch] set_text: self.event.description(),
         },
+      },
+
+      gtk::Box {
+        set_vexpand: true,
+        set_hexpand: true,
+        
+        gtk::Label {
+          set_vexpand: true,
+          set_hexpand: true,
+          set_halign: gtk::Align::End,
+          #[watch] set_text: &self.event.delta_text(self.now),
+        }
       },
     },
   }
 
-  fn update_with_view(&mut self, widgets: &mut Self::Widgets, input: Self::Input, sender: FactorySender<Self>) {
-    match input {
-      Input::Update((summary, description, tooltip, color)) => {
-        self.summary = summary;
-        self.description = description;
-        self.tooltip = tooltip;
-
-        if let Some(color) = color {
-          widgets.calendar_color_box.inline_css(&format!("background-color: {};", color));
-        } else {
-          widgets.calendar_color_box.inline_css("");
-        }
-      }
-    }
-
-    self.update_view(widgets, sender);
+  fn init_model(event: Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
+    Self { event, now: chrono::Utc::now().naive_utc() }
   }
 
-  fn init_model(init: Self::Init, _index: &Self::Index, sender: FactorySender<Self>) -> Self {
-    sender.input(Input::Update(init));
-    Self::default()
+  fn update(&mut self, input: Self::Input, _sender: FactorySender<Self>) {
+    match input {
+      Input::TickNow(now) => self.now = now,
+    }
   }
 }

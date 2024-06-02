@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use chrono::{DateTime, Datelike as _, Days, Months, NaiveDate, Utc, Weekday};
+use chrono::{Datelike, Days, Months, NaiveDate, NaiveDateTime, Utc, Weekday};
 
 use crate::icalendar::EARLIEST_NAIVE_TIME;
 
@@ -12,17 +12,19 @@ pub const GRID_LENGTH: usize = GRID_ROWS * GRID_COLS;
 pub struct GridService {
   start: NaiveDate,
   end: NaiveDate,
-  current: NaiveDate,
+  selected: NaiveDate,
+  now: NaiveDateTime,
 }
 
 impl GridService {
-  pub fn new(current: NaiveDate) -> Self {
-    let start = Self::start_grid_date(current);
+  pub fn new(selected: NaiveDate) -> Self {
+    let start = Self::start_grid_date(selected);
     let end = Self::end_grid_date(start);
     Self {
       start,
       end,
-      current,
+      selected,
+      now: Utc::now().naive_utc(),
     }
   }
 
@@ -34,32 +36,36 @@ impl GridService {
     self.end
   }
 
-  pub const fn start_time(&self) -> DateTime<Utc> {
-    self.start.and_time(EARLIEST_NAIVE_TIME).and_utc()
+  pub const fn start_time(&self) -> NaiveDateTime {
+    self.start.and_time(EARLIEST_NAIVE_TIME).and_utc().naive_utc()
   }
 
-  pub fn end_time(&self) -> DateTime<Utc> {
-    (self.end + Days::new(1)).and_time(EARLIEST_NAIVE_TIME).and_utc()
+  pub fn end_time(&self) -> NaiveDateTime {
+    (self.end + Days::new(1)).and_time(EARLIEST_NAIVE_TIME).and_utc().naive_utc()
   }
 
   pub const fn start_end(&self) -> (NaiveDate, NaiveDate) {
     (self.start, self.end)
   }
 
-  pub const fn current(&self) -> NaiveDate {
-    self.current
+  pub const fn selected(&self) -> NaiveDate {
+    self.selected
   }
 
-  pub fn current_idx(&self) -> usize {
-    self.date_to_idx(self.current)
+  pub const fn now(&self) -> NaiveDateTime {
+    self.now
   }
 
-  pub fn current_row_idx(&self) -> usize {
-    self.row_idx(self.current)
+  pub fn selected_idx(&self) -> usize {
+    self.date_to_idx(self.selected)
   }
 
-  pub fn current_col_idx(&self) -> usize {
-    self.col_idx(self.current)
+  pub fn selected_row_idx(&self) -> usize {
+    self.row_idx(self.selected)
+  }
+
+  pub fn selected_col_idx(&self) -> usize {
+    self.col_idx(self.selected)
   }
 
   pub fn row_idx(&self, date: NaiveDate) -> usize {
@@ -83,7 +89,7 @@ impl GridService {
       .expect("Row is always correct length")
   }
 
-  pub fn intersecting_rows(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> RangeInclusive<usize> {
+  pub fn intersecting_rows(&self, start: NaiveDateTime, end: NaiveDateTime) -> RangeInclusive<usize> {
     let start_idx = self.date_time_to_idx(start);
     let end_idx = self.date_time_to_idx(end);
 
@@ -96,22 +102,22 @@ impl GridService {
   /// Set the date of the calendar
   /// Returns the index of the date in the month grid, if the month has changed
   pub fn set_date(&mut self, date: NaiveDate) -> Option<usize> {
-    if self.current.month() == date.month() {
-      self.current = date;
+    if self.selected.month() == date.month() {
+      self.selected = date;
 
       None
     } else {
-      self.current = date;
+      self.selected = date;
       self.start = Self::start_grid_date(date);
       self.end = Self::end_grid_date(self.start);
 
-      Some(self.current_idx())
+      Some(self.selected_idx())
     }
   }
 
   pub fn next_month(&mut self) -> NaiveDate
   {
-    let new_date = self.current + Months::new(1);
+    let new_date = self.selected + Months::new(1);
 
     self.set_date(new_date);
 
@@ -120,11 +126,22 @@ impl GridService {
 
   pub fn prev_month(&mut self) -> NaiveDate
   {
-    let new_date = self.current - Months::new(1);
+    let new_date = self.selected - Months::new(1);
 
     self.set_date(new_date);
 
     new_date
+  }
+
+  /// Returns if the day or month has changed
+  pub fn tick(&mut self) -> (bool, bool) {
+    let old = std::mem::replace(&mut self.now, Utc::now().naive_utc());
+
+    if self.now.date() > self.end || self.now.month() != self.selected.month() {
+      return (true, self.set_date(self.now.date()).is_some());
+    }
+    
+    (old.day() != self.now.day(), false)
   }
 
   fn idx_to_date(&self, idx: usize) -> NaiveDate {
@@ -135,7 +152,7 @@ impl GridService {
     ((date - self.start).num_days() as usize).clamp(0, GRID_LENGTH - 1)
   }
 
-  fn date_time_to_idx(&self, date: DateTime<Utc>) -> usize {
+  fn date_time_to_idx(&self, date: NaiveDateTime) -> usize {
     ((date - self.start_time()).num_days() as usize).clamp(0, GRID_LENGTH - 1)
   }
 

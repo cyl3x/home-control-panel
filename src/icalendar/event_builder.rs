@@ -56,8 +56,8 @@ impl EventBuilder {
       calendar_uid,
       summary,
       description: self.description,
-      start,
-      end,
+      start: start.naive_utc(),
+      end: end.naive_utc(),
       color: self.color,
       url,
     })

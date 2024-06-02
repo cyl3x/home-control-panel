@@ -22,8 +22,8 @@ impl CalendarService {
 
   pub fn fetch(client: CaldavClient, date: NaiveDate) -> Result<CalendarMap, caldav::Error> {
     let first_of_month = date.with_day0(0).unwrap();
-    let first = first_of_month.checked_sub_months(chrono::Months::new(6)).unwrap();
-    let last = first_of_month.checked_add_months(chrono::Months::new(6)).unwrap();
+    let first = first_of_month - chrono::Months::new(6);
+    let last = first_of_month + chrono::Months::new(6);
     let request = request_event(filter_time_range(first, last));
 
     client

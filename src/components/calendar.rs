@@ -1,5 +1,6 @@
-use chrono::NaiveDate;
+use chrono::{Days, NaiveDate};
 use gtk::prelude::*;
+use relm4::factory::FactoryHashMap;
 use relm4::prelude::*;
 use url::Url;
 
@@ -8,12 +9,15 @@ use crate::calendar::{caldav, CalendarService, GridService, GRID_ROWS};
 use crate::components::calendar_row;
 use crate::icalendar::CalendarMap;
 
+use super::event_list_day::{self, FactoryHashMapExt};
+
 
 #[derive(Debug)]
 pub struct Widget {
   grid_service: GridService,
   calendar_manager: CalendarService,
   event_rows: [Controller<calendar_row::Widget>; GRID_ROWS],
+  day_list: FactoryHashMap<NaiveDate, event_list_day::Widget>,
 }
 
 #[derive(Debug, Clone)]
@@ -21,6 +25,7 @@ pub enum Input {
   NextMonth,
   PreviousMonth,
   DayClicked(NaiveDate),
+  TickNow,
   Sync,
 }
 
@@ -33,6 +38,7 @@ pub enum Output {
 #[derive(Debug)]
 pub enum Command {
   RebuildGrid,
+  RefreshEventList,
   Sync(CalendarMap),
   CalDavError(caldav::Error),
 }
@@ -82,7 +88,7 @@ impl Component for Widget {
         },
 
         #[template_child] month_label {
-          #[watch] set_text: &model.grid_service.current().format_localized("%B %Y", chrono::Locale::de_DE).to_string(),
+          #[watch] set_text: &model.grid_service.selected().format_localized("%B %Y", chrono::Locale::de_DE).to_string(),
         },
 
         #[template_child] prev_button {
@@ -94,10 +100,7 @@ impl Component for Widget {
         },
       },
 
-      #[template]
-      #[wrap(Some)]
-      #[name(event_list)]
-      set_end_child = &CalendarEventListWidget {},
+      set_end_child: Some(model.day_list.widget()),
     },
   }
 
@@ -108,6 +111,19 @@ impl Component for Widget {
     _root: &Self::Root,
   ) {
     match input {
+      Input::TickNow => {
+        let (day, month) = self.grid_service.tick();
+
+        if month {
+          sender.command_sender().send(Command::RebuildGrid).unwrap();
+        };
+        
+        if day {
+          sender.command_sender().send(Command::RefreshEventList).unwrap();
+        } else {
+          self.day_list.broadcast(event_list_day::Input::TickNow(self.grid_service.now()));
+        }
+      }
       Input::NextMonth => {
         self.grid_service.next_month();
         sender.command_sender().send(Command::RebuildGrid).unwrap();
@@ -117,11 +133,11 @@ impl Component for Widget {
         sender.command_sender().send(Command::RebuildGrid).unwrap();
       }
       Input::DayClicked(date) => {
-        let prev_date = self.grid_service.current();
-        let prev_idx = self.grid_service.current_idx();
+        let prev_date = self.grid_service.selected();
+        let prev_idx = self.grid_service.selected_idx();
 
         let clicked_row_idx = self.grid_service.row_idx(date);
-        let prev_row_idx = self.grid_service.current_row_idx();
+        let prev_row_idx = self.grid_service.selected_row_idx();
 
         if self.grid_service.set_date(date).is_some() {
           sender.command_sender().send(Command::RebuildGrid).unwrap();
@@ -129,18 +145,18 @@ impl Component for Widget {
           self.event_rows[prev_row_idx].emit(calendar_row::Input::SelectDayLabel(
             prev_idx,
             prev_date,
-            self.grid_service.current(),
+            self.grid_service.selected(),
           ));
           self.event_rows[clicked_row_idx].emit(calendar_row::Input::SelectDayLabel(
-            self.grid_service.current_idx(),
+            self.grid_service.selected_idx(),
             date,
-            self.grid_service.current(),
+            self.grid_service.selected(),
           ));
         }
       }
       Input::Sync => {
         let client = self.calendar_manager.client().clone();
-        let date = self.grid_service.current();
+        let date = self.grid_service.selected();
 
         sender.spawn_oneshot_command(move || {
           CalendarService::fetch(client, date).map_or_else(
@@ -161,19 +177,37 @@ impl Component for Widget {
     match command {
       Command::CalDavError(error) => sender.output(Output::CalDavError(error)).unwrap(),
       Command::Sync(new_calendar_map) => {
+        let day_list_now = self.grid_service.now().date();
+        let day_list_later = day_list_now + Days::new(14);
+
         for (_, _, event_change) in self.calendar_manager.apply_map(new_calendar_map) {
-          if !event_change.is_between_dates(self.grid_service.start(), self.grid_service.end()) {
-            continue;
+          // Update grid
+          if event_change.is_between_dates(self.grid_service.start(), self.grid_service.end()) {
+            let range = self.grid_service.intersecting_rows(event_change.start, event_change.end);
+            for row in &self.event_rows[range] {
+              row.emit(calendar_row::Input::from(event_change.clone()));
+            }
           }
 
-          let range = self.grid_service.intersecting_rows(event_change.start, event_change.end);
-          for row in &self.event_rows[range] {
-            row.emit(calendar_row::Input::from(event_change.clone()));
+          // Update event list
+          if event_change.is_between_dates(day_list_now, day_list_later) {
+            let start_date = event_change.start_date();
+            if self.day_list.get(&start_date).is_some() {
+              let is_empty = self.day_list.get_mut(&start_date).unwrap().apply(&event_change); 
+
+              if is_empty {
+                self.day_list.remove(&start_date);
+              }
+            } else if !event_change.is_removed() {
+              self.day_list.insert(start_date, (self.grid_service.now(), event_change.into_inner()));
+            }
           }
         }
+
+        self.day_list.resort();
       }
       Command::RebuildGrid => {
-        let date = self.grid_service.current();
+        let date = self.grid_service.selected();
 
         for row_idx in 0..GRID_ROWS {
           self.event_rows[row_idx].emit(calendar_row::Input::UpdateDayLabels(date, self.grid_service.row(row_idx)));
@@ -194,6 +228,29 @@ impl Component for Widget {
           }
         }
       }
+      Command::RefreshEventList => {
+        let now = self.grid_service.now().date();
+        let later = now + Days::new(14);
+
+        for event in self.calendar_manager.events() {
+          if event.is_between_dates(now, later) {
+            self.day_list.insert(event.start_date(), (self.grid_service.now(), event.clone()));
+
+            continue;
+          }
+
+          if self.day_list.get(&event.start_date()).is_some() {
+            let is_empty = self.day_list.get_mut(&event.start_date()).unwrap().remove(&event.uid); 
+
+            if is_empty {
+              self.day_list.remove(&event.start_date());
+            }
+          }
+        }
+        
+        self.day_list.tick(self.grid_service.now());
+        self.day_list.resort();
+      }
     }
   }
 
@@ -202,7 +259,7 @@ impl Component for Widget {
     root: Self::Root,
     sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
-    let grid_service = GridService::new(chrono::Utc::now().naive_utc().date());
+    let grid_service = GridService::new(chrono::Utc::now().date_naive());
 
     let event_rows = core::array::from_fn(|row_idx| {
       calendar_row::Widget::builder()
@@ -216,12 +273,15 @@ impl Component for Widget {
       grid_service,
       calendar_manager: CalendarService::new(credendials, url),
       event_rows,
+      day_list: FactoryHashMap::builder()
+        .launch(event_list_day::create_parent())
+        .detach(),
     };
 
     let widgets = view_output!();
 
     for (row_idx, event_row) in model.event_rows.iter().enumerate() {
-      event_row.emit(calendar_row::Input::UpdateDayLabels(model.grid_service.current(), model.grid_service.row(row_idx)));
+      event_row.emit(calendar_row::Input::UpdateDayLabels(model.grid_service.selected(), model.grid_service.row(row_idx)));
       widgets.calendar_grid.attach(event_row.widget(), 0, (row_idx * 2 + 1) as i32, 7, 1);
     }
 
@@ -233,26 +293,14 @@ impl Component for Widget {
 
       gtk::glib::ControlFlow::Continue
     }));
+
+    gtk::glib::timeout_add_seconds(60, gtk::glib::clone!(@strong sender => move || {
+      sender.input(Input::TickNow);
+
+      gtk::glib::ControlFlow::Continue
+    }));
     
     ComponentParts { model, widgets }
-  }
-}
-
-#[relm4::widget_template(pub)]
-impl WidgetTemplate for CalendarEventListWidget {
-  view! {
-    #[name(root)]
-    gtk::Box {
-      set_orientation: gtk::Orientation::Vertical,
-      set_halign: gtk::Align::Fill,
-      set_valign: gtk::Align::Start,
-      set_hexpand: true,
-      set_spacing: 16,
-      set_margin_top: 16,
-      set_margin_bottom: 16,
-      set_margin_start: 16,
-      set_margin_end: 16,
-    }
   }
 }
 

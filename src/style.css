@@ -2,25 +2,9 @@
   filter: brightness(50%);
 }
 
-/* .calendar .day-today {
-    background-color: @theme_unfocused_bg_color;
-    color: @theme_unfocused_fg_color;
-} */
-
 .calendar .day-selected {
   background-color: @theme_selected_bg_color;
   color: @theme_selected_fg_color;
-}
-
-.calendar-event-list-entry {
-  background-color: burlywood;
-}
-
-.calendar-event {
-  color: black;
-  background-color: burlywood;
-  border-radius: 4px;
-  padding: 4px;
 }
 
 .calendar-day {

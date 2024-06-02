@@ -28,6 +28,20 @@ impl Deref for CalendarMapChange {
   }
 }
 
+impl CalendarMapChange {
+  pub fn into_inner(self) -> Event {
+    match self {
+      Self::Added(t) => t,
+      Self::Changed(t) => t,
+      Self::Removed(t) => t,
+    }
+  }
+
+  pub const fn is_removed(&self) -> bool {
+    matches!(self, Self::Removed(_))
+  }
+}
+
 pub trait CalendarMapExt {
   fn flat_iter(&self) -> impl Iterator<Item = CalendarFlatRef>;
   fn flat_events(&self) -> impl Iterator<Item = &Event>;
