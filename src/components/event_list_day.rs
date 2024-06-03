@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use chrono::{NaiveDate, NaiveDateTime};
 use gtk::{pango, prelude::*, ListBoxRow};
 use relm4::factory::FactoryHashMap;
@@ -27,7 +25,7 @@ pub enum Output {}
 
 #[relm4::factory(pub)]
 impl FactoryComponent for Widget {
-  type Init = (NaiveDateTime, Event);
+  type Init = Event;
   type Input = Input;
   type Output = Output;
   type CommandOutput = ();
@@ -61,15 +59,13 @@ impl FactoryComponent for Widget {
     },
   }
 
-  fn init_model((now, event): Self::Init, index: &Self::Index, sender: FactorySender<Self>) -> Self {
+  fn init_model(event: Self::Init, index: &Self::Index, _sender: FactorySender<Self>) -> Self {
     let list_box = gtk::ListBox::new();
     list_box.set_selection_mode(gtk::SelectionMode::None);
     list_box.set_sort_func(sort_func);
 
     let mut day_entries = FactoryHashMap::builder().launch(list_box).detach();
     day_entries.insert(event.uid, event);
-
-    sender.input(Input::TickNow(now));
     
     Self {
       date: *index,

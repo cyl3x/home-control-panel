@@ -6,7 +6,7 @@ use relm4::prelude::*;
 use uuid::Uuid;
 
 use crate::calendar::GRID_COLS;
-use crate::icalendar::{CalendarMapChange, Event};
+use crate::icalendar::Event;
 
 use super::calendar_event;
 
@@ -34,23 +34,7 @@ pub struct Widget {
 
 #[derive(Debug, Clone)]
 pub enum Input {
-  Add(Event),
-  Remove(Uuid),
-  Update(Event),
-  Reset,
   Clicked(f64),
-  UpdateDayLabels(NaiveDate, [NaiveDate; GRID_COLS]),
-  SelectDayLabel(usize, NaiveDate, NaiveDate),
-}
-
-impl From<CalendarMapChange> for Input {
-  fn from(event_change: CalendarMapChange) -> Self {
-    match event_change {
-      CalendarMapChange::Added(event) => Self::Add(event),
-      CalendarMapChange::Changed(event) => Self::Update(event),
-      CalendarMapChange::Removed(event) => Self::Remove(event.uid),
-    }
-  }
 }
 
 #[derive(Debug, Clone)]
@@ -82,61 +66,14 @@ impl Component for Widget {
     widgets: &mut Self::Widgets,
     input: Self::Input,
     sender: ComponentSender<Self>,
-    root: &Self::Root,
+    _root: &Self::Root,
   ) {
     match input {
-      Input::Add(event) => {
-        if !event.is_between_dates(self.start, self.end) {
-          self.remove(&event.uid);
-
-          return;
-        }
-
-        let width = event.days_between_dates(self.start, self.end).max(1) as usize;
-        let col = (event.start_date().clamp(self.start, self.end) - self.start).num_days() as usize;
-        
-        let (label_uid, grid_pos) = self.add_or_get(event, col, width);
-        let label = self.event_labels.get(&label_uid).unwrap();
-
-        // Remove the label from the grid before reattaching it
-        label.widget().unparent();
-
-        root.attach(label.widget(), grid_pos.col as i32, (grid_pos.row + 1) as i32, grid_pos.width as i32, 1);
-
-        // println!(
-        //   "[ROW {}] Attaching '{}' to (r: {}, c: {}) over {} units",
-        //   self.idx_start / GRID_COLS,
-        //   event.get_summary().unwrap(),
-        //   self.next_label_idx,
-        //   col,
-        //   width,
-        // );
-      },
-      Input::Remove(event_uid) => {
-        self.remove(&event_uid);
-      },
-      Input::Update(event) => {
-        sender.input(Input::Add(event));
-      },
-      Input::Reset => {
-        self.reset();
-      },
       Input::Clicked(x) => {
         // Columns are homogeneous, so we can just divide by the width of the first label
         let col = ((x / self.day_labels[0].width() as f64) as usize).clamp(0, GRID_COLS - 1);
 
         sender.output(Output::Clicked(self.start + chrono::Duration::days(col as i64))).unwrap();
-      },
-      Input::UpdateDayLabels(selected_date, dates) => {
-        self.start = dates[0];
-        self.end = dates[GRID_COLS - 1];
-
-        for (idx, label) in self.day_labels.iter().enumerate() {
-          refresh_day_label(label, dates[idx], selected_date);
-        }
-      },
-      Input::SelectDayLabel(idx, date, selected_date) => {
-        refresh_day_label(&self.day_labels[idx % GRID_COLS], date, selected_date);
       },
     }
 
@@ -180,6 +117,34 @@ impl Component for Widget {
 }
 
 impl Widget {
+  pub fn add_event(&mut self, root: &<Self as Component>::Root, event: &Event) {
+    if !event.is_between_dates(self.start, self.end) {
+      self.remove_event(&event.uid);
+
+      return;
+    }
+
+    let width = event.days_between_dates(self.start, self.end).max(1) as usize;
+    let col = (event.start_date().clamp(self.start, self.end) - self.start).num_days() as usize;
+    
+    let (label_uid, grid_pos) = self.add_or_get(event.clone(), col, width);
+    let label = self.event_labels.get(&label_uid).unwrap();
+
+    // Remove the label from the grid before reattaching it
+    label.widget().unparent();
+
+    root.attach(label.widget(), grid_pos.col as i32, (grid_pos.row + 1) as i32, grid_pos.width as i32, 1);
+
+    // println!(
+    //   "[ROW {}] Attaching '{}' to (r: {}, c: {}) over {} units",
+    //   self.idx_start / GRID_COLS,
+    //   event.get_summary().unwrap(),
+    //   self.next_label_idx,
+    //   col,
+    //   width,
+    // );
+  }
+
   fn add_or_get(&mut self, event: Event, col: usize, width: usize) -> (Uuid, GridPos) {
     let uid = event.uid;
 
@@ -196,7 +161,7 @@ impl Widget {
     (uid, grid_pos)
   }
 
-  fn remove(&mut self, uid: &Uuid) {
+  pub fn remove_event(&mut self, uid: &Uuid) {
     let Some(label) = self.event_labels.remove(uid) else { return };
 
     let grid_pos = label.model().grid_pos;
@@ -208,7 +173,7 @@ impl Widget {
     drop(label);
   }
 
-  fn reset(&mut self) {
+  pub fn reset(&mut self) {
     self.space_manager.reset();
     let event_labels = std::mem::take(&mut self.event_labels);
     for (_, label) in event_labels.into_iter() {
@@ -216,6 +181,19 @@ impl Widget {
 
       drop(label);
     }
+  }
+
+  pub fn update_day_labels(&mut self, selected_date: NaiveDate, dates: [NaiveDate; GRID_COLS]) {
+    self.start = dates[0];
+    self.end = dates[GRID_COLS - 1];
+
+    for (idx, label) in self.day_labels.iter().enumerate() {
+      refresh_day_label(label, dates[idx], selected_date);
+    }
+  }
+
+  pub fn select_day_label(&self, idx: usize, date: NaiveDate, selected_date: NaiveDate) {
+    refresh_day_label(&self.day_labels[idx % GRID_COLS], date, selected_date);
   }
 }
 

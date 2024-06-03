@@ -24,4 +24,8 @@ impl Calendar {
 
     Some(Self { uid, url_str: href, name, color })
   }
+
+  pub fn color(&self) -> &str {
+    self.color.as_deref().unwrap_or("#deb887")
+  }
 }

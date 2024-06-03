@@ -45,6 +45,7 @@ impl CalendarMapChange {
 pub trait CalendarMapExt {
   fn flat_iter(&self) -> impl Iterator<Item = CalendarFlatRef>;
   fn flat_events(&self) -> impl Iterator<Item = &Event>;
+  fn flat_calendars(&self) -> impl Iterator<Item = &Calendar>;
   fn flat_into_iter(self) -> impl Iterator<Item = (Uuid, Uuid, Event)>;
   fn flat_contains_key(&self, cal_uid: &Uuid, event_uid: &Uuid) -> bool;
   fn flat_get(&self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<&Event>;
@@ -73,6 +74,10 @@ impl CalendarMapExt for CalendarMap {
       .flat_map(|(_, (_, events))| {
         events.iter().map(move |(_, event)| event)
       })
+  }
+
+  fn flat_calendars(&self) -> impl Iterator<Item = &Calendar> {
+    self.iter().map(|(_, (calendar, _))| calendar)
   }
 
   fn flat_into_iter(self) -> impl Iterator<Item = (Uuid, Uuid, Event)> {

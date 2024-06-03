@@ -2,7 +2,7 @@ use chrono::{Datelike as _, NaiveDate};
 use url::Url;
 use uuid::Uuid;
 
-use crate::icalendar::{CalendarMap, CalendarMapChange, CalendarMapExt, Event};
+use crate::icalendar::{Calendar, CalendarMap, CalendarMapChange, CalendarMapExt, Event};
 
 use super::{caldav, filter_time_range, request_event, CaldavClient, Credentials, GRID_LENGTH};
 
@@ -18,6 +18,10 @@ impl CalendarService {
       client: CaldavClient::new(credentials, url),
       calendar: CalendarMap::new(),
     }
+  }
+
+  pub const fn calendar_map(&self) -> &CalendarMap {
+    &self.calendar
   }
 
   pub fn fetch(client: CaldavClient, date: NaiveDate) -> Result<CalendarMap, caldav::Error> {
@@ -48,6 +52,10 @@ impl CalendarService {
 
   pub fn events(&self) -> impl Iterator<Item = &Event> {
     self.calendar.flat_events()
+  }
+
+  pub fn calendars(&self) -> impl Iterator<Item = &Calendar> {
+    self.calendar.flat_calendars()
   }
 
   /// Generates a grid of events for the given date.
