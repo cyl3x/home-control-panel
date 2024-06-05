@@ -28,6 +28,7 @@ pub enum Input {
   NextMonth,
   PreviousMonth,
   DayClicked(NaiveDate),
+  SelectionClicked(Uuid, bool),
   TickNow,
   Sync,
 }
@@ -55,6 +56,7 @@ impl Component for Widget {
 
   view! {
     gtk::Box {
+      inline_css: "min-width: 400px;",
       set_orientation: gtk::Orientation::Vertical,
       set_hexpand: true,
       set_vexpand: true,
@@ -107,15 +109,17 @@ impl Component for Widget {
           },
         },
 
-        set_end_child: Some(model.day_list.widget()),
+        #[wrap(Some)]
+        set_end_child = &gtk::ScrolledWindow {
+          set_hscrollbar_policy: gtk::PolicyType::Never,
+          set_vscrollbar_policy: gtk::PolicyType::Automatic,
+          set_child: Some(model.day_list.widget()),
+        },
       },
 
       gtk::ScrolledWindow {
-        set_hexpand: true,
         set_hscrollbar_policy: gtk::PolicyType::Automatic,
         set_vscrollbar_policy: gtk::PolicyType::Never,
-        set_min_content_height: 10,
-        set_max_content_width: 10,
         set_child: Some(model.calendar_selection.widget()),
       },
     },
@@ -182,6 +186,11 @@ impl Component for Widget {
           )
         });
       }
+      Input::SelectionClicked(uid, is_active) => {
+        self.calendar_manager.toggle_calendar_filter(uid, is_active);
+        sender.command_sender().send(Command::RebuildGrid).unwrap();
+        sender.command_sender().send(Command::RefreshEventList).unwrap();
+      }
     }
   }
 
@@ -215,26 +224,31 @@ impl Component for Widget {
         self.day_list.resort();
       }
       Command::RebuildGrid => {
+        log::debug!("Calendar: Rebuilding grid");
         Self::sync_grid_day_labels(&self.event_rows, &self.grid_service);
         Self::reset_event_rows(&self.event_rows);
 
         for event in self.calendar_manager.events() {
-          if event.is_between_dates(self.grid_service.start(), self.grid_service.end()) {
+          if self.calendar_manager.is_filtered(&event.calendar_uid) {
+            Self::remove_event(&self.event_rows, event);
+          } else if event.is_between_dates(self.grid_service.start(), self.grid_service.end()) {
             Self::add_event(&self.event_rows, event);
           }
         }
       }
       Command::RefreshEventList => {
+        log::debug!("Calendar: Refreshing event list");
         let now = self.grid_service.now().date();
         let later = now + Days::new(14);
 
         for event in self.calendar_manager.events() {
-          if event.is_between_dates(now, later) {
+          if !self.calendar_manager.is_filtered(&event.calendar_uid) && event.is_between_dates(now, later) {
             self.day_list.insert(event.start_date(), event.clone());
 
             continue;
           }
 
+          // Remove event from list, and if list is empty remove the day
           if self.day_list.get(&event.start_date()).is_some() {
             let is_empty = self.day_list.get_mut(&event.start_date()).unwrap().remove(&event.uid); 
 
@@ -274,7 +288,9 @@ impl Component for Widget {
         .detach(),
       calendar_selection: FactoryHashMap::builder()
         .launch(calendar_selection::create_parent())
-        .detach(),
+        .forward(sender.input_sender(), |output| match output {
+          calendar_selection::Output::Clicked(uid, is_active) => Input::SelectionClicked(uid, is_active),
+        }),
     };
 
     let widgets = view_output!();
@@ -371,9 +387,6 @@ impl WidgetTemplate for CalendarGridWidget {
     #[name(root)]
     gtk::Box {
       set_orientation: gtk::Orientation::Vertical,
-      set_halign: gtk::Align::Fill,
-      set_valign: gtk::Align::Start,
-      set_hexpand: true,
       set_spacing: 16,
       set_margin_top: 16,
       set_margin_bottom: 16,
@@ -381,9 +394,6 @@ impl WidgetTemplate for CalendarGridWidget {
       set_margin_end: 16,
 
       gtk::Box {
-        set_hexpand: true,
-        set_halign: gtk::Align::Fill,
-
         #[name(prev_button)]
         gtk::Button {
           set_icon_name: "pan-start-symbolic",
@@ -408,8 +418,9 @@ impl WidgetTemplate for CalendarGridWidget {
       },
 
       #[name(grid_stack)]
-      gtk::Stack {
-
+      gtk::ScrolledWindow {
+        set_hscrollbar_policy: gtk::PolicyType::Never,
+        set_vscrollbar_policy: gtk::PolicyType::Automatic,
       }
     }
   }

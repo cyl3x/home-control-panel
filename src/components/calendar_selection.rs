@@ -1,4 +1,4 @@
-use gtk::{pango, prelude::*};
+use gtk::prelude::*;
 use relm4::prelude::*;
 use uuid::Uuid;
 
@@ -13,7 +13,6 @@ pub struct Widget {
 #[derive(Debug, Clone)]
 pub enum Input {
   Clicked,
-  Update(Calendar)
 }
 
 #[derive(Debug, Clone)]
@@ -34,13 +33,14 @@ impl FactoryComponent for Widget {
     gtk::Label {
       inline_css: "padding: 8px 16px;",
       #[watch] inline_css: &format!("border-top: 4px solid {};", self.calendar.color()),
+      #[watch] inline_css: if self.is_active { "filter: none" } else { "filter: brightness(50%)" },
       #[watch] set_text: &self.calendar.name,
       set_hexpand: true,
       set_halign: gtk::Align::Fill,
       set_can_focus: false,
 
       add_controller = gtk::GestureClick {
-        connect_pressed[sender] => move |controller, _, _, _| {
+        connect_released[sender] => move |controller, _, _, _| {
           if controller.current_button() == gtk::gdk::BUTTON_PRIMARY {
             sender.input(Input::Clicked);
           }
@@ -54,9 +54,6 @@ impl FactoryComponent for Widget {
       Input::Clicked => {
         self.is_active = !self.is_active;
         sender.output(Output::Clicked(self.calendar.uid, self.is_active)).unwrap()
-      },
-      Input::Update(calendar) => {
-        self.calendar = calendar;
       }
     }
   }
@@ -67,11 +64,9 @@ impl FactoryComponent for Widget {
 }
 
 pub fn create_parent() -> gtk::Box {
-  let parent = gtk::Box::builder()
+  gtk::Box::builder()
     .orientation(gtk::Orientation::Horizontal)
     .hexpand(true)
     .margin_bottom(4)
-    .build();
-
-  parent
+    .build()
 }

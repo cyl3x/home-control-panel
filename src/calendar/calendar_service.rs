@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use chrono::{Datelike as _, NaiveDate};
 use url::Url;
 use uuid::Uuid;
@@ -10,6 +12,7 @@ use super::{caldav, filter_time_range, request_event, CaldavClient, Credentials,
 pub struct CalendarService {
   client: CaldavClient,
   calendar: CalendarMap,
+  pub filtered_calendars: BTreeSet<Uuid>,
 }
 
 impl CalendarService {
@@ -17,6 +20,7 @@ impl CalendarService {
     Self {
       client: CaldavClient::new(credentials, url),
       calendar: CalendarMap::new(),
+      filtered_calendars: BTreeSet::new(),
     }
   }
 
@@ -44,6 +48,13 @@ impl CalendarService {
 
   pub fn apply_map(&mut self, map: CalendarMap) -> impl Iterator<Item = (Uuid, Uuid, CalendarMapChange)> + '_ {
     self.calendar.exchange(map)
+      .map(|(cal_uid, event_uid, event_change)| {
+        if self.filtered_calendars.contains(&cal_uid) {
+          (cal_uid, event_uid, CalendarMapChange::Removed(event_change.into_inner()))
+        } else {
+          (cal_uid, event_uid, event_change)
+        }
+      })
   }
 
   pub const fn client(&self) -> &CaldavClient {
@@ -56,6 +67,18 @@ impl CalendarService {
 
   pub fn calendars(&self) -> impl Iterator<Item = &Calendar> {
     self.calendar.flat_calendars()
+  }
+
+  pub fn is_filtered(&self, uid: &Uuid) -> bool {
+    self.filtered_calendars.contains(uid)
+  }
+
+  pub fn toggle_calendar_filter(&mut self, uid: Uuid, active: bool) {
+    if active {
+      self.filtered_calendars.remove(&uid);
+    } else {
+      self.filtered_calendars.insert(uid);
+    }
   }
 
   /// Generates a grid of events for the given date.

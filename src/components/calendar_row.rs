@@ -52,6 +52,7 @@ impl Component for Widget {
   view! {
     #[root]
     gtk::Grid {
+      inline_css: "min-height: 100px",
       set_halign: gtk::Align::Fill,
       set_valign: gtk::Align::Fill,
       set_hexpand: true,
