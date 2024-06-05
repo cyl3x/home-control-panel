@@ -52,13 +52,19 @@ impl Component for Widget {
   view! {
     #[root]
     gtk::Grid {
-      inline_css: "min-height: 100px",
-      set_halign: gtk::Align::Fill,
-      set_valign: gtk::Align::Fill,
+      inline_css: "min-height: 100px; padding: 4px 0px;",
       set_hexpand: true,
       set_vexpand: true,
       set_column_homogeneous: true,
       set_row_spacing: 4,
+
+      add_controller = gtk::GestureClick {
+        connect_pressed[sender] => move |controller, _, x, _| {
+          if controller.current_button() == gtk::gdk::BUTTON_PRIMARY {
+            sender.input(Input::Clicked(x));
+          }
+        },
+      },
     }
   }
 
@@ -86,13 +92,12 @@ impl Component for Widget {
     root: Self::Root,
     sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
-    let day_labels = [(); GRID_COLS].map(|_| {
-      gtk::Label::builder().css_classes(["calendar-day"]).hexpand(true).build()
+    let day_labels = std::array::from_fn(|col_idx| {
+      let label = gtk::Label::builder().css_classes(["calendar-day"]).hexpand(true).build();
+      root.attach(&label, col_idx as i32, 0, 1, 1);
+
+      label
     });
-  
-    for (col_idx, label) in day_labels.iter().enumerate() {
-      root.attach(label, col_idx as i32, 0, 1, 1);
-    }
 
     let model = Self {
       day_labels,
@@ -103,15 +108,6 @@ impl Component for Widget {
     };
 
     let widgets = view_output!();
-
-    let controller = gtk::GestureClick::default();
-    controller.connect_pressed(gtk::glib::clone!(@strong sender => move |controller, _, x, _| {
-      if controller.current_button() == gtk::gdk::BUTTON_PRIMARY {
-        sender.input(Input::Clicked(x));
-      }
-    }));
-
-    root.add_controller(controller);
 
     ComponentParts { model, widgets }
   }

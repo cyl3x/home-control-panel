@@ -28,3 +28,13 @@
 .notification-overlay-box .success {
   border-color: @success_bg_color;
 }
+
+.calendar-grid > grid {
+  border: 1px solid @unfocused_borders;
+  border-top-width: 0;
+}
+
+.calendar-grid > grid:first-child {
+  margin-top: 4px;
+  border-top-width: 1px;
+}

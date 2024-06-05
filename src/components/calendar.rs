@@ -78,13 +78,10 @@ impl Component for Widget {
             gtk::Grid {
               add_css_class: "calendar-grid",
 
-              set_halign: gtk::Align::Fill,
               set_valign: gtk::Align::Start,
               set_hexpand: true,
               set_vexpand: true,
-              // set_row_homogeneous: true,
               set_column_homogeneous: true,
-              set_row_spacing: 4,
 
               attach[0, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Mo", },
               attach[1, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Di", },

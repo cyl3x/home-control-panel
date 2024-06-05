@@ -5,7 +5,7 @@ use relm4::{Component, ComponentController, ComponentParts, ComponentSender};
 use crate::calendar::caldav::Credentials;
 use crate::calendar::caldav;
 use crate::components::calendar;
-use crate::components::video::VideoComponent;
+use crate::components::video;
 use crate::config::Config;
 
 pub struct App<> {
@@ -117,7 +117,7 @@ impl Component for App {
 
     if let Some(videos) = &model.config.videos {
       for url in videos {
-        let rtsp = VideoComponent::builder().launch(url.clone()).detach();
+        let rtsp = video::Widget::builder().launch(url.clone()).detach();
         widgets.cams_box.append(rtsp.widget());
       }
     }

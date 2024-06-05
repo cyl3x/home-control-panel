@@ -1,4 +1,4 @@
-use chrono::{Days, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{Datelike, Days, NaiveDate, NaiveDateTime, NaiveTime};
 use url::Url;
 use uuid::Uuid;
 
@@ -34,7 +34,12 @@ impl Event {
   }
 
   pub fn tooltip(&self) -> String {
-    format!("{}\n{}\n{}", self.summary, self.start, self.end)
+    format!(
+      "{}\n{} - {}",
+      self.summary,
+      format_date(&self.start),
+      format_date(&self.end),
+    )
   }
 
   pub const fn start_date(&self) -> NaiveDate {
@@ -90,12 +95,12 @@ impl Event {
       format!("vor {} Tag", days.abs())
     } else if days == 1 {
       format!("in {} Tag", days)
-    } else if minutes < 0 {
-      format!("vor {} Minuten", minutes)
     } else if days < 0 {
-      format!("vor {} Tagen", days)
+      format!("vor {} Tagen", days.abs())
     } else if hours < 0 {
-      format!("vor {} Stunden", hours)
+      format!("vor {} Stunden", hours.abs())
+    } else if minutes < 0 {
+      format!("vor {} Minuten", minutes.abs())
     } else if days > 0 {
       format!("in {} Tagen", days)
     } else if hours > 0 {
@@ -136,4 +141,19 @@ fn fg_from_bg_w3c<'a>(bg_color: &str) -> Option<&'a str> {
   } else {
     Some("#ffffff")
   }
+}
+
+fn format_date(date: &NaiveDateTime) -> String {
+  let now = chrono::Local::now();
+  let date = date
+    .and_local_timezone(chrono::Local::now().timezone())
+    .unwrap();
+
+  let formatted = if date.year() == now.year() {
+    date.format_localized("%m. %b %H:%M", chrono::Locale::de_DE)
+  } else {
+    date.format_localized("%m. %b %Y %H:%M", chrono::Locale::de_DE)
+  };
+  
+  formatted.to_string()
 }
