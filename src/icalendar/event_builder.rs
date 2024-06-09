@@ -37,6 +37,10 @@ pub struct EventBuilder {
 }
 
 impl EventBuilder {
+  /// Builds the event.
+  /// 
+  /// # Errors
+  /// Returns an error if the required fields are missing or invalid.
   pub fn build(self) -> Result<Event, EventBuilderError> {
     let etag = self.etag.ok_or(EventBuilderError::NoEtag)?;
     let uid_str = self.uid.ok_or(EventBuilderError::NoUid)?;
@@ -127,11 +131,11 @@ impl EventBuilder {
 impl From<&icalendar::Event> for EventBuilder {
   fn from(event: &icalendar::Event) -> Self {
     Self::default()
-      .set_summary_opt(event.get_summary().map(|s| s.to_owned()))
-      .set_description_opt(event.get_description().map(|s| s.to_owned()))
+      .set_summary_opt(event.get_summary().map(std::borrow::ToOwned::to_owned))
+      .set_description_opt(event.get_description().map(std::borrow::ToOwned::to_owned))
       .set_start_opt(event.get_start())
       .set_end_opt(event.get_end())
-      .set_uid_opt(event.get_uid().map(|s| s.to_owned()))
+      .set_uid_opt(event.get_uid().map(std::borrow::ToOwned::to_owned))
   }
 }
 

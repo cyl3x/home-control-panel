@@ -60,7 +60,7 @@ impl Component for Widget {
     root: Self::Root,
     _sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
-    let model = Self { event, grid_pos };
+    let model = Self { grid_pos, event };
 
     let widgets = view_output!();
 

@@ -294,7 +294,7 @@ impl Component for Widget {
 
     for (row_idx, event_row) in model.event_rows.iter().enumerate() {
       event_row.state().get_mut().model.update_day_labels(model.grid_service.selected(), model.grid_service.row(row_idx));
-      widgets.calendar_grid.attach(event_row.widget(), 0, (row_idx * 2 + 1) as i32, 7, 1);
+      widgets.calendar_grid.attach(event_row.widget(), 0, row_idx as i32 * 2 + 1, 7, 1);
     }
 
     sender.input(Input::Sync);
@@ -347,7 +347,7 @@ impl Widget {
   }
 
   fn sync_calendar_selection(calendar_selection: &mut FactoryHashMap<Uuid, calendar_selection::Widget>, calendar_manager: &CalendarService) {
-    let old_uids = calendar_selection.keys().cloned().collect::<Vec<_>>();
+    let old_uids = calendar_selection.keys().copied().collect::<Vec<_>>();
     for uid in old_uids {
       if !calendar_manager.calendar_map().contains_key(&uid) {
         calendar_selection.remove(&uid);

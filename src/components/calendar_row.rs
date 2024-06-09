@@ -78,7 +78,7 @@ impl Component for Widget {
     match input {
       Input::Clicked(x) => {
         // Columns are homogeneous, so we can just divide by the width of the first label
-        let col = ((x / self.day_labels[0].width() as f64) as usize).clamp(0, GRID_COLS - 1);
+        let col = ((x / f64::from(self.day_labels[0].width())) as usize).clamp(0, GRID_COLS - 1);
 
         sender.output(Output::Clicked(self.start + chrono::Duration::days(col as i64))).unwrap();
       },
@@ -173,7 +173,7 @@ impl Widget {
   pub fn reset(&mut self) {
     self.space_manager.reset();
     let event_labels = std::mem::take(&mut self.event_labels);
-    for (_, label) in event_labels.into_iter() {
+    for (_, label) in event_labels {
       label.widget().unparent();
 
       drop(label);
@@ -197,10 +197,10 @@ impl Widget {
 fn refresh_day_label(widget: &gtk::Label, date: NaiveDate, selected_date: NaiveDate) {
   widget.set_text(&date.day().to_string());
 
-  if date.month() != selected_date.month() {
-    widget.add_css_class("day-other-month");
-  } else {
+  if date.month() == selected_date.month() {
     widget.remove_css_class("day-other-month");
+  } else {
+    widget.add_css_class("day-other-month");
   }
 
   // if self.date ==  {
@@ -229,7 +229,7 @@ impl SpaceManager {
 
     if self.0.len() > 1 {
       let last_row = self.0.len() - 1;
-      if self.0[last_row].iter().all(|u| u.is_none()) {
+      if self.0[last_row].iter().all(std::option::Option::is_none) {
         self.0.pop();
       }
     }

@@ -1,5 +1,12 @@
 [package]
 name = "home-dashboard"
+description = "A dashboard for my home"
+license = "GPL-3.0"
+license-file = "LICENSE"
+readme = "README.md"
+keywords = ["dashboard", "gtk", "gstreamer", "icalendar"]
+categories = ["desktop-application"]
+repository = "https://github.com/cyl3x/home-dashboard"
 authors = ["cyl3x <cyl3x@posteo.de>"]
 version = "0.1.0"
 edition = "2021"
@@ -19,7 +26,7 @@ strip = "debuginfo"
 anyhow = "1.0.83"
 base64 = "0.22"
 chrono = { version = "0.4.38", features = ["unstable-locales"] }
-chrono-tz = "0.9.0"
+chrono-tz = "0.8.6"
 clap = { version = "4.5.4", features = ["derive"] }
 clapper = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs" }
 clapper-gtk = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs" }

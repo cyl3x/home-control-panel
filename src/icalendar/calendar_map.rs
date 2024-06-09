@@ -21,9 +21,7 @@ impl Deref for CalendarMapChange {
 
   fn deref(&self) -> &Self::Target {
     match self {
-      Self::Added(t) => t,
-      Self::Changed(t) => t,
-      Self::Removed(t) => t,
+      Self::Added(t) | Self::Changed(t) | Self::Removed(t) => t,
     }
   }
 }
@@ -31,9 +29,7 @@ impl Deref for CalendarMapChange {
 impl CalendarMapChange {
   pub fn into_inner(self) -> Event {
     match self {
-      Self::Added(t) => t,
-      Self::Changed(t) => t,
-      Self::Removed(t) => t,
+      Self::Added(t) | Self::Changed(t) | Self::Removed(t) => t,
     }
   }
 

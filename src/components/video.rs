@@ -1,5 +1,5 @@
 use gtk::prelude::*;
-use relm4::*;
+use relm4::{ComponentParts, ComponentSender, SimpleComponent, gtk};
 
 pub struct Widget {
   uri: String,

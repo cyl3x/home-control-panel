@@ -53,7 +53,7 @@ impl FactoryComponent for Widget {
     match input {
       Input::Clicked => {
         self.is_active = !self.is_active;
-        sender.output(Output::Clicked(self.calendar.uid, self.is_active)).unwrap()
+        sender.output(Output::Clicked(self.calendar.uid, self.is_active)).unwrap();
       }
     }
   }

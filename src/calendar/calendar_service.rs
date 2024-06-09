@@ -6,11 +6,11 @@ use uuid::Uuid;
 
 use crate::icalendar::{Calendar, CalendarMap, CalendarMapChange, CalendarMapExt, Event};
 
-use super::{caldav, filter_time_range, request_event, CaldavClient, Credentials, GRID_LENGTH};
+use super::{caldav, filter_time_range, request_event, Client, Credentials, GRID_LENGTH};
 
 #[derive(Debug)]
 pub struct CalendarService {
-  client: CaldavClient,
+  client: Client,
   calendar: CalendarMap,
   pub filtered_calendars: BTreeSet<Uuid>,
 }
@@ -18,7 +18,7 @@ pub struct CalendarService {
 impl CalendarService {
   pub fn new(credentials: Credentials, url: Url) -> Self {
     Self {
-      client: CaldavClient::new(credentials, url),
+      client: Client::new(credentials, url),
       calendar: CalendarMap::new(),
       filtered_calendars: BTreeSet::new(),
     }
@@ -28,11 +28,17 @@ impl CalendarService {
     &self.calendar
   }
 
-  pub fn fetch(client: CaldavClient, date: NaiveDate) -> Result<CalendarMap, caldav::Error> {
+  /// Fetches the events around the given date.
+  /// The range is from 6 months before to 6 months after the given date.
+  /// The events are grouped by calendar.
+  /// 
+  /// # Errors
+  /// Returns an error if the request or parsing fails.
+  pub fn fetch(client: Client, date: NaiveDate) -> Result<CalendarMap, caldav::Error> {
     let first_of_month = date.with_day0(0).unwrap();
     let first = first_of_month - chrono::Months::new(6);
     let last = first_of_month + chrono::Months::new(6);
-    let request = request_event(filter_time_range(first, last));
+    let request = request_event(&filter_time_range(first, last));
 
     client
       .get_calendars()?
@@ -57,7 +63,7 @@ impl CalendarService {
       })
   }
 
-  pub const fn client(&self) -> &CaldavClient {
+  pub const fn client(&self) -> &Client {
     &self.client
   }
 
@@ -86,7 +92,7 @@ impl CalendarService {
   /// Each event is a tuple of the end index and the event.
   /// Start and end index are capped to the size of the grid.
   pub fn generate_grid(&self, (first, last): (NaiveDate, NaiveDate)) -> [Vec<&Event>; GRID_LENGTH] {
-    let mut grid = [(); GRID_LENGTH].map(|_| Vec::new());
+    let mut grid = [(); GRID_LENGTH].map(|()| Vec::new());
 
     for (_, calendar, _, event) in self.calendar.flat_iter() {
       let event_start = event.start_date();
@@ -108,7 +114,7 @@ impl CalendarService {
       let start_clamped = (event_start).clamp(first, last);
       let idx: usize = (start_clamped - first).num_days() as usize;
 
-      grid[idx].push(event)
+      grid[idx].push(event);
     }
 
     grid

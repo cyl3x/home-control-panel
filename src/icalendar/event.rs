@@ -86,15 +86,15 @@ impl Event {
     if minutes == -1 {
       format!("vor {} Minute", minutes.abs())
     } else if minutes == 1 {
-      format!("in {} Minute", minutes)
+      format!("in {minutes} Minute")
     } else if hours == -1 {
       format!("vor {} Stunde", hours.abs())
     } else if hours == 1 {
-      format!("in {} Stunde", hours)
+      format!("in {hours} Stunde")
     } else if days == -1 {
       format!("vor {} Tag", days.abs())
     } else if days == 1 {
-      format!("in {} Tag", days)
+      format!("in {days} Tag")
     } else if days < 0 {
       format!("vor {} Tagen", days.abs())
     } else if hours < 0 {
@@ -102,11 +102,11 @@ impl Event {
     } else if minutes < 0 {
       format!("vor {} Minuten", minutes.abs())
     } else if days > 0 {
-      format!("in {} Tagen", days)
+      format!("in {days} Tagen")
     } else if hours > 0 {
-      format!("in {} Stunden", hours)
+      format!("in {hours} Stunden")
     } else if minutes > 0 {
-      format!("in {} Minuten", minutes)
+      format!("in {minutes} Minuten")
     } else {
       "jetzt".to_string()
     }
@@ -123,9 +123,9 @@ fn fg_from_bg_w3c<'a>(bg_color: &str) -> Option<&'a str> {
   let color = if bg_color.starts_with('#') { &bg_color[1..bg_color.len()] } else { bg_color };
 
   let mut rgb = [
-    i32::from_str_radix(&color[0..2], 16).ok()? as f32 / 255.0,
-    i32::from_str_radix(&color[2..4], 16).ok()? as f32 / 255.0,
-    i32::from_str_radix(&color[4..6], 16).ok()? as f32 / 255.0,
+    f32::from(i16::from_str_radix(&color[0..2], 16).ok()?) / 255.0,
+    f32::from(i16::from_str_radix(&color[2..4], 16).ok()?) / 255.0,
+    f32::from(i16::from_str_radix(&color[4..6], 16).ok()?) / 255.0,
   ];
 
    rgb = rgb.map(|c| {

@@ -1,27 +1,10 @@
-// minicaldav: Small and easy CalDAV client.
-// Copyright (C) 2022 Florian Loers
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-//! CalDAV client implementation using ureq.
-
 use std::collections::BTreeMap;
 
 use chrono::NaiveDate;
 use ureq::Agent;
 use url::Url;
 use uuid::Uuid;
+use base64::prelude::*;
 
 use crate::config::Config;
 use crate::icalendar::event_builder::EventBuilder;
@@ -49,13 +32,13 @@ impl core::fmt::Debug for Credentials {
 }
 
 #[derive(Debug, Clone)]
-pub struct CaldavClient {
+pub struct Client {
   credentials: Credentials,
   agent: Agent,
   base_url: Url,
 }
 
-impl CaldavClient {
+impl Client {
   pub fn new(credentials: Credentials, base_url: Url) -> Self {
     Self {
       credentials,
@@ -69,22 +52,17 @@ impl CaldavClient {
       Credentials::Basic(username, password) => {
         format!(
           "Basic {}",
-          base64::encode(format!("{}:{}", username, password))
+          BASE64_STANDARD.encode(format!("{username}:{password}"))
         )
       }
-      Credentials::Bearer(token) => format!("Bearer {}", token),
+      Credentials::Bearer(token) => format!("Bearer {token}"),
     }
   }
 
   /// Send a PROPFIND to the given url using the given HTTP Basic authorization and search the result XML for a value.
-  /// # Arguments
-  /// - client: ureq Agent
-  /// - username: used for HTTP Basic auth
-  /// - password: used for HTTP Basic auth
-  /// - url: The caldav endpoint url
-  /// - body: The CalDAV request body to send via PROPFIND
-  /// - prop_path: The path in the response XML the get the XML text value from.
-  /// - depth: Value for the Depth field
+  /// 
+  /// # Errors
+  /// Returns an error if the request or the XML parsing fails.
   pub fn propfind_get(
     &self,
     url: &Url,
@@ -124,23 +102,24 @@ impl CaldavClient {
       }
     }
 
-    if searched != prop_path.len() {
-      Err(Error {
-        kind: ErrorKind::Parsing,
-        message: format!("Could not find data {:?} in PROPFIND response.", prop_path),
-      })
-    } else {
+    if searched == prop_path.len() {
       Ok((
         element
-          .get_text()
-          .map(|s| s.to_string())
-          .unwrap_or_else(|| "".to_string()),
+          .get_text().map_or_else(String::new, |s| s.to_string()),
         root,
       ))
+    } else {
+      Err(Error {
+        kind: ErrorKind::Parsing,
+        message: format!("Could not find data {prop_path:?} in PROPFIND response."),
+      })
     }
   }
 
-  /// Get the CalDAV principal URL for the given credentials from the caldav server.
+  /// Get the `CalDAV` principal URL for the given credentials from the caldav server.
+  /// 
+  /// # Errors
+  /// Returns an error if the request or the XML parsing fails.
   pub fn get_principal_url(
     &self,
     url: &Url,
@@ -163,6 +142,9 @@ impl CaldavClient {
   }
 
   /// Get the homeset url for the given credentials from the caldav server.
+  /// 
+  /// # Errors
+  /// Returns an error if the request or the XML parsing fails.
   pub fn get_home_set_url(&self, url: &Url) -> Result<Url, Error> {
     let principal_url = self.get_principal_url(url).unwrap_or_else(|_| url.clone());
     let homeset_url = self.propfind_get(
@@ -177,6 +159,9 @@ impl CaldavClient {
   }
 
   /// Get calendars for the given credentials.
+  /// 
+  /// # Errors
+  /// Returns an error if the request or the XML parsing fails.
   pub fn get_calendars(&self) -> Result<BTreeMap<Uuid, Calendar>, Error> {
     let result = match self.get_home_set_url(&self.base_url) {
       Ok(homeset_url) => self.propfind_get(
@@ -212,7 +197,10 @@ impl CaldavClient {
     Ok(calendars)
   }
 
-  /// Get ICAL formatted events from the CalDAV server.
+  /// Get ICAL formatted events from the `CalDAV` server.
+  /// 
+  /// # Errors
+  /// Returns an error if the request or the XML parsing fails.
   pub fn get_events(
       &self,
       request: &String,
@@ -256,10 +244,13 @@ impl CaldavClient {
     Ok(events)
   }
 
-  /// Get ICAL formatted todos from the CalDAV server.
+  /// Get ICAL formatted todos from the `CalDAV` server.
+  /// 
+  /// # Errors
+  /// Returns an error if the request or the XML parsing fails.
   pub fn get_todos(
       &self,
-      request: String,
+      request: &str,
       calendar_ref: &Calendar,
   ) -> Result<BTreeMap<Uuid, Event>, Error> {
     let auth = self.get_auth_header();
@@ -301,7 +292,7 @@ impl CaldavClient {
     Ok(todos)
   }
 
-  /// Save the given event on the CalDAV server.
+  /// Save the given event on the `CalDAV` server.
   /// If no event for the events url exist it will create a new event.
   /// Otherwise this is an update operation.
   // pub fn save_event(&self, event: &mut Event) -> Result<(), Error> {
@@ -328,8 +319,11 @@ impl CaldavClient {
   //   Ok(())
   // }
 
-  /// Delete the given event from the CalDAV server.
-  pub fn remove_event(&self, event: Event) -> Result<(), Error> {
+  /// Delete the given event from the `CalDAV` server.
+  /// 
+  /// # Errors
+  /// Returns an error if the request fails.
+  pub fn remove_event(&self, event: &Event) -> Result<(), Error> {
     let auth = self.get_auth_header();
 
     let _response = self.agent
@@ -388,7 +382,7 @@ pub fn filter_time_range(start: NaiveDate, end: NaiveDate) -> String {
   format!(r#"<c:time-range start="{}" end="{}" />"#, start.format("%Y%m%dT000000Z"), end.format("%Y%m%dT000000Z"))
 }
 
-pub fn request_event(filter: String) -> String {
+pub fn request_event(filter: &str) -> String {
   format!(r#"
 <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
   <d:prop>
@@ -398,15 +392,15 @@ pub fn request_event(filter: String) -> String {
   <c:filter>
     <c:comp-filter name="VCALENDAR">
       <c:comp-filter name="VEVENT">
-        {}
+        {filter}
       </c:comp-filter>
     </c:comp-filter>
   </c:filter>
 </c:calendar-query>
-  "#, filter)
+  "#)
 }
 
-pub fn request_todos(filter: String) -> String {
+pub fn request_todos(filter: &str) -> String {
   format!(r#"<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
   <d:prop>
     <d:getetag />
@@ -415,14 +409,14 @@ pub fn request_todos(filter: String) -> String {
   <c:filter>
     <c:comp-filter name="VCALENDAR">
       <c:comp-filter name="VTODO">
-        {}
+        {filter}
       </c:comp-filter>
     </c:comp-filter>
   </c:filter>
-</c:calendar-query>"#, filter)
+</c:calendar-query>"#)
 }
 
-/// Errors that may occur during CalDAV operations.
+/// Errors that may occur during `CalDAV` operations.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Error {
   pub kind: ErrorKind,
@@ -439,7 +433,7 @@ impl From<ureq::Error> for Error {
   fn from(e: ureq::Error) -> Self {
     Self {
       kind: ErrorKind::Http,
-      message: format!("{:?}", e),
+      message: format!("{e:?}"),
     }
   }
 }
