@@ -28,6 +28,7 @@
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
       commonArgs = {
+        strictDeps = true;
         src = pkgs.lib.cleanSourceWith {
           src = craneLib.path ./.;
           filter = path: type:
@@ -35,9 +36,9 @@
         };
 
         nativeBuildInputs = with pkgs; [
-          appstream-glib
+          clang
+          mold
           pkg-config
-          stdenv.cc
         ];
 
         buildInputs = with pkgs; [
@@ -51,8 +52,10 @@
           gtk4
           openssl
         ];
+
+        RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=${pkgs.mold}/bin/mold";
       };
-      
+
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
       home-dashboard-rs = craneLib.buildPackage (commonArgs // {
         inherit cargoArtifacts;
@@ -63,16 +66,13 @@
         inherit home-dashboard-rs;
         default = home-dashboard-rs;
       };
-            
+
       devShells.default = craneLib.devShell {
         inputsFrom = [ home-dashboard-rs ];
 
         packages = [ pkgs.rust-analyzer rustToolchain ];
 
         RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
-
-        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "${pkgs.stdenv.cc.targetPrefix}cc";
-        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER = "qemu-aarch64";
       };
     });
 }
