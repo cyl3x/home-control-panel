@@ -22,6 +22,8 @@ pub mod icalendar;
 mod components;
 mod logger;
 
+static CSS: &str = include_str!("style.css");
+
 fn main() {
   logger::init();
 
@@ -34,7 +36,7 @@ fn main() {
   let app = RelmApp::new("cyl3x.home-dashboard");
 
   let css_provider = gtk::CssProvider::new();
-  css_provider.load_from_string(include_str!("style.css"));
+  css_provider.load_from_string(CSS);
   gtk::style_context_add_provider_for_display(
     &Display::default().expect("Could not connect to a display."),
     &css_provider,

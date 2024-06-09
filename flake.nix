@@ -1,46 +1,70 @@
 {
-  description = "pip-editor-rs";
+  description = "home-dashboard-rs";
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
+    flake-utils.url = "github:numtide/flake-utils";
+    crane.url = "github:ipetkov/crane";
+    crane.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, rust-overlay }: {
-    devShell.x86_64-linux = let
+  outputs = { self, nixpkgs, rust-overlay, crane, flake-utils }:
+    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system: let
       pkgs = import nixpkgs {
-        overlays =  [ (import rust-overlay) ];
-        system = "x86_64-linux";
+        inherit system;
+        overlays = [ (import rust-overlay) ];
       };
-      traceIf = pkgs.lib.debug.traceIf;
-      version = {
-        fixed = "1.78.0";
-        latest = pkgs.rust-bin.stable.latest.default.version;
-      };
-      toolchain = {
-        fixed = pkgs.rust-bin.stable.${version.fixed}.default.override { extensions = [ "rust-src" ]; };
-        latest = pkgs.rust-bin.stable.${version.latest}.default.override { extensions = [ "rust-src" ]; };
-      };
-    in with pkgs; mkShell {
-      nativeBuildInputs = with pkgs; [
-        pkg-config
-        rust-analyzer-unwrapped
-      ];
-      buildInputs = [
-        (traceIf (toolchain.latest != toolchain.fixed) "Your Rust version (${version.latest}) is newer than the last version (${version.fixed}) tested" toolchain.latest)
-        dbus
-        gtk4
-        gst_all_1.gstreamer
-        gst_all_1.gst-plugins-base
-        gst_all_1.gst-plugins-rs
-        gst_all_1.gst-plugins-good
-        gst_all_1.gst-plugins-bad
-        gst_all_1.gst-vaapi
-        clapper
-        openssl
-      ];
 
-      RUST_SRC_PATH = "${toolchain.latest}/lib/rustlib/src/rust/library";
-    };
-  };
+      rustToolchain = pkgs.rust-bin.stable.latest.default.override {
+        extensions = [ "rust-src" ];
+      };
+
+      craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
+
+      commonArgs = {
+        src = pkgs.lib.cleanSourceWith {
+          src = craneLib.path ./.;
+          filter = path: type:
+            (builtins.match ".*\.css$" path != null) || (craneLib.filterCargoSources path type);
+        };
+
+        nativeBuildInputs = with pkgs; [
+          appstream-glib
+          pkg-config
+          stdenv.cc
+        ];
+
+        buildInputs = with pkgs; [
+          clapper
+          gst_all_1.gst-plugins-bad
+          gst_all_1.gst-plugins-base
+          gst_all_1.gst-plugins-good
+          gst_all_1.gst-plugins-rs
+          gst_all_1.gst-vaapi
+          gst_all_1.gstreamer
+          gtk4
+          openssl
+        ];
+      };
+      
+      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+      home-dashboard-rs = craneLib.buildPackage (commonArgs // {
+        inherit cargoArtifacts;
+      });
+    in {
+      checks = { inherit home-dashboard-rs; };
+      packages.default = home-dashboard-rs;
+            
+      devShells.default = craneLib.devShell {
+        inputsFrom = [ home-dashboard-rs ];
+
+        packages = [ pkgs.rust-analyzer rustToolchain ];
+
+        RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
+
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "${pkgs.stdenv.cc.targetPrefix}cc";
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER = "qemu-aarch64";
+      };
+    });
 }
