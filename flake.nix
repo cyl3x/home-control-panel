@@ -1,6 +1,11 @@
 {
   description = "home-dashboard-rs";
 
+  nixConfig = {
+    extra-trusted-substituters = [ "https://nix-community.cachix.org" "https://arm.cachix.org" ];
+    extra-trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" "arm.cachix.org-1:K3XjAeWPgWkFtSS9ge5LJSLw3xgnNqyOaG7MDecmTQ8=" ];
+  };
+
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
