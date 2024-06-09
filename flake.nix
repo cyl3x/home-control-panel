@@ -54,7 +54,10 @@
       });
     in {
       checks = { inherit home-dashboard-rs; };
-      packages.default = home-dashboard-rs;
+      packages = {
+        inherit home-dashboard-rs;
+        default = home-dashboard-rs;
+      };
             
       devShells.default = craneLib.devShell {
         inputsFrom = [ home-dashboard-rs ];
