@@ -11,7 +11,6 @@ use gtk::gdk::Display;
 
 pub use chrono::prelude::*;
 pub use gtk::prelude::*;
-use logger::LogExt;
 pub use relm4::prelude::*;
 
 mod app;
@@ -29,7 +28,7 @@ fn main() {
 
   let cli = cli::Cli::parse();
 
-  let config = config::init(cli.config).log_error("Could not load the configuration file").unwrap();
+  let config = config::init(cli.config).expect("Could not load the configuration file");
 
   clapper::init().expect("Could not initialize the video player.");
 
