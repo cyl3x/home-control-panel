@@ -34,7 +34,6 @@
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
       commonArgs = {
-        strictDeps = true;
         src = pkgs.lib.cleanSourceWith {
           src = craneLib.path ./.;
           filter = path: type:
@@ -42,15 +41,12 @@
         };
 
         nativeBuildInputs = with pkgs; [
-          clang
-          mold
           pkg-config
           wrapGAppsHook
         ];
 
         buildInputs = with pkgs; [
           clapper
-          gdk-pixbuf
           glib
           gst_all_1.gst-plugins-bad
           gst_all_1.gst-plugins-base
@@ -61,8 +57,6 @@
           gtk4
           openssl
         ];
-
-        RUSTFLAGS="-C linker=clang -C link-arg=-fuse-ld=${pkgs.mold}/bin/mold";
       };
 
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
