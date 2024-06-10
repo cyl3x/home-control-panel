@@ -1,5 +1,5 @@
 {
-  description = "home-dashboard-rs";
+  description = "home-control-panel";
 
   nixConfig = {
     extra-trusted-substituters = [ "https://nix-community.cachix.org" "https://arm.cachix.org" ];
@@ -57,18 +57,18 @@
       };
 
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-      home-dashboard-rs = craneLib.buildPackage (commonArgs // {
+      home-control-panel = craneLib.buildPackage (commonArgs // {
         inherit cargoArtifacts;
       });
     in {
-      checks = { inherit home-dashboard-rs; };
+      checks = { inherit home-control-panel; };
       packages = {
-        inherit home-dashboard-rs;
-        default = home-dashboard-rs;
+        inherit home-control-panel;
+        default = home-control-panel;
       };
 
       devShells.default = craneLib.devShell {
-        inputsFrom = [ home-dashboard-rs ];
+        inputsFrom = [ home-control-panel ];
 
         packages = [ pkgs.rust-analyzer rustToolchain ];
 

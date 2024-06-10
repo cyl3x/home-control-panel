@@ -32,7 +32,7 @@ fn main() {
 
   clapper::init().expect("Could not initialize the video player.");
 
-  let app = RelmApp::new("cyl3x.home-dashboard");
+  let app = RelmApp::new("cyl3x.home-control-panel");
 
   let css_provider = gtk::CssProvider::new();
   css_provider.load_from_string(CSS);

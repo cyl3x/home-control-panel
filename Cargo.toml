@@ -1,18 +1,18 @@
 [package]
-name = "home-dashboard"
+name = "home-control-panel"
 description = "A dashboard for my home"
 license = "GPL-3.0"
 license-file = "LICENSE"
 readme = "README.md"
 keywords = ["dashboard", "gtk", "gstreamer", "icalendar"]
 categories = ["desktop-application"]
-repository = "https://github.com/cyl3x/home-dashboard"
+repository = "https://github.com/cyl3x/home-control-panel"
 authors = ["cyl3x <cyl3x@posteo.de>"]
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "home-dashboard"
+name = "home-control-panel"
 path = "src/main.rs"
 
 [profile.release]
