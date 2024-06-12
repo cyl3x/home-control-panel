@@ -5,11 +5,12 @@ use relm4::{Component, ComponentController, ComponentParts, ComponentSender};
 use crate::calendar::caldav::Credentials;
 use crate::calendar::caldav;
 use crate::components::calendar;
-use crate::components::video;
+use crate::components::video_v2;
 use crate::config::Config;
 
 pub struct App<> {
   calendar: Controller<calendar::Widget>,
+  video: Controller<video_v2::Widget>,
   config: Config,
 }
 
@@ -78,6 +79,8 @@ impl Component for App {
             set_vexpand: true,
             set_hexpand: true,
             set_size_request: (100, -1),
+
+            append: model.video.widget(),
           },
         }
       }
@@ -111,16 +114,11 @@ impl Component for App {
         }
       );
 
-    let model = Self { calendar, config };
+    let video = video_v2::Widget::builder().launch(config.videos.clone().unwrap_or_default()).detach();
+
+    let model = Self { calendar, config, video };
 
     let widgets = view_output!();
-
-    if let Some(videos) = &model.config.videos {
-      for url in videos {
-        let rtsp = video::Widget::builder().launch(url.clone()).detach();
-        widgets.cams_box.append(rtsp.widget());
-      }
-    }
 
     ComponentParts { model, widgets }
   }

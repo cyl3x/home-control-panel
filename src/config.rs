@@ -5,7 +5,7 @@ use url::Url;
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Config {
   pub ical: Ical,
-  pub videos: Option<Vec<String>>,
+  pub videos: Option<Vec<Video>>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -14,6 +14,12 @@ pub struct Ical {
   pub username: String,
   pub password_file: Option<PathBuf>,
   pub password: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Video {
+  pub name: String,
+  pub url: Url,
 }
 
 impl core::fmt::Debug for Ical {

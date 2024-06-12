@@ -4,4 +4,4 @@ pub mod calendar_selection;
 pub mod calendar_row;
 pub mod event_list_day;
 pub mod event_list_day_entry;
-pub mod video;
+pub mod video_v2;
