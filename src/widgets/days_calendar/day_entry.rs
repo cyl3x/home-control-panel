@@ -3,7 +3,7 @@ use gtk::{pango, prelude::*};
 use relm4::prelude::*;
 use uuid::Uuid;
 
-use crate::icalendar::Event;
+use crate::calendar::Event;
 
 #[derive(Debug)]
 pub struct Widget {

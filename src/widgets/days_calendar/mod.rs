@@ -2,7 +2,7 @@ use chrono::{Datelike, NaiveDate, NaiveDateTime};
 use relm4::factory::FactoryHashMap;
 use relm4::prelude::*;
 
-use crate::icalendar::Event;
+use crate::calendar::Event;
 
 mod day;
 mod day_entry;

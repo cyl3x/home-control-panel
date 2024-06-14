@@ -1,7 +1,7 @@
 use gtk::{pango, prelude::*};
 use relm4::prelude::*;
 
-use crate::icalendar::Event;
+use crate::calendar::Event;
 
 use super::GridPos;
 

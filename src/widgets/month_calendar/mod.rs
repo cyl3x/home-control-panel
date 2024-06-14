@@ -2,7 +2,7 @@ use chrono::{Datelike, Days, NaiveDate, NaiveDateTime};
 use gtk::prelude::*;
 use relm4::prelude::*;
 
-use crate::icalendar::Event;
+use crate::calendar::Event;
 
 mod day;
 

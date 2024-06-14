@@ -13,10 +13,9 @@ pub use gtk::prelude::*;
 pub use relm4::prelude::*;
 
 mod app;
-pub mod calendar;
 mod cli;
 mod config;
-pub mod icalendar;
+pub mod calendar;
 mod logger;
 mod widgets;
 

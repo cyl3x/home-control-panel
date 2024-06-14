@@ -5,7 +5,7 @@ use gtk::prelude::*;
 use relm4::{gtk, Component, ComponentParts, ComponentSender, RelmWidgetExt};
 use uuid::Uuid;
 
-use crate::icalendar::Event;
+use crate::calendar::Event;
 
 #[derive(Debug)]
 pub struct Widget {

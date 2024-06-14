@@ -2,7 +2,7 @@ use gtk::prelude::*;
 use relm4::prelude::*;
 use uuid::Uuid;
 
-use crate::icalendar::Calendar;
+use crate::calendar::Calendar;
 
 #[derive(Debug)]
 pub struct Widget {

@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::calendar::caldav::Credentials;
 use crate::calendar::{caldav, CalendarService};
 use crate::config::Config;
-use crate::icalendar::CalendarMap;
+use crate::calendar::CalendarMap;
 
 use super::{calendar_selection, days_calendar, week_calendar, month_calendar, video};
 

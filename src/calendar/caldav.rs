@@ -7,8 +7,8 @@ use uuid::Uuid;
 use base64::prelude::*;
 
 use crate::config::Config;
-use crate::icalendar::event_builder::EventBuilder;
-use crate::icalendar::{Calendar, Event, EVENT_DEFAULT_COLOR};
+use crate::calendar::event_builder::EventBuilder;
+use crate::calendar::{Calendar, Event, EVENT_DEFAULT_COLOR};
 
 #[derive(Clone)]
 pub enum Credentials {
@@ -60,7 +60,7 @@ impl Client {
   }
 
   /// Send a PROPFIND to the given url using the given HTTP Basic authorization and search the result XML for a value.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the request or the XML parsing fails.
   pub fn propfind_get(
@@ -117,7 +117,7 @@ impl Client {
   }
 
   /// Get the `CalDAV` principal URL for the given credentials from the caldav server.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the request or the XML parsing fails.
   pub fn get_principal_url(
@@ -142,7 +142,7 @@ impl Client {
   }
 
   /// Get the homeset url for the given credentials from the caldav server.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the request or the XML parsing fails.
   pub fn get_home_set_url(&self, url: &Url) -> Result<Url, Error> {
@@ -159,7 +159,7 @@ impl Client {
   }
 
   /// Get calendars for the given credentials.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the request or the XML parsing fails.
   pub fn get_calendars(&self) -> Result<BTreeMap<Uuid, Calendar>, Error> {
@@ -198,7 +198,7 @@ impl Client {
   }
 
   /// Get ICAL formatted events from the `CalDAV` server.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the request or the XML parsing fails.
   pub fn get_events(
@@ -245,7 +245,7 @@ impl Client {
   }
 
   /// Get ICAL formatted todos from the `CalDAV` server.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the request or the XML parsing fails.
   pub fn get_todos(
@@ -320,7 +320,7 @@ impl Client {
   // }
 
   /// Delete the given event from the `CalDAV` server.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the request fails.
   pub fn remove_event(&self, event: &Event) -> Result<(), Error> {
@@ -349,7 +349,7 @@ pub static CALENDARS_REQUEST: &str = r#"
     <d:displayname />
     <d:resourcetype />
     <calendar-color xmlns="http://apple.com/ns/ical/" />
-    <c:supported-calendar-component-set /> 
+    <c:supported-calendar-component-set />
   </d:prop>
 </d:propfind>
 "#;

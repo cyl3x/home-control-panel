@@ -2,7 +2,7 @@ use relm4::factory::FactoryHashMap;
 use relm4::prelude::*;
 use uuid::Uuid;
 
-use crate::icalendar::Calendar;
+use crate::calendar::Calendar;
 
 mod calendar;
 

@@ -4,7 +4,7 @@ use relm4::factory::FactoryHashMap;
 use relm4::prelude::*;
 use uuid::Uuid;
 
-use crate::icalendar::Event;
+use crate::calendar::Event;
 
 use super::day_entry;
 

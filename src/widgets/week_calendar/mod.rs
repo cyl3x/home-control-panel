@@ -5,7 +5,7 @@ use gtk::prelude::*;
 use relm4::prelude::*;
 use uuid::Uuid;
 
-use crate::icalendar::Event;
+use crate::calendar::Event;
 
 mod event;
 

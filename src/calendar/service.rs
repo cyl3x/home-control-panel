@@ -4,9 +4,9 @@ use chrono::{Datelike as _, NaiveDate};
 use url::Url;
 use uuid::Uuid;
 
-use crate::icalendar::{Calendar, CalendarMap, CalendarMapChange, CalendarMapExt, Event};
+use crate::calendar::{Calendar, CalendarMap, CalendarMapChange, CalendarMapExt, Event};
 
-use super::{caldav, filter_time_range, request_event, Client, Credentials};
+use super::caldav::{self, filter_time_range, request_event, Client, Credentials};
 
 #[derive(Debug)]
 pub struct CalendarService {
