@@ -13,7 +13,7 @@ pub struct Widget {
 
 #[derive(Debug, Clone)]
 pub enum Input {
-  TickNow(NaiveDateTime),
+  Tick(NaiveDateTime),
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +67,7 @@ impl FactoryComponent for Widget {
       gtk::Box {
         set_vexpand: true,
         set_hexpand: true,
-        
+
         gtk::Label {
           set_vexpand: true,
           set_hexpand: true,
@@ -84,7 +84,7 @@ impl FactoryComponent for Widget {
 
   fn update(&mut self, input: Self::Input, _sender: FactorySender<Self>) {
     match input {
-      Input::TickNow(now) => self.now = now,
+      Input::Tick(now) => self.now = now,
     }
   }
 }

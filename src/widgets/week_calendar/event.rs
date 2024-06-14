@@ -3,7 +3,7 @@ use relm4::prelude::*;
 
 use crate::icalendar::Event;
 
-use super::calendar_row::GridPos;
+use super::GridPos;
 
 #[derive(Debug, PartialEq)]
 pub struct Widget {
@@ -13,7 +13,7 @@ pub struct Widget {
 
 #[derive(Debug, Clone)]
 pub enum Input {
-  Update(Box<Event>, GridPos),
+  Update(Event, GridPos),
 }
 
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ impl Component for Widget {
   ) {
     match input {
       Input::Update(event, grid_pos) => {
-        self.event = *event;
+        self.event = event;
         self.grid_pos = grid_pos;
       }
     }

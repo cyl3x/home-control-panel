@@ -1,11 +1,15 @@
-use chrono::{Datelike, Days, NaiveDate, NaiveDateTime, NaiveTime};
+use std::rc::Rc;
+
+use chrono::{Datelike, Days, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use url::Url;
 use uuid::Uuid;
 
 pub const EVENT_DEFAULT_COLOR: &str = "#deb887";
-
 pub const EARLIEST_NAIVE_TIME: NaiveTime = NaiveTime::from_hms(0, 0, 0);
 pub const LASTEST_NAIVE_TIME: NaiveTime = NaiveTime::from_hms(23, 59, 59);
+
+// @TODO use more effecient ways to send events through components
+pub type EventBox = Rc<Event>;
 
 #[derive(Debug, Clone)]
 pub struct Event {
@@ -46,11 +50,15 @@ impl Event {
     self.start.date()
   }
 
-  pub const fn end_date(&self) -> NaiveDate {
-    self.end.date()
+  pub fn end_date(&self) -> NaiveDate {
+    if self.end.hour() == 0 && self.end.minute() == 0 {
+      self.end.date() - Days::new(1)
+    } else {
+      self.end.date()
+    }
   }
 
-  pub const fn start_end_dates(&self) -> (NaiveDate, NaiveDate)  {
+  pub fn start_end_dates(&self) -> (NaiveDate, NaiveDate)  {
     (self.start_date(), self.end_date())
   }
 
@@ -111,6 +119,13 @@ impl Event {
       "jetzt".to_string()
     }
   }
+
+  pub fn all_matching_between(&self, start: NaiveDate, end: NaiveDate) -> impl Iterator<Item = NaiveDate> {
+    let clamped_start = self.start_date().clamp(start, end);
+    let clamped_end = self.end_date().clamp(start, end);
+
+    clamped_start.iter_days().take_while(move |date| date <= &clamped_end)
+  }
 }
 
 impl PartialEq for Event {
@@ -154,6 +169,6 @@ fn format_date(date: &NaiveDateTime) -> String {
   } else {
     date.format_localized("%m. %b %Y %H:%M", chrono::Locale::de_DE)
   };
-  
+
   formatted.to_string()
 }

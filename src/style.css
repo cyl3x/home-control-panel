@@ -1,17 +1,3 @@
-.calendar .day-other-month {
-  filter: brightness(50%);
-}
-
-.calendar .day-selected {
-  background-color: @theme_selected_bg_color;
-  color: @theme_selected_fg_color;
-}
-
-.calendar-day {
-  border-radius: 4px;
-  padding: 4px;
-}
-
 .notification-overlay-box {
   background-color: @insensitive_bg_color;
   color: @insensitive_fg_color;
@@ -29,12 +15,36 @@
   border-color: @success_bg_color;
 }
 
-.calendar-grid > grid {
-  border: 1px solid @unfocused_borders;
-  border-top-width: 0;
+.month-calendar {
+  width: min-content;
 }
 
-.calendar-grid > grid:first-child {
-  margin-top: 4px;
-  border-top-width: 1px;
+.month-calendar-event-indicator {
+  background-color: @theme_selected_bg_color;
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.month-calendar-day-selected {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+.month-calendar-day-other-month {
+  filter: brightness(50%);
+}
+
+.month-calendar-day {
+  min-height: 32px;
+  padding: 4px;
+  border: 1px solid @unfocused_borders;
+}
+
+.month-calendar-day-label {
+  border-radius: 4px;
+}
+.month-calendar-day-today {
+  background-color: @theme_selected_bg_color;
+  opacity: 0.3;
 }

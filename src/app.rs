@@ -1,17 +1,13 @@
 use gtk::prelude::*;
 use relm4::prelude::*;
-use relm4::{Component, ComponentController, ComponentParts, ComponentSender};
+use relm4::{Component, ComponentParts, ComponentSender};
 
-use crate::calendar::caldav::Credentials;
 use crate::calendar::caldav;
-use crate::components::calendar;
-use crate::components::video_v2;
 use crate::config::Config;
+use crate::widgets::view;
 
 pub struct App<> {
-  calendar: Controller<calendar::Widget>,
-  video: Controller<video_v2::Widget>,
-  config: Config,
+  view: Controller<view::Widget>
 }
 
 #[derive(Debug)]
@@ -32,7 +28,6 @@ impl Component for App {
 
       #[name(window_overlay)]
       gtk::Overlay {
-
         // #[name(notification_overlay)]
         // add_overlay = &gtk::Box {
         //   add_css_class: "notification-overlay-box",
@@ -61,27 +56,8 @@ impl Component for App {
           set_halign: gtk::Align::End,
         },
 
-        #[name(calendar_and_cams_paned)]
-        gtk::Paned {
-          set_orientation: gtk::Orientation::Horizontal,
-          set_vexpand: true,
-          set_hexpand: true,
-          set_wide_handle: true,
-
-          set_start_child: Some(model.calendar.widget().widget_ref()),
-
-          #[wrap(Some)]
-          #[name(cams_box)]
-          set_end_child = &gtk::Box {
-            inline_css: "background-color: #000000;",
-
-            set_orientation: gtk::Orientation::Vertical,
-            set_vexpand: true,
-            set_hexpand: true,
-            set_size_request: (100, -1),
-
-            append: model.video.widget(),
-          },
+        gtk::Box {
+          append: model.view.widget(),
         }
       }
     }
@@ -105,18 +81,11 @@ impl Component for App {
     root: Self::Root,
     sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
-    let calendar = calendar::Widget::builder()
-      .launch((Credentials::from(&config), config.ical.url.clone()))
-      .forward(
-        sender.input_sender(),
-        |output| match output {
-          calendar::Output::CalDavError(err) => Input::CalDavError(err),
-        }
-      );
-
-    let video = video_v2::Widget::builder().launch(config.videos.clone().unwrap_or_default()).detach();
-
-    let model = Self { calendar, config, video };
+    let model = Self {
+      view: view::Widget::builder().launch(config).forward(sender.input_sender(), |output| match output {
+        view::Output::CalDavError(err) => Self::Input::CalDavError(err),
+      }),
+    };
 
     let widgets = view_output!();
 

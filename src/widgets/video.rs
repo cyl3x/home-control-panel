@@ -3,6 +3,7 @@ use relm4::{gtk, Component, ComponentParts, ComponentSender, RelmWidgetExt};
 
 use crate::config;
 
+#[derive(Debug)]
 pub struct Widget {
   media_items: Vec<clapper::MediaItem>,
   drop_down: gtk::DropDown,

@@ -4,19 +4,20 @@ use relm4::factory::FactoryHashMap;
 use relm4::prelude::*;
 use uuid::Uuid;
 
-use crate::icalendar::{CalendarMapChange, Event};
+use crate::icalendar::Event;
 
-use super::event_list_day_entry;
+use super::day_entry;
 
 #[derive(Debug)]
 pub struct Widget {
   date: NaiveDate,
-  day_entries: FactoryHashMap<Uuid, event_list_day_entry::Widget>,
+  day_entries: FactoryHashMap<Uuid, day_entry::Widget>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Input {
-  TickNow(NaiveDateTime),
+  Add(Event),
+  Tick(NaiveDateTime),
   Reorder,
 }
 
@@ -66,7 +67,7 @@ impl FactoryComponent for Widget {
 
     let mut day_entries = FactoryHashMap::builder().launch(list_box).detach();
     day_entries.insert(event.uid, event);
-    
+
     Self {
       date: *index,
       day_entries,
@@ -76,31 +77,12 @@ impl FactoryComponent for Widget {
   fn update(&mut self, input: Self::Input, _sender: FactorySender<Self>) {
     match input {
       Input::Reorder => self.day_entries.widget().invalidate_sort(),
-      Input::TickNow(now) => self.day_entries.broadcast(event_list_day_entry::Input::TickNow(now)),
-    }
-  }
-}
-
-impl Widget {
-  pub fn apply(&mut self, event_change: &CalendarMapChange) -> bool {
-    match event_change {
-      CalendarMapChange::Removed(event) => self.remove(&event.uid),
-      CalendarMapChange::Added(event) | CalendarMapChange::Changed(event) => {
-        self.update(event);
-
-        false
+      Input::Tick(now) => self.day_entries.broadcast(day_entry::Input::Tick(now)),
+      Input::Add(event) => {
+        self.day_entries.insert(event.uid, event);
+        self.day_entries.widget().invalidate_sort();
       }
     }
-  }
-
-  pub fn remove(&mut self, event_uid: &Uuid) -> bool {
-    self.day_entries.remove(event_uid);
-
-    self.day_entries.is_empty()
-  }
-
-  pub fn update(&mut self, event: &Event) {
-    self.day_entries.insert(event.uid, event.clone());
   }
 }
 
@@ -129,21 +111,5 @@ fn sort_func(a: &ListBoxRow, b: &ListBoxRow) -> gtk::Ordering {
     std::cmp::Ordering::Less => gtk::Ordering::Smaller,
     std::cmp::Ordering::Equal => gtk::Ordering::Equal,
     std::cmp::Ordering::Greater => gtk::Ordering::Larger,
-  }
-}
-
-pub trait FactoryHashMapExt {
-  fn tick(&self, now: NaiveDateTime);
-  fn resort(&self);
-}
-
-impl FactoryHashMapExt for FactoryHashMap<NaiveDate, Widget> {
-  fn tick(&self, now: NaiveDateTime) {
-    self.broadcast(Input::TickNow(now));
-  }
-
-  fn resort(&self) {
-    self.widget().invalidate_sort();
-    self.broadcast(Input::Reorder);
   }
 }

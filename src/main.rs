@@ -7,7 +7,6 @@
 )]
 use app::App;
 use clap::Parser;
-use gtk::gdk::Display;
 
 pub use chrono::prelude::*;
 pub use gtk::prelude::*;
@@ -18,8 +17,8 @@ pub mod calendar;
 mod cli;
 mod config;
 pub mod icalendar;
-mod components;
 mod logger;
+mod widgets;
 
 static CSS: &str = include_str!("style.css");
 
@@ -33,14 +32,6 @@ fn main() {
   clapper::init().expect("Could not initialize the video player.");
 
   let app = RelmApp::new("cyl3x.home-control-panel");
-
-  let css_provider = gtk::CssProvider::new();
-  css_provider.load_from_string(CSS);
-  gtk::style_context_add_provider_for_display(
-    &Display::default().expect("Could not connect to a display."),
-    &css_provider,
-    gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-  );
-
+  app.set_global_css(CSS);
   app.with_args(vec![]).run::<App>(config);
 }

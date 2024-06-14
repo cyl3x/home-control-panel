@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::icalendar::{Calendar, CalendarMap, CalendarMapChange, CalendarMapExt, Event};
 
-use super::{caldav, filter_time_range, request_event, Client, Credentials, GRID_LENGTH};
+use super::{caldav, filter_time_range, request_event, Client, Credentials};
 
 #[derive(Debug)]
 pub struct CalendarService {
@@ -29,9 +29,9 @@ impl CalendarService {
   }
 
   /// Fetches the events around the given date.
-  /// The range is from 6 months before to 6 months after the given date.
+  /// The range is from 6 months before and after the given date.
   /// The events are grouped by calendar.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the request or parsing fails.
   pub fn fetch(client: Client, date: NaiveDate) -> Result<CalendarMap, caldav::Error> {
@@ -85,38 +85,5 @@ impl CalendarService {
     } else {
       self.filtered_calendars.insert(uid);
     }
-  }
-
-  /// Generates a grid of events for the given date.
-  /// The grid is a list of events for each day in the month.
-  /// Each event is a tuple of the end index and the event.
-  /// Start and end index are capped to the size of the grid.
-  pub fn generate_grid(&self, (first, last): (NaiveDate, NaiveDate)) -> [Vec<&Event>; GRID_LENGTH] {
-    let mut grid = [(); GRID_LENGTH].map(|()| Vec::new());
-
-    for (_, calendar, _, event) in self.calendar.flat_iter() {
-      let event_start = event.start_date();
-      let event_end = event.end_date();
-
-      if event_end < event_start {
-        log::error!(
-          "[{}] Event end is before start: {:?}",
-          calendar.name,
-          event,
-        );
-        continue;
-      }
-
-      if event_end <= first || event_start > last {
-        continue;
-      }
-
-      let start_clamped = (event_start).clamp(first, last);
-      let idx: usize = (start_clamped - first).num_days() as usize;
-
-      grid[idx].push(event);
-    }
-
-    grid
   }
 }
