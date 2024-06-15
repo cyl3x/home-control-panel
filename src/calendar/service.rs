@@ -71,6 +71,12 @@ impl CalendarService {
     self.calendar.flat_events()
   }
 
+
+  pub fn events_filtered(&self) -> impl Iterator<Item = &Event> {
+    self.calendar.flat_events()
+      .filter(move |event| !self.is_filtered(&event.calendar_uid))
+  }
+
   pub fn calendars(&self) -> impl Iterator<Item = &Calendar> {
     self.calendar.flat_calendars()
   }

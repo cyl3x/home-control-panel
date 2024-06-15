@@ -29,7 +29,7 @@ impl Component for Widget {
   view! {
     #[root]
     gtk::Label {
-      inline_css: "border-radius: 4px; padding: 4px;",
+      add_css_class: "week-calendar-event",
       #[watch] inline_css: &format!("background-color: {}; color: {};", model.event.color(), model.event.fg_color()),
       set_hexpand: true,
       set_halign: gtk::Align::Fill,
@@ -37,7 +37,7 @@ impl Component for Widget {
       set_can_focus: false,
       set_ellipsize: pango::EllipsizeMode::End,
       #[watch] set_tooltip: &model.event.tooltip(),
-      #[watch] set_text: &model.event.summary,
+      #[watch] set_text: &model.formated_text(),
     }
   }
 
@@ -65,5 +65,13 @@ impl Component for Widget {
     let widgets = view_output!();
 
     ComponentParts { model, widgets }
+  }
+}
+
+impl Widget {
+  fn formated_text(&self) -> String {
+    let start = self.event.start.and_utc().with_timezone(&chrono_tz::Europe::Berlin);
+
+    format!("{} - {}", start.format("%H:%M"), self.event.summary)
   }
 }

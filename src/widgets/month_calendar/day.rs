@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::calendar::Event;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Widget {
   day: NaiveDate,
   indicators: BTreeMap<Uuid, (u32, gtk::Box)>,
@@ -16,7 +16,7 @@ pub struct Widget {
 #[derive(Debug)]
 pub enum Input {
   Tick(NaiveDateTime),
-  SetDay(NaiveDate),
+  SetDay(NaiveDate, bool),
   Add(Event),
   Reset,
   Select,
@@ -31,7 +31,7 @@ pub enum Output {
 
 #[relm4::component(pub)]
 impl Component for Widget {
-  type Init = NaiveDate;
+  type Init = ();
   type Input = Input;
   type Output = Output;
   type CommandOutput = ();
@@ -46,7 +46,6 @@ impl Component for Widget {
         add_css_class: "month-calendar-day",
         set_orientation: gtk::Orientation::Vertical,
         set_spacing: 2,
-        set_margin_all: 0,
 
         add_controller = gtk::GestureClick {
           connect_pressed[sender] => move |controller, _, _, _| {
@@ -60,7 +59,6 @@ impl Component for Widget {
         gtk::Label {
           add_css_class: "month-calendar-day-label",
           set_hexpand: true,
-          set_margin_all: 0,
           #[watch] set_text: &model.day.day().to_string(),
         },
 
@@ -76,8 +74,14 @@ impl Component for Widget {
 
   fn update_with_view(&mut self, widgets: &mut Self::Widgets, input: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
     match input {
-      Input::SetDay(day) => {
+      Input::SetDay(day, is_same_month) => {
         self.day = day;
+
+        if is_same_month {
+          widgets.day.remove_css_class("month-calendar-day-other-month");
+        } else {
+          widgets.day.add_css_class("month-calendar-day-other-month");
+        }
       }
       Input::Add(event) => {
         if let Some((count, indicator)) = self.indicators.remove(&event.calendar_uid) {
@@ -110,12 +114,6 @@ impl Component for Widget {
         } else {
           widgets.background.remove_css_class("month-calendar-day-today");
         }
-
-        if now.month() == self.day.month() {
-          widgets.day.remove_css_class("month-calendar-day-other-month");
-        } else {
-          widgets.day.add_css_class("month-calendar-day-other-month");
-        }
       }
       Input::Clicked => {
         sender.output(Output::Selected(self.day)).unwrap();
@@ -126,14 +124,11 @@ impl Component for Widget {
   }
 
   fn init(
-    day: Self::Init,
+    _: Self::Init,
     root: Self::Root,
     sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
-    let model = Self {
-      day,
-      indicators: BTreeMap::new(),
-    };
+    let model = Self::default();
 
     let widgets = view_output!();
 

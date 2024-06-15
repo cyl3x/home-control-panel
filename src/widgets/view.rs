@@ -114,22 +114,28 @@ impl Component for Widget {
         self.days_calendar.emit(days_calendar::Input::Tick(now));
       }
       Input::BuildMonthCalendar(start, end) => {
-        for event in self.calendar_manager.events() {
-          if !self.calendar_manager.is_filtered(&event.calendar_uid) && event.is_between_dates(start, end) {
+        log::info!("Building month calendar from {} to {}", start, end);
+
+        for event in self.calendar_manager.events_filtered() {
+          if event.is_between_dates(start, end) {
             self.month_calendar.emit(month_calendar::Input::Add(event.clone()));
           }
         }
       }
       Input::BuildWeekCalendar(start, end) => {
-        for event in self.calendar_manager.events() {
-          if !self.calendar_manager.is_filtered(&event.calendar_uid) && event.is_between_dates(start, end) {
+        log::info!("Building week calendar from {} to {}", start, end);
+
+        for event in self.calendar_manager.events_filtered() {
+          if event.is_between_dates(start, end) {
             self.week_calendar.emit(week_calendar::Input::Add(event.clone()));
           }
         }
       }
       Input::BuildDaysCalendar(start, end) => {
-        for event in self.calendar_manager.events() {
-          if !self.calendar_manager.is_filtered(&event.calendar_uid) && event.is_between_dates(start, end) {
+        log::info!("Building days calendar from {} to {}", start, end);
+
+        for event in self.calendar_manager.events_filtered() {
+          if event.is_between_dates(start, end) {
             self.days_calendar.emit(days_calendar::Input::Add(event.clone()));
           }
         }
@@ -162,12 +168,19 @@ impl Component for Widget {
     match command {
       Command::CalDavError(error) => sender.output(Output::CalDavError(error)).unwrap(),
       Command::Sync(new_calendar_map) => {
-        let _ = self.calendar_manager.apply_map(new_calendar_map).collect::<Vec<_>>();
+        let mut has_changes = false;
 
-        self.month_calendar.emit(month_calendar::Input::Reset);
-        self.week_calendar.emit(week_calendar::Input::Reset);
-        self.days_calendar.emit(days_calendar::Input::Reset);
-        self.calendar_selection.emit(calendar_selection::Input::Reset);
+        // consume the iterator to apply all changes
+        for _ in self.calendar_manager.apply_map(new_calendar_map) {
+          has_changes = true;
+        };
+
+        if has_changes {
+          self.month_calendar.emit(month_calendar::Input::Reset);
+          self.week_calendar.emit(week_calendar::Input::Reset);
+          self.days_calendar.emit(days_calendar::Input::Reset);
+          self.calendar_selection.emit(calendar_selection::Input::Reset);
+        }
       }
     }
   }
@@ -202,12 +215,14 @@ impl Component for Widget {
     let widgets = view_output!();
 
     model.month_calendar.widget().set_size_request(-1, 200);
-    model.days_calendar.widget().set_size_request(-1, 700);
+    model.days_calendar.widget().set_size_request(-1, 600);
+    model.week_calendar.widget().set_size_request(-1, 300);
+    model.video.widget().set_size_request(-1, 700);
 
     sender.input(Input::Sync);
 
     gtk::glib::timeout_add_seconds(5*60, gtk::glib::clone!(@strong sender => move || {
-      println!("Syncing calendar");
+      log::info!("Syncing calendar");
       sender.input(Input::Sync);
 
       gtk::glib::ControlFlow::Continue

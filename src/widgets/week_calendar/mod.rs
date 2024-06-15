@@ -9,6 +9,8 @@ use crate::calendar::Event;
 
 mod event;
 
+const DURATION: chrono::Days = chrono::Days::new(6);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GridPos {
   pub row: usize,
@@ -52,18 +54,19 @@ impl Component for Widget {
   view! {
     #[root]
     gtk::Grid {
+      add_css_class: "week-calendar",
       set_hexpand: true,
       set_vexpand: true,
       set_column_homogeneous: true,
       set_row_spacing: 4,
 
-      attach[0, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Mo", },
-      attach[1, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Di", },
-      attach[2, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Mi", },
-      attach[3, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Do", },
-      attach[4, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Fr", },
-      attach[5, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Sa", },
-      attach[6, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "So", },
+      attach[0, 0, 1, 1] = &gtk::Label { add_css_class: "week-calendar-weekday", set_text: "Mo", },
+      attach[1, 0, 1, 1] = &gtk::Label { add_css_class: "week-calendar-weekday", set_text: "Di", },
+      attach[2, 0, 1, 1] = &gtk::Label { add_css_class: "week-calendar-weekday", set_text: "Mi", },
+      attach[3, 0, 1, 1] = &gtk::Label { add_css_class: "week-calendar-weekday", set_text: "Do", },
+      attach[4, 0, 1, 1] = &gtk::Label { add_css_class: "week-calendar-weekday", set_text: "Fr", },
+      attach[5, 0, 1, 1] = &gtk::Label { add_css_class: "week-calendar-weekday", set_text: "Sa", },
+      attach[6, 0, 1, 1] = &gtk::Label { add_css_class: "week-calendar-weekday", set_text: "So", },
     }
   }
 
@@ -81,7 +84,7 @@ impl Component for Widget {
       }
       Input::Add(event) => {
         let start = start_week_date(self.selected);
-        let end = end_week_date(start);
+        let end = start + DURATION;
 
         let width = event.days_between_dates(start, end).max(1) as usize;
         let col = (event.start_date().clamp(start, end) - start).num_days() as usize;
@@ -103,7 +106,7 @@ impl Component for Widget {
         }
 
         let start = start_week_date(self.selected);
-        sender.output(Output::RequestEvents(start, end_week_date(start))).unwrap();
+        sender.output(Output::RequestEvents(start, start + DURATION)).unwrap();
       }
       Input::Tick(_now) => {}
     }
@@ -153,10 +156,6 @@ fn start_week_date(date: NaiveDate) -> NaiveDate {
   }
 
   date
-}
-
-fn end_week_date(date: NaiveDate) -> NaiveDate {
-  start_week_date(date) + chrono::Days::new(6)
 }
 
 #[derive(Debug)]

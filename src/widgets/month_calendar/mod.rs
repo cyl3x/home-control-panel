@@ -6,9 +6,12 @@ use crate::calendar::Event;
 
 mod day;
 
+const DURATION: chrono::Days = chrono::Days::new(41);
+
 #[derive(Debug)]
 pub struct Widget {
   selected: NaiveDate,
+  now_date: NaiveDate,
   days: [Controller<day::Widget>; 42],
 }
 
@@ -40,10 +43,6 @@ impl Component for Widget {
       add_css_class: "month-calendar",
       set_orientation: gtk::Orientation::Vertical,
       set_spacing: 16,
-      set_margin_top: 16,
-      set_margin_bottom: 16,
-      set_margin_start: 16,
-      set_margin_end: 16,
 
       gtk::Box {
         #[name(prev_button)]
@@ -57,7 +56,7 @@ impl Component for Widget {
 
         #[name(month_label)]
         gtk::Label {
-          inline_css: "font-size: 24px; font-weight: semi-bold;",
+          add_css_class: "month-calendar-label",
           set_hexpand: true,
           set_halign: gtk::Align::Fill,
           #[watch] set_text: &model.selected.format_localized("%B %Y", chrono::Locale::de_DE).to_string(),
@@ -82,13 +81,13 @@ impl Component for Widget {
         set_vexpand: true,
         set_column_homogeneous: true,
 
-        attach[0, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Mo", },
-        attach[1, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Di", },
-        attach[2, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Mi", },
-        attach[3, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Do", },
-        attach[4, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Fr", },
-        attach[5, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "Sa", },
-        attach[6, 0, 1, 1] = &gtk::Label { inline_css: "font-size: 20px; font-weight: bold;", set_text: "So", },
+        attach[0, 0, 1, 1] = &gtk::Label { add_css_class: "month-calendar-weekday", set_text: "Mo", },
+        attach[1, 0, 1, 1] = &gtk::Label { add_css_class: "month-calendar-weekday", set_text: "Di", },
+        attach[2, 0, 1, 1] = &gtk::Label { add_css_class: "month-calendar-weekday", set_text: "Mi", },
+        attach[3, 0, 1, 1] = &gtk::Label { add_css_class: "month-calendar-weekday", set_text: "Do", },
+        attach[4, 0, 1, 1] = &gtk::Label { add_css_class: "month-calendar-weekday", set_text: "Fr", },
+        attach[5, 0, 1, 1] = &gtk::Label { add_css_class: "month-calendar-weekday", set_text: "Sa", },
+        attach[6, 0, 1, 1] = &gtk::Label { add_css_class: "month-calendar-weekday", set_text: "So", },
       },
     },
   }
@@ -103,20 +102,19 @@ impl Component for Widget {
     match input {
       Input::Add(event) => {
         let start = start_grid_date(self.selected);
-        let end = end_grid_date(start);
 
-        for date in event.all_matching_between(start, end) {
+        for date in event.all_matching_between(start, start + DURATION) {
           self.days[date_to_idx(date)].emit(day::Input::Add(event.clone()));
         }
       }
       Input::Reset => {
+        let start = start_grid_date(self.selected);
+
         for day in &self.days {
           day.emit(day::Input::Reset);
         }
 
-        let start = start_grid_date(self.selected);
-        let end = end_grid_date(start);
-        sender.output(Output::RequestEvents(start, end)).unwrap();
+        sender.output(Output::RequestEvents(start, start + DURATION)).unwrap();
       }
       Input::NextMonth => {
         let new = self.selected + chrono::Months::new(1);
@@ -127,19 +125,16 @@ impl Component for Widget {
         sender.input(Input::Select(new));
       }
       Input::Select(date) => {
-        widgets.month_label.set_text(&date.format_localized("%B %Y", chrono::Locale::de_DE).to_string());
-
         if self.selected.month() != date.month() {
-          let start_date = start_grid_date(date);
+          let start = start_grid_date(date);
 
           for (idx, day) in self.days.iter_mut().enumerate() {
-            let day_date = start_date + Days::new(idx as u64);
-            day.emit(day::Input::SetDay(day_date));
+            let day_date = start + Days::new(idx as u64);
+            day.emit(day::Input::SetDay(day_date, day_date.month() == date.month()));
             day.emit(day::Input::Reset);
           }
 
-          let end = end_grid_date(start_date);
-          sender.output(Output::RequestEvents(start_date, end)).unwrap();
+          sender.output(Output::RequestEvents(start, start + DURATION)).unwrap();
         }
 
         self.days[date_to_idx(self.selected)].emit(day::Input::Deselect);
@@ -153,8 +148,9 @@ impl Component for Widget {
           day.emit(day::Input::Tick(now));
         }
 
-        if self.selected.month() != now.month() {
-          sender.input(Input::Select(now.date()));
+        if now.date() != self.now_date {
+          self.now_date = now.date();
+          sender.input(Input::Select(self.now_date));
         }
       }
     }
@@ -167,24 +163,23 @@ impl Component for Widget {
     root: Self::Root,
     sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
-    let start_date = start_grid_date(selected);
-    let days = std::array::from_fn(|idx| {
-      let day = start_date + Days::new(idx as u64);
-
-      day::Widget::builder()
-        .launch(day)
+    let model = Self {
+      now_date: chrono::Utc::now().date_naive(),
+      selected: NaiveDate::default(),
+      days: std::array::from_fn(|_| day::Widget::builder()
+        .launch(())
         .forward(sender.input_sender(), |output| match output {
           day::Output::Selected(day) => Input::Select(day),
-        })
-    });
-
-    let model = Self { selected, days };
+        })),
+    };
 
     let widgets = view_output!();
 
     for (idx, day) in model.days.iter().enumerate() {
       widgets.calendar_grid.attach(day.widget(), (idx % 7) as i32, (idx / 7) as i32 + 1, 1, 1);
     }
+
+    sender.input(Input::Select(selected));
 
     ComponentParts { model, widgets }
   }
@@ -198,10 +193,6 @@ fn start_grid_date(date: NaiveDate) -> NaiveDate {
   }
 
   first
-}
-
-fn end_grid_date(date: NaiveDate) -> NaiveDate {
-  start_grid_date(date) + Days::new(41)
 }
 
 fn date_to_idx(date: NaiveDate) -> usize {

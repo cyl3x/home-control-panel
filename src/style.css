@@ -17,6 +17,18 @@
 
 .month-calendar {
   width: min-content;
+  margin: 16px;
+}
+
+.month-calendar-label {
+  font-size: 24px;
+  font-weight: semi-bold;
+  margin-bottom: 4px;
+}
+
+.month-calendar-weekday {
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .month-calendar-event-indicator {
@@ -24,6 +36,7 @@
   border-radius: 50%;
   height: 8px;
   width: 8px;
+  border: 1px solid @borders;
 }
 
 .month-calendar-day-selected {
@@ -39,12 +52,33 @@
   min-height: 32px;
   padding: 4px;
   border: 1px solid @unfocused_borders;
+  margin: 0;
 }
 
 .month-calendar-day-label {
   border-radius: 4px;
+  margin: 0;
 }
 .month-calendar-day-today {
   background-color: @theme_selected_bg_color;
   opacity: 0.3;
 }
+
+.week-calendar {
+  margin: 16px;
+}
+
+.week-calendar-weekday {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.week-calendar-event {
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.days-calendar {
+  margin: 16px;
+}
+

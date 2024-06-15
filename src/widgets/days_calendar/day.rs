@@ -92,10 +92,7 @@ pub fn create_parent() -> gtk::ListBox {
     .valign(gtk::Align::Start)
     .hexpand(true)
     .selection_mode(gtk::SelectionMode::None)
-    .margin_top(16)
-    .margin_bottom(16)
-    .margin_start(16)
-    .margin_end(16)
+    .css_classes(["days-calendar"])
     .build();
 
   list.set_sort_func(sort_func);

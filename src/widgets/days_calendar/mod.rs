@@ -7,7 +7,7 @@ use crate::calendar::Event;
 mod day;
 mod day_entry;
 
-const DURATION: chrono::Days = chrono::Days::new(14);
+const DURATION: chrono::Days = chrono::Days::new(13);
 
 #[derive(Debug)]
 pub struct Widget {
@@ -74,12 +74,6 @@ impl Component for Widget {
       }
       Input::Tick(now) => {
         self.days.broadcast(day::Input::Tick(now));
-
-        if now.day() != self.start_date.day() {
-          self.start_date = now.date();
-
-          sender.input(Input::Reset);
-        }
       }
     }
   }
