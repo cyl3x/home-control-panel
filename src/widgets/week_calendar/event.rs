@@ -70,8 +70,6 @@ impl Component for Widget {
 
 impl Widget {
   fn formated_text(&self) -> String {
-    let start = self.event.start.and_utc().with_timezone(&chrono_tz::Europe::Berlin);
-
-    format!("{} - {}", start.format("%H:%M"), self.event.summary)
+    format!("{} - {}", self.event.start_tz().format("%H:%M"), self.event.summary)
   }
 }

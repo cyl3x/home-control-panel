@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use chrono::{Datelike, Days, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
+use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use url::Url;
 use uuid::Uuid;
 
@@ -41,13 +41,17 @@ impl Event {
     format!(
       "{}\n{} - {}",
       self.summary,
-      format_date(&self.start),
-      format_date(&self.end),
+      format_date(&self.start_tz()),
+      format_date(&self.end_tz()),
     )
   }
 
   pub const fn start_date(&self) -> NaiveDate {
     self.start.date()
+  }
+
+  pub fn start_tz(&self) -> DateTime<chrono_tz::Tz> {
+    self.start.and_utc().with_timezone(&chrono_tz::Europe::Berlin)
   }
 
   pub fn end_date(&self) -> NaiveDate {
@@ -56,6 +60,10 @@ impl Event {
     } else {
       self.end.date()
     }
+  }
+
+  pub fn end_tz(&self) -> DateTime<chrono_tz::Tz> {
+    self.end.and_utc().with_timezone(&chrono_tz::Europe::Berlin)
   }
 
   pub fn start_end_dates(&self) -> (NaiveDate, NaiveDate)  {
@@ -158,11 +166,8 @@ fn fg_from_bg_w3c<'a>(bg_color: &str) -> Option<&'a str> {
   }
 }
 
-fn format_date(date: &NaiveDateTime) -> String {
-  let now = chrono::Local::now();
-  let date = date
-    .and_local_timezone(chrono::Local::now().timezone())
-    .unwrap();
+fn format_date(date: &DateTime<chrono_tz::Tz>) -> String {
+  let now = chrono::Utc::now().with_timezone(&date.timezone());
 
   let formatted = if date.year() == now.year() {
     date.format_localized("%m. %b %H:%M", chrono::Locale::de_DE)
