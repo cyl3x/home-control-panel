@@ -48,7 +48,7 @@ impl Component for Widget {
         #[name(prev_button)]
         gtk::Button {
           set_icon_name: "pan-start-symbolic",
-          set_size_request: (52, 52),
+          set_size_request: (64, 52),
           set_halign: gtk::Align::Start,
 
           connect_clicked => Input::PreviousMonth,
@@ -65,7 +65,7 @@ impl Component for Widget {
         #[name(next_button)]
         gtk::Button {
           set_icon_name: "pan-end-symbolic",
-          set_size_request: (52, 52),
+          set_size_request: (64, 52),
           set_halign: gtk::Align::Start,
 
           connect_clicked => Input::NextMonth,
@@ -104,7 +104,7 @@ impl Component for Widget {
         let start = start_grid_date(self.selected);
 
         for date in event.all_matching_between(start, start + DURATION) {
-          self.days[date_to_idx(date)].emit(day::Input::Add(event.clone()));
+          self.days[date_to_idx(start, date)].emit(day::Input::Add(event.clone()));
         }
       }
       Input::Reset => {
@@ -125,9 +125,9 @@ impl Component for Widget {
         sender.input(Input::Select(new));
       }
       Input::Select(date) => {
-        if self.selected.month() != date.month() {
-          let start = start_grid_date(date);
+        let start = start_grid_date(date);
 
+        if self.selected.month() != date.month() {
           for (idx, day) in self.days.iter_mut().enumerate() {
             let day_date = start + Days::new(idx as u64);
             day.emit(day::Input::SetDay(day_date, day_date.month() == date.month()));
@@ -137,8 +137,8 @@ impl Component for Widget {
           sender.output(Output::RequestEvents(start, start + DURATION)).unwrap();
         }
 
-        self.days[date_to_idx(self.selected)].emit(day::Input::Deselect);
-        self.days[date_to_idx(date)].emit(day::Input::Select);
+        self.days[date_to_idx(start, self.selected)].emit(day::Input::Deselect);
+        self.days[date_to_idx(start, date)].emit(day::Input::Select);
         self.selected = date;
 
         sender.output(Output::Selected(date)).unwrap();
@@ -195,7 +195,7 @@ fn start_grid_date(date: NaiveDate) -> NaiveDate {
   first
 }
 
-fn date_to_idx(date: NaiveDate) -> usize {
-  ((date - start_grid_date(date)).num_days() as usize).clamp(0, 41)
+fn date_to_idx(start: NaiveDate, date: NaiveDate) -> usize {
+  ((date - start).num_days() as usize).clamp(0, 41)
 }
 

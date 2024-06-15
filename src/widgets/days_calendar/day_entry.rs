@@ -30,6 +30,7 @@ impl FactoryComponent for Widget {
 
   view! {
     gtk::Box {
+      add_css_class: "days-calendar-day-entry",
       set_orientation: gtk::Orientation::Horizontal,
       set_hexpand: true,
       set_spacing: 4,
@@ -37,7 +38,7 @@ impl FactoryComponent for Widget {
       #[watch] set_widget_name: &self.event.start.to_string(),
 
       gtk::Box {
-        inline_css: "border-radius: 4px;",
+        add_css_class: "days-calendar-day-entry-indicator",
         #[watch] inline_css: &format!("background-color: {};", self.event.color()),
         set_vexpand: true,
         set_size_request: (8, -1),
@@ -69,6 +70,7 @@ impl FactoryComponent for Widget {
         set_hexpand: true,
 
         gtk::Label {
+          add_css_class: "days-calendar-day-entry-time-delta",
           set_vexpand: true,
           set_hexpand: true,
           set_halign: gtk::Align::End,

@@ -24,6 +24,7 @@ impl Component for App {
 
   view! {
     gtk::Window {
+      add_css_class: "window",
       set_default_size: (600, 300),
 
       #[name(window_overlay)]

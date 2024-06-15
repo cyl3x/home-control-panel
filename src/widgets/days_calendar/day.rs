@@ -35,7 +35,7 @@ impl FactoryComponent for Widget {
 
   view! {
     gtk::Box {
-      add_css_class: "calendar-event-list",
+      add_css_class: "days-calendar-day",
       set_orientation: gtk::Orientation::Vertical,
       set_halign: gtk::Align::Fill,
       set_hexpand: true,
@@ -43,8 +43,7 @@ impl FactoryComponent for Widget {
       #[watch] set_widget_name: &self.date.to_string(),
 
       gtk::Label {
-        add_css_class: "calendar-event-list-day",
-        inline_css: "font-weight: bold;",
+        add_css_class: "days-calendar-day-label",
         set_hexpand: true,
         set_halign: gtk::Align::Start,
         set_can_focus: false,

@@ -114,7 +114,7 @@ impl Component for Widget {
         self.days_calendar.emit(days_calendar::Input::Tick(now));
       }
       Input::BuildMonthCalendar(start, end) => {
-        log::info!("Building month calendar from {} to {}", start, end);
+        log::debug!("Building month calendar from {} to {}", start, end);
 
         for event in self.calendar_manager.events_filtered() {
           if event.is_between_dates(start, end) {
@@ -123,7 +123,7 @@ impl Component for Widget {
         }
       }
       Input::BuildWeekCalendar(start, end) => {
-        log::info!("Building week calendar from {} to {}", start, end);
+        log::debug!("Building week calendar from {} to {}", start, end);
 
         for event in self.calendar_manager.events_filtered() {
           if event.is_between_dates(start, end) {
@@ -132,7 +132,7 @@ impl Component for Widget {
         }
       }
       Input::BuildDaysCalendar(start, end) => {
-        log::info!("Building days calendar from {} to {}", start, end);
+        log::debug!("Building days calendar from {} to {}", start, end);
 
         for event in self.calendar_manager.events_filtered() {
           if event.is_between_dates(start, end) {
