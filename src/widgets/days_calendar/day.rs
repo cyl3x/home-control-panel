@@ -2,8 +2,8 @@ use chrono::{NaiveDate, NaiveDateTime};
 use gtk::{pango, prelude::*, ListBoxRow};
 use relm4::factory::FactoryHashMap;
 use relm4::prelude::*;
-use uuid::Uuid;
 
+use crate::calendar::event_uuid::EventUuid;
 use crate::calendar::Event;
 
 use super::day_entry;
@@ -11,12 +11,12 @@ use super::day_entry;
 #[derive(Debug)]
 pub struct Widget {
   date: NaiveDate,
-  day_entries: FactoryHashMap<Uuid, day_entry::Widget>,
+  day_entries: FactoryHashMap<EventUuid, day_entry::Widget>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Input {
-  Add(Event),
+  Add(Box<Event>),
   Tick(NaiveDateTime),
   Reorder,
 }
@@ -65,7 +65,7 @@ impl FactoryComponent for Widget {
     list_box.set_sort_func(sort_func);
 
     let mut day_entries = FactoryHashMap::builder().launch(list_box).detach();
-    day_entries.insert(event.uid, event);
+    day_entries.insert(event.uid, (*index, event));
 
     Self {
       date: *index,
@@ -78,7 +78,7 @@ impl FactoryComponent for Widget {
       Input::Reorder => self.day_entries.widget().invalidate_sort(),
       Input::Tick(now) => self.day_entries.broadcast(day_entry::Input::Tick(now)),
       Input::Add(event) => {
-        self.day_entries.insert(event.uid, event);
+        self.day_entries.insert(event.uid, (self.date, *event));
         self.day_entries.widget().invalidate_sort();
       }
     }

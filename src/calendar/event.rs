@@ -4,6 +4,8 @@ use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveDateTime, NaiveTime, Time
 use url::Url;
 use uuid::Uuid;
 
+use super::event_uuid::EventUuid;
+
 pub const EVENT_DEFAULT_COLOR: &str = "#deb887";
 pub const EARLIEST_NAIVE_TIME: NaiveTime = NaiveTime::from_hms(0, 0, 0);
 pub const LASTEST_NAIVE_TIME: NaiveTime = NaiveTime::from_hms(23, 59, 59);
@@ -14,7 +16,7 @@ pub type EventBox = Rc<Event>;
 #[derive(Debug, Clone)]
 pub struct Event {
   pub etag: String,
-  pub uid: Uuid,
+  pub uid: EventUuid,
   pub calendar_uid: Uuid,
   pub summary: String,
   pub description: Option<String>,
@@ -82,50 +84,6 @@ impl Event {
     let end_date_time = (end + Days::new(1)).and_time(EARLIEST_NAIVE_TIME);
 
     (self.end.clamp(start_date_time, end_date_time) - self.start.clamp(start_date_time, end_date_time)).num_days()
-  }
-
-  pub fn delta_text(&self, date: NaiveDateTime) -> String {
-    if date >= self.start && date <= self.end {
-      return "jetzt".to_string();
-    }
-
-    let delta = if date > self.end {
-      self.end - date
-    } else {
-      self.start - date
-    };
-
-    let days = delta.num_days();
-    let hours = delta.num_hours();
-    let minutes = delta.num_minutes();
-
-    if minutes == -1 {
-      format!("vor {} Minute", minutes.abs())
-    } else if minutes == 1 {
-      format!("in {minutes} Minute")
-    } else if hours == -1 {
-      format!("vor {} Stunde", hours.abs())
-    } else if hours == 1 {
-      format!("in {hours} Stunde")
-    } else if days == -1 {
-      format!("vor {} Tag", days.abs())
-    } else if days == 1 {
-      format!("in {days} Tag")
-    } else if days < 0 {
-      format!("vor {} Tagen", days.abs())
-    } else if hours < 0 {
-      format!("vor {} Stunden", hours.abs())
-    } else if minutes < 0 {
-      format!("vor {} Minuten", minutes.abs())
-    } else if days > 0 {
-      format!("in {days} Tagen")
-    } else if hours > 0 {
-      format!("in {hours} Stunden")
-    } else if minutes > 0 {
-      format!("in {minutes} Minuten")
-    } else {
-      "jetzt".to_string()
-    }
   }
 
   pub fn all_matching_between(&self, start: NaiveDate, end: NaiveDate) -> impl Iterator<Item = NaiveDate> {

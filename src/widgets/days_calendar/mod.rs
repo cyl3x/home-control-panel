@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDate, NaiveDateTime};
+use chrono::{NaiveDate, NaiveDateTime};
 use relm4::factory::FactoryHashMap;
 use relm4::prelude::*;
 
@@ -18,7 +18,7 @@ pub struct Widget {
 #[derive(Debug, Clone)]
 pub enum Input {
   Tick(NaiveDateTime),
-  Add(Event),
+  Add(Box<Event>),
   Reset,
   SetDay(NaiveDate),
 }
@@ -61,7 +61,7 @@ impl Component for Widget {
           if self.days.get(&date).is_some() {
             self.days.send(&date, day::Input::Add(event.clone()));
           } else {
-            self.days.insert(date, event.clone());
+            self.days.insert(date, *event.clone());
           }
         }
 

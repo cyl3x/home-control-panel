@@ -17,7 +17,7 @@ pub struct Widget {
 pub enum Input {
   Tick(NaiveDateTime),
   SetDay(NaiveDate, bool),
-  Add(Event),
+  Add(Box<Event>),
   Reset,
   Select,
   Deselect,

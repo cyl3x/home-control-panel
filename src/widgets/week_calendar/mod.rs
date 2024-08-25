@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use chrono::{Datelike, NaiveDate, NaiveDateTime};
 use gtk::prelude::*;
 use relm4::prelude::*;
-use uuid::Uuid;
 
+use crate::calendar::event_uuid::EventUuid;
 use crate::calendar::Event;
 
 mod event;
@@ -27,7 +27,7 @@ impl GridPos {
 #[derive(Debug)]
 pub struct Widget {
   selected: NaiveDate,
-  event_labels: BTreeMap<Uuid, Controller<event::Widget>>,
+  event_labels: BTreeMap<EventUuid, Controller<event::Widget>>,
   space_manager: SpaceManager,
 }
 
@@ -35,7 +35,7 @@ pub struct Widget {
 pub enum Input {
   Tick(NaiveDateTime),
   SetDay(NaiveDate),
-  Add(Event),
+  Add(Box<Event>),
   Reset,
 }
 
@@ -89,7 +89,7 @@ impl Component for Widget {
         let width = event.days_between_dates(start, end).max(1) as usize;
         let col = (event.start_date().clamp(start, end) - start).num_days() as usize;
 
-        let (label_uid, grid_pos) = self.add_or_get(event, col, width);
+        let (label_uid, grid_pos) = self.add_or_get(*event, col, width);
         let label = self.event_labels.get(&label_uid).unwrap();
 
         root.attach(label.widget(), grid_pos.col as i32, (grid_pos.row + 1) as i32, grid_pos.width as i32, 1);
@@ -132,7 +132,7 @@ impl Component for Widget {
 }
 
 impl Widget {
-  fn add_or_get(&mut self, event: Event, col: usize, width: usize) -> (Uuid, GridPos) {
+  fn add_or_get(&mut self, event: Event, col: usize, width: usize) -> (EventUuid, GridPos) {
     let uid = event.uid;
 
     let grid_pos = self.space_manager.find_and_fill(uid, col, width);
@@ -159,13 +159,14 @@ fn start_week_date(date: NaiveDate) -> NaiveDate {
 }
 
 #[derive(Debug)]
-struct SpaceManager(Vec<[Option<Uuid>; 7]>);
+struct SpaceManager(Vec<[Option<EventUuid>; 7]>);
 
 impl SpaceManager {
   pub fn new() -> Self {
     Self(vec![[None; 7]])
   }
 
+  #[allow(dead_code)]
   pub fn free(&mut self, grid_pos: &GridPos) {
     self._fill(grid_pos, None);
 
@@ -177,7 +178,7 @@ impl SpaceManager {
     }
   }
 
-  pub fn fill(&mut self, grid_pos: &GridPos, uid: Uuid) {
+  pub fn fill(&mut self, grid_pos: &GridPos, uid: EventUuid) {
     if self.0.len() <= grid_pos.row {
       self.0.push([None; 7]);
     }
@@ -201,7 +202,7 @@ impl SpaceManager {
     GridPos { row, col, width }
   }
 
-  pub fn find_and_fill(&mut self, uid: Uuid, col: usize, width: usize) -> GridPos {
+  pub fn find_and_fill(&mut self, uid: EventUuid, col: usize, width: usize) -> GridPos {
     let grid_pos = self.find_free(col, width);
     self.fill(&grid_pos, uid);
     grid_pos
@@ -212,7 +213,7 @@ impl SpaceManager {
     self.0[0].fill(None);
   }
 
-  fn _fill(&mut self, grid_pos: &GridPos, value: Option<Uuid>) {
+  fn _fill(&mut self, grid_pos: &GridPos, value: Option<EventUuid>) {
     self.0[grid_pos.row][grid_pos.range()].fill(value);
   }
 }

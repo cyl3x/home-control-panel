@@ -4,10 +4,11 @@ use std::ops::Deref;
 use chrono::NaiveDate;
 use uuid::Uuid;
 
+use super::event_uuid::EventUuid;
 use super::{Calendar, Event};
 
-pub type CalendarMap = BTreeMap<Uuid, (Calendar, BTreeMap<Uuid, Event>)>;
-pub type CalendarFlatRef<'a> = (&'a Uuid, &'a Calendar, &'a Uuid, &'a Event);
+pub type CalendarMap = BTreeMap<Uuid, (Calendar, BTreeMap<EventUuid, Event>)>;
+pub type CalendarFlatRef<'a> = (&'a Uuid, &'a Calendar, &'a EventUuid, &'a Event);
 
 #[derive(Debug, Clone)]
 pub enum CalendarMapChange {
@@ -42,17 +43,17 @@ pub trait CalendarMapExt {
   fn flat_iter(&self) -> impl Iterator<Item = CalendarFlatRef>;
   fn flat_events(&self) -> impl Iterator<Item = &Event>;
   fn flat_calendars(&self) -> impl Iterator<Item = &Calendar>;
-  fn flat_into_iter(self) -> impl Iterator<Item = (Uuid, Uuid, Event)>;
-  fn flat_contains_key(&self, cal_uid: &Uuid, event_uid: &Uuid) -> bool;
-  fn flat_get(&self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<&Event>;
-  fn flat_get_mut(&mut self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<&mut Event>;
-  fn flat_get_key_value(&self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<(&Uuid, &Event)>;
-  fn flat_insert(&mut self, cal_uid: &Uuid, event_uid: Uuid, nested: Event) -> Option<Event>;
-  fn flat_remove(&mut self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<Event>;
-  fn flat_remove_entry(&mut self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<(Uuid, Event)>;
-  fn flat_keys(&self) -> BTreeSet<(&Uuid, &Uuid)>;
-  fn flat_pop_first(&mut self) -> Option<(Uuid, Uuid, Event)>;
-  fn exchange(&mut self, other: Self) -> impl Iterator<Item = (Uuid, Uuid, CalendarMapChange)>;
+  fn flat_into_iter(self) -> impl Iterator<Item = (Uuid, EventUuid, Event)>;
+  fn flat_contains_key(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> bool;
+  fn flat_get(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<&Event>;
+  fn flat_get_mut(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<&mut Event>;
+  fn flat_get_key_value(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<(&EventUuid, &Event)>;
+  fn flat_insert(&mut self, cal_uid: &Uuid, event_uid: EventUuid, nested: Event) -> Option<Event>;
+  fn flat_remove(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<Event>;
+  fn flat_remove_entry(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<(EventUuid, Event)>;
+  fn flat_keys(&self) -> BTreeSet<(&Uuid, &EventUuid)>;
+  fn flat_pop_first(&mut self) -> Option<(Uuid, EventUuid, Event)>;
+  fn exchange(&mut self, other: Self) -> impl Iterator<Item = (Uuid, EventUuid, CalendarMapChange)>;
 }
 
 impl CalendarMapExt for CalendarMap {
@@ -76,7 +77,7 @@ impl CalendarMapExt for CalendarMap {
     self.iter().map(|(_, (calendar, _))| calendar)
   }
 
-  fn flat_into_iter(self) -> impl Iterator<Item = (Uuid, Uuid, Event)> {
+  fn flat_into_iter(self) -> impl Iterator<Item = (Uuid, EventUuid, Event)> {
     self.into_iter()
       .flat_map(|(cal_uid, (_, events))| {
         events
@@ -85,43 +86,43 @@ impl CalendarMapExt for CalendarMap {
       })
   }
 
-  fn flat_contains_key(&self, cal_uid: &Uuid, event_uid: &Uuid) -> bool {
+  fn flat_contains_key(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> bool {
     self.get(cal_uid).map_or(false, |(_, events)| events.contains_key(event_uid))
   }
 
-  fn flat_get(&self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<&Event> {
+  fn flat_get(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<&Event> {
     self.get(cal_uid).and_then(|(_, events)| events.get(event_uid))
   }
 
-  fn flat_get_mut(&mut self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<&mut Event> {
+  fn flat_get_mut(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<&mut Event> {
     self.get_mut(cal_uid).and_then(|(_, events)| events.get_mut(event_uid))
   }
 
-  fn flat_get_key_value(&self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<(&Uuid, &Event)> {
+  fn flat_get_key_value(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<(&EventUuid, &Event)> {
     self.get(cal_uid).and_then(|(_, events)| events.get_key_value(event_uid))
   }
 
   /// Panics if `cal_uid` does not exist
-  fn flat_insert(&mut self, cal_uid: &Uuid, event_uid: Uuid, nested: Event) -> Option<Event> {
+  fn flat_insert(&mut self, cal_uid: &Uuid, event_uid: EventUuid, nested: Event) -> Option<Event> {
     self.get_mut(cal_uid)
       .unwrap()
       .1
       .insert(event_uid, nested)
   }
 
-  fn flat_remove(&mut self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<Event> {
+  fn flat_remove(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<Event> {
     self.get_mut(cal_uid).and_then(|(_, events)| events.remove(event_uid))
   }
 
-  fn flat_remove_entry(&mut self, cal_uid: &Uuid, event_uid: &Uuid) -> Option<(Uuid, Event)> {
+  fn flat_remove_entry(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<(EventUuid, Event)> {
     self.get_mut(cal_uid).and_then(|(_, events)| events.remove_entry(event_uid))
   }
 
-  fn flat_keys(&self) -> BTreeSet<(&Uuid, &Uuid)> {
+  fn flat_keys(&self) -> BTreeSet<(&Uuid, &EventUuid)> {
     self.flat_iter().map(|(cal_uid, _, event_uid, _)| (cal_uid, event_uid)).collect()
   }
 
-  fn flat_pop_first(&mut self) -> Option<(Uuid, Uuid, Event)> {
+  fn flat_pop_first(&mut self) -> Option<(Uuid, EventUuid, Event)> {
     if let Some((cal_uid, (calendar, mut events))) = self.pop_first() {
       if let Some((event_uid, event)) = events.pop_first() {
         if !events.is_empty() {
@@ -135,7 +136,7 @@ impl CalendarMapExt for CalendarMap {
     None
   }
 
-  fn exchange(&mut self, other: Self) -> impl Iterator<Item = (Uuid, Uuid, CalendarMapChange)> {
+  fn exchange(&mut self, other: Self) -> impl Iterator<Item = (Uuid, EventUuid, CalendarMapChange)> {
     let mut other = std::mem::replace(self, other);
 
     let mut self_iter = self.flat_iter();

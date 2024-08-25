@@ -1,11 +1,13 @@
 use std::str::FromStr;
 
-use chrono::{DateTime, NaiveTime, Utc, TimeZone};
+use chrono::{DateTime, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use icalendar::{CalendarDateTime, Component as _, DatePerhapsTime};
 use url::Url;
 use uuid::Uuid;
+use rrule::{RRule, RRuleError, Unvalidated};
 
+use super::event_uuid::EventUuid;
 use super::{extract, Event};
 
 #[derive(Debug)]
@@ -21,6 +23,7 @@ pub enum EventBuilderError {
   InvalidEnd,
   NoUrl,
   InvalidUrl(String),
+  InvalidRRule(RRuleError),
 }
 
 #[derive(Debug, Default)]
@@ -34,14 +37,15 @@ pub struct EventBuilder {
   pub end: Option<DatePerhapsTime>,
   pub color: Option<String>,
   pub url: Option<String>,
+  pub rrule: Option<String>,
 }
 
 impl EventBuilder {
   /// Builds the event.
-  /// 
+  ///
   /// # Errors
   /// Returns an error if the required fields are missing or invalid.
-  pub fn build(self) -> Result<Event, EventBuilderError> {
+  pub fn build(self) -> Result<Vec<Event>, EventBuilderError> {
     let etag = self.etag.ok_or(EventBuilderError::NoEtag)?;
     let uid_str = self.uid.ok_or(EventBuilderError::NoUid)?;
     let uid: Uuid = Uuid::parse_str(&uid_str).map_err(|err| EventBuilderError::InvalidUid(err.to_string()))?;
@@ -54,17 +58,36 @@ impl EventBuilder {
     let url_str = self.url.ok_or(EventBuilderError::NoUrl)?;
     let url = Url::parse(&url_str).map_err(|err| EventBuilderError::InvalidUrl(err.to_string()))?;
 
-    Ok(Event {
+    let create = move |start: NaiveDateTime, end: NaiveDateTime, idx: Option<usize>| Event {
       etag,
-      uid,
+      uid: EventUuid::new(uid, idx),
       calendar_uid,
       summary,
       description: self.description,
-      start: start.naive_utc(),
-      end: end.naive_utc(),
+      start,
+      end,
       color: self.color,
       url,
-    })
+    };
+
+    let list = if let Some(rule) = self.rrule {
+      let rrule = rule.parse::<RRule<Unvalidated>>().map_err(EventBuilderError::InvalidRRule)?;
+
+      let end_dates = rrule.clone().build(end.with_timezone(&rrule::Tz::UTC)).map_err(EventBuilderError::InvalidRRule)?;
+      let start_dates = rrule.build(start.with_timezone(&rrule::Tz::UTC)).map_err(EventBuilderError::InvalidRRule)?;
+
+      start_dates
+        .into_iter()
+        .zip(end_dates.into_iter())
+        .map(|(start, end)| (start.naive_utc(), end.naive_utc()))
+        .enumerate()
+        .map(|(idx, (start, end))| create.clone()(start, end, Some(idx)))
+        .collect()
+    } else {
+      vec![create(start.naive_utc(), end.naive_utc(), None)]
+    };
+
+    Ok(list)
   }
 
   pub fn set_etag_opt(mut self, etag: Option<String>) -> Self {
@@ -112,6 +135,11 @@ impl EventBuilder {
     self
   }
 
+  pub fn set_rrule_opt(mut self, rrule: Option<String>) -> Self {
+    self.rrule = rrule;
+    self
+  }
+
   pub fn with_default_color(mut self, color: &str) -> Self {
     if self.color.is_none() {
       self.color = Some(color.to_string());
@@ -136,6 +164,7 @@ impl From<&icalendar::Event> for EventBuilder {
       .set_start_opt(event.get_start())
       .set_end_opt(event.get_end())
       .set_uid_opt(event.get_uid().map(std::borrow::ToOwned::to_owned))
+      .set_rrule_opt(event.property_value("RRULE").map(std::borrow::ToOwned::to_owned))
   }
 }
 

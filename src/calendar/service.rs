@@ -7,6 +7,7 @@ use uuid::Uuid;
 use crate::calendar::{Calendar, CalendarMap, CalendarMapChange, CalendarMapExt, Event};
 
 use super::caldav::{self, filter_time_range, request_event, Client, Credentials};
+use super::event_uuid::EventUuid;
 
 #[derive(Debug)]
 pub struct CalendarService {
@@ -52,7 +53,7 @@ impl CalendarService {
       .collect::<Result<_, _>>()
   }
 
-  pub fn apply_map(&mut self, map: CalendarMap) -> impl Iterator<Item = (Uuid, Uuid, CalendarMapChange)> + '_ {
+  pub fn apply_map(&mut self, map: CalendarMap) -> impl Iterator<Item = (Uuid, EventUuid, CalendarMapChange)> + '_ {
     self.calendar.exchange(map)
       .map(|(cal_uid, event_uid, event_change)| {
         if self.filtered_calendars.contains(&cal_uid) {

@@ -13,7 +13,7 @@ pub struct Widget {
 
 #[derive(Debug, Clone)]
 pub enum Input {
-  Add(Calendar),
+  Add(Box<Calendar>),
   Reset,
 }
 
@@ -41,7 +41,7 @@ impl Component for Widget {
   fn update(&mut self, input: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
     match input {
       Input::Add(calendar) => {
-        self.calendars.insert(calendar.uid, calendar);
+        self.calendars.insert(calendar.uid, *calendar);
       }
       Input::Reset => {
         self.calendars.clear();

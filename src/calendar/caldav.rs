@@ -10,6 +10,8 @@ use crate::config::Config;
 use crate::calendar::event_builder::EventBuilder;
 use crate::calendar::{Calendar, Event, EVENT_DEFAULT_COLOR};
 
+use super::event_uuid::EventUuid;
+
 #[derive(Clone)]
 pub enum Credentials {
   Basic(String, String),
@@ -20,7 +22,7 @@ impl From<&Config> for Credentials {
   fn from(config: &Config) -> Self {
     Self::Basic(
       config.ical.username.clone(),
-      config.ical.password.as_ref().unwrap().clone(),
+      config.ical.password.clone().unwrap_or_default(),
     )
   }
 }
@@ -205,7 +207,7 @@ impl Client {
       &self,
       request: &String,
       calendar_ref: &Calendar,
-  ) -> Result<BTreeMap<Uuid, Event>, Error> {
+  ) -> Result<BTreeMap<EventUuid, Event>, Error> {
     let auth = self.get_auth_header();
     let content = self.agent
       .request("REPORT", calendar_ref.url_str.as_str())
@@ -233,12 +235,14 @@ impl Client {
             .build()
         )
         .filter_map(|result| match result {
-            Ok(event) => Some((event.uid, event)),
+            Ok(events) => Some(events),
             Err(e) => {
               log::error!("Error parsing event: {:?}", e);
               None
             }
         })
+        .flatten()
+        .map(|event| (event.uid, event))
         .collect();
 
     Ok(events)
@@ -252,7 +256,7 @@ impl Client {
       &self,
       request: &str,
       calendar_ref: &Calendar,
-  ) -> Result<BTreeMap<Uuid, Event>, Error> {
+  ) -> Result<BTreeMap<EventUuid, Event>, Error> {
     let auth = self.get_auth_header();
 
     let content = self.agent
@@ -281,12 +285,14 @@ impl Client {
           .build()
       )
       .filter_map(|result| match result {
-          Ok(event) => Some((event.uid, event)),
+          Ok(events) => Some(events),
           Err(e) => {
             log::error!("Error parsing event: {:?}", e);
             None
           }
       })
+      .flatten()
+      .map(|event| (event.uid, event))
       .collect();
 
     Ok(todos)

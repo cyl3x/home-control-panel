@@ -21,7 +21,7 @@ pub enum Input {
   NextMonth,
   PreviousMonth,
   Select(NaiveDate),
-  Add(Event),
+  Add(Box<Event>),
   Reset,
 }
 
@@ -137,7 +137,7 @@ impl Component for Widget {
           sender.output(Output::RequestEvents(start, start + DURATION)).unwrap();
         }
 
-        self.days[date_to_idx(start, self.selected)].emit(day::Input::Deselect);
+        self.days[date_to_idx(start_grid_date(self.selected), self.selected)].emit(day::Input::Deselect);
         self.days[date_to_idx(start, date)].emit(day::Input::Select);
         self.selected = date;
 

@@ -118,7 +118,7 @@ impl Component for Widget {
 
         for event in self.calendar_manager.events_filtered() {
           if event.is_between_dates(start, end) {
-            self.month_calendar.emit(month_calendar::Input::Add(event.clone()));
+            self.month_calendar.emit(month_calendar::Input::Add(Box::new(event.clone())));
           }
         }
       }
@@ -127,7 +127,7 @@ impl Component for Widget {
 
         for event in self.calendar_manager.events_filtered() {
           if event.is_between_dates(start, end) {
-            self.week_calendar.emit(week_calendar::Input::Add(event.clone()));
+            self.week_calendar.emit(week_calendar::Input::Add(Box::new(event.clone())));
           }
         }
       }
@@ -136,13 +136,13 @@ impl Component for Widget {
 
         for event in self.calendar_manager.events_filtered() {
           if event.is_between_dates(start, end) {
-            self.days_calendar.emit(days_calendar::Input::Add(event.clone()));
+            self.days_calendar.emit(days_calendar::Input::Add(Box::new(event.clone())));
           }
         }
       }
       Input::BuildCalendarSelection => {
         for calendar in self.calendar_manager.calendars() {
-          self.calendar_selection.emit(calendar_selection::Input::Add(calendar.clone()));
+          self.calendar_selection.emit(calendar_selection::Input::Add(Box::new(calendar.clone())));
         }
       }
       Input::MonthCalendarSelected(date) => {
