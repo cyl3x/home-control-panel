@@ -8,13 +8,12 @@ use crate::calendar::{caldav, CalendarService};
 use crate::config::Config;
 use crate::calendar::CalendarMap;
 
-use super::{calendar_selection, days_calendar, week_calendar, month_calendar, video};
+use super::{calendar_selection, days_calendar, month_calendar, video};
 
 #[derive(Debug)]
 pub struct Widget {
   calendar_manager: CalendarService,
   month_calendar: Controller<month_calendar::Widget>,
-  week_calendar: Controller<week_calendar::Widget>,
   days_calendar: Controller<days_calendar::Widget>,
   calendar_selection: Controller<calendar_selection::Widget>,
   video: Controller<video::Widget>,
@@ -27,7 +26,6 @@ pub enum Input {
   MonthCalendarSelected(NaiveDate),
   CalendarSelectionClicked(Uuid, bool),
   BuildMonthCalendar(NaiveDate, NaiveDate),
-  BuildWeekCalendar(NaiveDate, NaiveDate),
   BuildDaysCalendar(NaiveDate, NaiveDate),
   BuildCalendarSelection,
 }
@@ -85,7 +83,6 @@ impl Component for Widget {
         set_size_request: (800, -1),
 
         set_start_child: Some(model.video.widget()),
-        set_end_child: Some(model.week_calendar.widget()),
       },
     },
   }
@@ -110,7 +107,6 @@ impl Component for Widget {
       }
       Input::Tick(now) => {
         self.month_calendar.emit(month_calendar::Input::Tick(now));
-        self.week_calendar.emit(week_calendar::Input::Tick(now));
         self.days_calendar.emit(days_calendar::Input::Tick(now));
       }
       Input::BuildMonthCalendar(start, end) => {
@@ -119,15 +115,6 @@ impl Component for Widget {
         for event in self.calendar_manager.events_filtered() {
           if event.is_between_dates(start, end) {
             self.month_calendar.emit(month_calendar::Input::Add(Box::new(event.clone())));
-          }
-        }
-      }
-      Input::BuildWeekCalendar(start, end) => {
-        log::debug!("Building week calendar from {} to {}", start, end);
-
-        for event in self.calendar_manager.events_filtered() {
-          if event.is_between_dates(start, end) {
-            self.week_calendar.emit(week_calendar::Input::Add(Box::new(event.clone())));
           }
         }
       }
@@ -147,13 +134,11 @@ impl Component for Widget {
       }
       Input::MonthCalendarSelected(date) => {
         self.days_calendar.emit(days_calendar::Input::SetDay(date));
-        self.week_calendar.emit(week_calendar::Input::SetDay(date));
       }
       Input::CalendarSelectionClicked(uid, is_active) => {
         self.calendar_manager.toggle_calendar_filter(uid, is_active);
 
         self.month_calendar.emit(month_calendar::Input::Reset);
-        self.week_calendar.emit(week_calendar::Input::Reset);
         self.days_calendar.emit(days_calendar::Input::Reset);
       }
     }
@@ -177,7 +162,6 @@ impl Component for Widget {
 
         if has_changes {
           self.month_calendar.emit(month_calendar::Input::Reset);
-          self.week_calendar.emit(week_calendar::Input::Reset);
           self.days_calendar.emit(days_calendar::Input::Reset);
           self.calendar_selection.emit(calendar_selection::Input::Reset);
         }
@@ -198,9 +182,6 @@ impl Component for Widget {
         month_calendar::Output::RequestEvents(start, end) => Input::BuildMonthCalendar(start, end),
         month_calendar::Output::Selected(date) => Input::MonthCalendarSelected(date),
       }),
-      week_calendar: week_calendar::Widget::builder().launch(date).forward(sender.input_sender(), |output| match output {
-        week_calendar::Output::RequestEvents(start, end) => Input::BuildWeekCalendar(start, end),
-      }),
       days_calendar: days_calendar::Widget::builder().launch(date).forward(sender.input_sender(), |output| match output {
         days_calendar::Output::RequestEvents(start, end) => Input::BuildDaysCalendar(start, end),
       }),
@@ -216,7 +197,6 @@ impl Component for Widget {
 
     model.month_calendar.widget().set_size_request(-1, 200);
     model.days_calendar.widget().set_size_request(-1, 600);
-    model.week_calendar.widget().set_size_request(-1, 300);
     model.video.widget().set_size_request(-1, 700);
 
     sender.input(Input::Sync);
