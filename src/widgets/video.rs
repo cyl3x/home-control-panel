@@ -27,7 +27,7 @@ impl Component for Widget {
       add_fading_overlay = &gtk::Box {
         set_orientation: gtk::Orientation::Horizontal,
         set_hexpand: true,
-        set_valign: gtk::Align::Start,
+        set_valign: gtk::Align::End,
         set_halign: gtk::Align::Fill,
         set_margin_all: 16,
         set_spacing: 8,
