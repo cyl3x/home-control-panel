@@ -8,13 +8,13 @@ use crate::calendar::{caldav, CalendarService};
 use crate::config::Config;
 use crate::calendar::CalendarMap;
 
-use super::{calendar_selection, days_calendar, month_calendar, video};
+use super::{calendar_selection, day_calendar, month_calendar, video};
 
 #[derive(Debug)]
 pub struct Widget {
   calendar_manager: CalendarService,
   month_calendar: Controller<month_calendar::Widget>,
-  days_calendar: Controller<days_calendar::Widget>,
+  day_calendar: Controller<day_calendar::Widget>,
   calendar_selection: Controller<calendar_selection::Widget>,
   video: Controller<video::Widget>,
 }
@@ -26,7 +26,7 @@ pub enum Input {
   MonthCalendarSelected(NaiveDate),
   CalendarSelectionClicked(Uuid, bool),
   BuildMonthCalendar(NaiveDate, NaiveDate),
-  BuildDaysCalendar(NaiveDate, NaiveDate),
+  BuildDayCalendar(NaiveDate),
   BuildCalendarSelection,
 }
 
@@ -68,7 +68,7 @@ impl Component for Widget {
           set_size_request: (300, -1),
 
           set_start_child: Some(model.month_calendar.widget()),
-          set_end_child: Some(model.days_calendar.widget()),
+          set_end_child: Some(model.day_calendar.widget()),
         },
 
         append: model.calendar_selection.widget(),
@@ -83,6 +83,9 @@ impl Component for Widget {
         set_size_request: (800, -1),
 
         set_start_child: Some(model.video.widget()),
+        #[wrap(Some)] set_end_child = &gtk::Box {
+          set_size_request: (-1, 300),
+        }
       },
     },
   }
@@ -107,7 +110,7 @@ impl Component for Widget {
       }
       Input::Tick(now) => {
         self.month_calendar.emit(month_calendar::Input::Tick(now));
-        self.days_calendar.emit(days_calendar::Input::Tick(now));
+        self.day_calendar.emit(day_calendar::Input::Tick(now));
       }
       Input::BuildMonthCalendar(start, end) => {
         log::debug!("Building month calendar from {} to {}", start, end);
@@ -118,12 +121,12 @@ impl Component for Widget {
           }
         }
       }
-      Input::BuildDaysCalendar(start, end) => {
-        log::debug!("Building days calendar from {} to {}", start, end);
+      Input::BuildDayCalendar(date) => {
+        log::debug!("Building day calendar for {}", date);
 
         for event in self.calendar_manager.events_filtered() {
-          if event.is_between_dates(start, end) {
-            self.days_calendar.emit(days_calendar::Input::Add(Box::new(event.clone())));
+          if event.is_between_dates(date, date) {
+            self.day_calendar.emit(day_calendar::Input::Add(Box::new(event.clone())));
           }
         }
       }
@@ -133,13 +136,13 @@ impl Component for Widget {
         }
       }
       Input::MonthCalendarSelected(date) => {
-        self.days_calendar.emit(days_calendar::Input::SetDay(date));
+        self.day_calendar.emit(day_calendar::Input::SetDay(date));
       }
       Input::CalendarSelectionClicked(uid, is_active) => {
         self.calendar_manager.toggle_calendar_filter(uid, is_active);
 
         self.month_calendar.emit(month_calendar::Input::Reset);
-        self.days_calendar.emit(days_calendar::Input::Reset);
+        self.day_calendar.emit(day_calendar::Input::Reset);
       }
     }
   }
@@ -162,7 +165,7 @@ impl Component for Widget {
 
         if has_changes {
           self.month_calendar.emit(month_calendar::Input::Reset);
-          self.days_calendar.emit(days_calendar::Input::Reset);
+          self.day_calendar.emit(day_calendar::Input::Reset);
           self.calendar_selection.emit(calendar_selection::Input::Reset);
         }
       }
@@ -182,8 +185,8 @@ impl Component for Widget {
         month_calendar::Output::RequestEvents(start, end) => Input::BuildMonthCalendar(start, end),
         month_calendar::Output::Selected(date) => Input::MonthCalendarSelected(date),
       }),
-      days_calendar: days_calendar::Widget::builder().launch(date).forward(sender.input_sender(), |output| match output {
-        days_calendar::Output::RequestEvents(start, end) => Input::BuildDaysCalendar(start, end),
+      day_calendar: day_calendar::Widget::builder().launch(date).forward(sender.input_sender(), |output| match output {
+        day_calendar::Output::RequestEvents(date) => Input::BuildDayCalendar(date),
       }),
       calendar_selection: calendar_selection::Widget::builder().launch(()).forward(sender.input_sender(), |output| match output {
         calendar_selection::Output::RequestCalendars => Input::BuildCalendarSelection,
@@ -196,7 +199,7 @@ impl Component for Widget {
     let widgets = view_output!();
 
     model.month_calendar.widget().set_size_request(-1, 200);
-    model.days_calendar.widget().set_size_request(-1, 600);
+    model.day_calendar.widget().set_size_request(-1, 600);
     model.video.widget().set_size_request(-1, 700);
 
     sender.input(Input::Sync);

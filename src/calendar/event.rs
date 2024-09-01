@@ -40,6 +40,14 @@ impl Event {
   }
 
   pub fn tooltip(&self) -> String {
+    if self.start == self.end {
+      return format!(
+        "{}\n{}",
+        self.summary,
+        format_date(&self.start_tz()),
+      );
+    }
+
     format!(
       "{}\n{} - {}",
       self.summary,

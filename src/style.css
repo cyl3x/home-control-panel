@@ -98,6 +98,30 @@
   font-size: 16px;
 }
 
+.days-calendar-day-entry-summary {
+	color: #ffffff;
+}
+
+.day-calendar {
+  margin: 16px;
+}
+
+.day-calendar-label {
+  font-weight: bold;
+}
+
+.day-calendar-entry-indicator {
+  border-radius: 4px;
+}
+
+.day-calendar-entry-summary {
+	color: #ffffff;
+}
+
+.day-calendar-entry-time {
+  font-size: 16px;
+}
+
 .calendar-selection-label {
   padding: 8px 16px;
   font-size: 16px;

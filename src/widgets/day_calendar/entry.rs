@@ -1,5 +1,5 @@
-use chrono::{NaiveDate, NaiveDateTime};
-use gtk::{pango, prelude::*};
+use chrono::NaiveDateTime;
+use gtk::{pango, prelude::*, ListBoxRow};
 use relm4::prelude::*;
 
 use crate::calendar::event_uuid::EventUuid;
@@ -7,7 +7,6 @@ use crate::calendar::Event;
 
 #[derive(Debug)]
 pub struct Widget {
-  date: NaiveDate,
   event: Event,
   now: NaiveDateTime,
 }
@@ -22,7 +21,7 @@ pub enum Output {}
 
 #[relm4::factory(pub)]
 impl FactoryComponent for Widget {
-  type Init = (NaiveDate, Event);
+  type Init = Event;
   type Input = Input;
   type Output = Output;
   type ParentWidget = gtk::ListBox;
@@ -31,7 +30,7 @@ impl FactoryComponent for Widget {
 
   view! {
     gtk::Box {
-      add_css_class: "days-calendar-day-entry",
+      add_css_class: "day-calendar-entry",
       set_orientation: gtk::Orientation::Horizontal,
       set_hexpand: true,
       set_spacing: 4,
@@ -39,7 +38,7 @@ impl FactoryComponent for Widget {
       #[watch] set_widget_name: &self.event.start.to_string(),
 
       gtk::Box {
-        add_css_class: "days-calendar-day-entry-indicator",
+        add_css_class: "day-calendar-entry-indicator",
         #[watch] inline_css: &format!("background-color: {};", self.event.color()),
         set_vexpand: true,
         set_size_request: (8, -1),
@@ -51,7 +50,7 @@ impl FactoryComponent for Widget {
         set_hexpand: true,
 
         gtk::Label {
-          add_css_class: "days-calendar-day-entry-summary",
+          add_css_class: "day-calendar-entry-summary",
           set_halign: gtk::Align::Start,
           set_can_focus: false,
           set_ellipsize: pango::EllipsizeMode::End,
@@ -72,18 +71,18 @@ impl FactoryComponent for Widget {
         set_hexpand: true,
 
         gtk::Label {
-          add_css_class: "days-calendar-day-entry-time-delta",
+          add_css_class: "day-calendar-entry-time",
           set_vexpand: true,
           set_hexpand: true,
           set_halign: gtk::Align::End,
-          #[watch] set_text: &delta_text(&self.event, self.now, self.date),
+          #[watch] set_text: &self.event.start.time().format("%H:%M").to_string(),
         }
       },
     },
   }
 
-  fn init_model((date, event): Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
-    Self { date, event, now: chrono::Utc::now().naive_utc() }
+  fn init_model(event: Self::Init, _index: &Self::Index, _sender: FactorySender<Self>) -> Self {
+    Self { event, now: chrono::Utc::now().naive_utc() }
   }
 
   fn update(&mut self, input: Self::Input, _sender: FactorySender<Self>) {
@@ -93,53 +92,27 @@ impl FactoryComponent for Widget {
   }
 }
 
-pub fn delta_text(event: &Event, date: NaiveDateTime, for_date: NaiveDate) -> String {
-  let mut start = event.start;
-  let end = event.end;
+pub fn create_parent() -> gtk::ListBox {
+  let list = gtk::ListBox::builder()
+    .halign(gtk::Align::Fill)
+    .valign(gtk::Align::Start)
+    .hexpand(true)
+    .selection_mode(gtk::SelectionMode::None)
+    .css_classes(["day-calendar"])
+    .build();
 
-  if event.is_between_dates(for_date, for_date) {
-    start = for_date.and_hms(0, 0, 0);
-  }
+  list.set_sort_func(sort_func);
 
-  if date <= end && date >= start {
-    return "jetzt".to_string();
-  }
+  list
+}
 
-  let delta = if date > end {
-    end - date
-  } else {
-    start - date
-  };
+fn sort_func(a: &ListBoxRow, b: &ListBoxRow) -> gtk::Ordering {
+  let a = a.child().map(|a| a.widget_name()).unwrap();
+  let b = b.child().map(|a| a.widget_name()).unwrap();
 
-  let days = delta.num_days();
-  let hours = delta.num_hours();
-  let minutes = delta.num_minutes();
-
-  if minutes == -1 {
-    format!("vor {} Minute", minutes.abs())
-  } else if minutes == 1 {
-    format!("in {minutes} Minute")
-  } else if hours == -1 {
-    format!("vor {} Stunde", hours.abs())
-  } else if hours == 1 {
-    format!("in {hours} Stunde")
-  } else if days == -1 {
-    format!("vor {} Tag", days.abs())
-  } else if days == 1 {
-    format!("in {days} Tag")
-  } else if days < 0 {
-    format!("vor {} Tagen", days.abs())
-  } else if hours < 0 {
-    format!("vor {} Stunden", hours.abs())
-  } else if minutes < 0 {
-    format!("vor {} Minuten", minutes.abs())
-  } else if days > 0 {
-    format!("in {days} Tagen")
-  } else if hours > 0 {
-    format!("in {hours} Stunden")
-  } else if minutes > 0 {
-    format!("in {minutes} Minuten")
-  } else {
-    "jetzt".to_string()
+  match a.cmp(&b) {
+    std::cmp::Ordering::Less => gtk::Ordering::Smaller,
+    std::cmp::Ordering::Equal => gtk::Ordering::Equal,
+    std::cmp::Ordering::Greater => gtk::Ordering::Larger,
   }
 }
