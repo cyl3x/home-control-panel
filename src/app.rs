@@ -4,15 +4,17 @@ use relm4::{Component, ComponentParts, ComponentSender};
 
 use crate::calendar::caldav;
 use crate::config::Config;
-use crate::widgets::view;
+use crate::widgets::{screensaver, view};
 
 pub struct App<> {
-  view: Controller<view::Widget>
+  view: Controller<view::Widget>,
+  screensaver: Controller<screensaver::Widget>
 }
 
 #[derive(Debug)]
 pub enum Input {
   CalDavError(caldav::Error),
+  Clicked,
 }
 
 #[relm4::component(pub)]
@@ -57,8 +59,16 @@ impl Component for App {
           set_halign: gtk::Align::End,
         },
 
+        add_overlay: model.screensaver.widget(),
+
         gtk::Box {
           append: model.view.widget(),
+
+          add_controller = gtk::GestureClick {
+            connect_pressed[sender] => move |_, _, _, _| {
+              sender.input(Input::Clicked);
+            },
+          },
         }
       }
     }
@@ -71,6 +81,9 @@ impl Component for App {
         // widgets.status_bar.context_id(msg);
         // widgets.status_bar.push(0, msg);
         log::error!("CalDav error: {:?}", err);
+      }
+      Input::Clicked => {
+        self.screensaver.emit(screensaver::Input::Reset);
       }
     }
 
@@ -86,6 +99,7 @@ impl Component for App {
       view: view::Widget::builder().launch(config).forward(sender.input_sender(), |output| match output {
         view::Output::CalDavError(err) => Self::Input::CalDavError(err),
       }),
+      screensaver: screensaver::Widget::builder().launch(()).detach(),
     };
 
     let widgets = view_output!();

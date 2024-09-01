@@ -126,3 +126,17 @@
   padding: 8px 16px;
   font-size: 16px;
 }
+
+.screensaver {
+  background-color: black;
+}
+
+.screensaver-time {
+  font-size: 10em;
+  color: white;
+}
+
+.screensaver-date {
+  font-size: 6em;
+  color: grey;
+}
