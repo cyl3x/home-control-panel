@@ -67,9 +67,9 @@ impl Component for App {
   fn update_with_view(&mut self, widgets: &mut Self::Widgets, input: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
     match input {
       Input::CalDavError(err) => {
-        let msg = &format!("{err:#?}");
-        widgets.status_bar.context_id(msg);
-        widgets.status_bar.push(0, msg);
+        // let msg = &format!("{err:#?}");
+        // widgets.status_bar.context_id(msg);
+        // widgets.status_bar.push(0, msg);
         log::error!("CalDav error: {:?}", err);
       }
     }
