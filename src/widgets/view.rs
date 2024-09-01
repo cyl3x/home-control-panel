@@ -57,35 +57,24 @@ impl Component for Widget {
       set_wide_handle: true,
 
       #[wrap(Some)]
-      set_start_child = &gtk::Box {
+      set_start_child = left = &gtk::Box {
         set_orientation: gtk::Orientation::Vertical,
-
-        gtk::Paned {
-          set_orientation: gtk::Orientation::Vertical,
-          set_hexpand: true,
-          set_vexpand: true,
-          set_wide_handle: true,
-          set_size_request: (300, -1),
-
-          set_start_child: Some(model.month_calendar.widget()),
-          set_end_child: Some(model.day_calendar.widget()),
-        },
-
+        append: model.month_calendar.widget(),
         append: model.calendar_selection.widget(),
+        append: model.day_calendar.widget(),
       },
 
       #[wrap(Some)]
-      set_end_child = &gtk::Paned {
+      set_end_child = right = &gtk::Paned {
         set_orientation: gtk::Orientation::Vertical,
         set_hexpand: true,
         set_vexpand: true,
         set_wide_handle: true,
         set_size_request: (800, -1),
+        set_shrink_start_child: false,
 
         set_start_child: Some(model.video.widget()),
-        #[wrap(Some)] set_end_child = &gtk::Box {
-          set_size_request: (-1, 300),
-        }
+        #[wrap(Some)] set_end_child = &gtk::Box {}
       },
     },
   }
@@ -198,9 +187,7 @@ impl Component for Widget {
 
     let widgets = view_output!();
 
-    model.month_calendar.widget().set_size_request(-1, 200);
-    model.day_calendar.widget().set_size_request(-1, 600);
-    model.video.widget().set_size_request(-1, 700);
+    model.video.widget().set_size_request(-1, 400);
 
     sender.input(Input::Sync);
 

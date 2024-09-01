@@ -32,7 +32,7 @@ impl FactoryComponent for Widget {
   view! {
     gtk::Label {
       add_css_class: "calendar-selection-label",
-      #[watch] inline_css: &format!("border-top: 4px solid {};", self.calendar.color()),
+      #[watch] inline_css: &format!("border-color: {};", self.calendar.color()),
       #[watch] inline_css: if self.is_active { "filter: none" } else { "filter: brightness(50%)" },
       #[watch] set_text: &self.calendar.name,
       set_hexpand: true,

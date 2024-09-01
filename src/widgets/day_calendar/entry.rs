@@ -34,6 +34,8 @@ impl FactoryComponent for Widget {
       set_orientation: gtk::Orientation::Horizontal,
       set_hexpand: true,
       set_spacing: 4,
+      set_margin_top: 4,
+      set_margin_bottom: 4,
       #[watch] set_tooltip: &self.event.tooltip(),
       #[watch] set_widget_name: &self.event.start.to_string(),
 

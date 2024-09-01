@@ -125,6 +125,8 @@
 .calendar-selection-label {
   padding: 8px 16px;
   font-size: 16px;
+  border-width: 4px 0px;
+  border-style: solid;
 }
 
 .screensaver {

@@ -27,6 +27,8 @@ impl Component for Widget {
   view! {
     gtk::Box {
       set_orientation: gtk::Orientation::Vertical,
+      set_vexpand: false,
+      set_valign: gtk::Align::Start,
 
       #[name(video)]
       clapper_gtk::Video {},

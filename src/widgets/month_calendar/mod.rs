@@ -42,6 +42,8 @@ impl Component for Widget {
     gtk::Box {
       add_css_class: "month-calendar",
       set_orientation: gtk::Orientation::Vertical,
+      set_vexpand: false,
+      set_valign: gtk::Align::Start,
       set_spacing: 16,
 
       gtk::Box {

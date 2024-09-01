@@ -1,4 +1,6 @@
-use chrono::{NaiveDate, NaiveDateTime};use relm4::factory::FactoryHashMap;
+use chrono::{NaiveDate, NaiveDateTime};
+use relm4::factory::FactoryHashMap;
+use gtk::prelude::*;
 use relm4::prelude::*;
 
 use crate::calendar::event_uuid::EventUuid;
@@ -37,6 +39,8 @@ impl Component for Widget {
       set_hscrollbar_policy: gtk::PolicyType::Never,
       set_vscrollbar_policy: gtk::PolicyType::Automatic,
       set_child: Some(model.entries.widget()),
+      set_vexpand: true,
+      set_valign: gtk::Align::Fill,
     },
   }
 
