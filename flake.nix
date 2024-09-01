@@ -17,7 +17,6 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
     crane.url = "github:ipetkov/crane";
-    crane.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs, rust-overlay, crane, flake-utils }:
