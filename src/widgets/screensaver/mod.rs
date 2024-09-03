@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use chrono::{DateTime, Utc};
 use chrono_tz::Europe;
 use gtk::glib::SourceId;
@@ -76,13 +74,15 @@ impl Component for Widget {
       }
       Input::Visible(visible) => {
         if visible {
-          let size = min(root.width() / 100, root.height() / 80);
+          let size = std::cmp::min(root.width() / 100, root.height() / 80);
           root.inline_css(&format!("font-size: {}px;", size));
         }
 
         root.set_visible(visible);
       }
       Input::Reset => {
+        root.set_visible(false);
+
         if let Some(id) = self.timeout.take() {
           id.remove();
         }
@@ -109,7 +109,6 @@ impl Component for Widget {
       gtk::glib::ControlFlow::Continue
     }));
 
-    root.set_visible(false);
     sender.input(Input::Reset);
 
     let widgets = view_output!();
