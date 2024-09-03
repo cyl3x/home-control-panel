@@ -77,7 +77,7 @@ impl FactoryComponent for Widget {
           set_vexpand: true,
           set_hexpand: true,
           set_halign: gtk::Align::End,
-          #[watch] set_text: &self.event.start.time().format("%H:%M").to_string(),
+          #[watch] set_text: &self.event.start_tz().time().format("%H:%M").to_string(),
         }
       },
     },
