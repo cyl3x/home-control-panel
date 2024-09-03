@@ -50,7 +50,7 @@ impl EventBuilder {
     let uid_str = self.uid.ok_or(EventBuilderError::NoUid)?;
     let uid: Uuid = Uuid::parse_str(&uid_str).map_err(|err| EventBuilderError::InvalidUid(err.to_string()))?;
     let calendar_uid = self.calendar_uid.ok_or(EventBuilderError::NoCalendarUid)?;
-    let summary = self.summary.ok_or(EventBuilderError::NoSummary)?;
+    let summary = self.summary.unwrap_or_else(|| "<kein Titel>".to_owned());
     let start = self.start.ok_or(EventBuilderError::NoStart)?;
     let start = date_perhaps_time_to_date_time(start).ok_or(EventBuilderError::InvalidStart)?;
     let end = self.end.ok_or(EventBuilderError::NoEnd)?;
