@@ -33,7 +33,7 @@ impl FactoryComponent for Widget {
       add_css_class: "day-calendar-entry",
       set_orientation: gtk::Orientation::Horizontal,
       set_hexpand: true,
-      set_spacing: 4,
+      set_spacing: 8,
       set_margin_top: 4,
       set_margin_bottom: 4,
       #[watch] set_tooltip: &self.event.tooltip(),

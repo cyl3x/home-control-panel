@@ -140,7 +140,7 @@ impl Component for Widget {
 
 fn indicator_from_event(event: &Event) -> gtk::Box {
   let indicator = gtk::Box::default();
-  indicator.set_size_request(8, 8);
+  indicator.set_size_request(12, 12);
   indicator.add_css_class("month-calendar-event-indicator");
   indicator.inline_css(&format!("background-color: {}", event.color()));
 

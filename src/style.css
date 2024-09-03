@@ -116,6 +116,8 @@
 
 .day-calendar-entry-summary {
 	color: #ffffff;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .day-calendar-entry-time {
@@ -124,7 +126,7 @@
 
 .calendar-selection-label {
   padding: 8px 16px;
-  font-size: 16px;
+  font-size: 18px;
   border-width: 4px 0px;
   border-style: solid;
 }
