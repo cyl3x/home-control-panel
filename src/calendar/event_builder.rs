@@ -71,15 +71,16 @@ impl EventBuilder {
     };
 
     let list = if let Some(rule) = self.rrule {
-      let rrule = rule.parse::<RRule<Unvalidated>>().map_err(EventBuilderError::InvalidRRule)?;
+      let limit = Utc::now() + chrono::Duration::days(365 + 2);
 
-      let end_dates = rrule.clone().build(end.with_timezone(&rrule::Tz::UTC)).map_err(EventBuilderError::InvalidRRule)?;
+      let rrule = rule.parse::<RRule<Unvalidated>>().map_err(EventBuilderError::InvalidRRule)?;
       let start_dates = rrule.build(start.with_timezone(&rrule::Tz::UTC)).map_err(EventBuilderError::InvalidRRule)?;
+      let interval = end - start;
 
       start_dates
         .into_iter()
-        .zip(end_dates.into_iter())
-        .map(|(start, end)| (start.naive_utc(), end.naive_utc()))
+        .take_while(|start| start < &limit)
+        .map(|start| (start.naive_utc(), (start + interval).naive_utc()))
         .enumerate()
         .map(|(idx, (start, end))| create.clone()(start, end, Some(idx)))
         .collect()
