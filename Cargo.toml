@@ -25,7 +25,7 @@ strip = "debuginfo"
 [dependencies]
 anyhow = "1.0.83"
 base64 = "0.22"
-chrono = { version = "0.4.38", features = ["unstable-locales"] }
+chrono = { version = "0.4.38", features = ["unstable-locales", "serde"] }
 chrono-tz = "0.8.6"
 clap = { version = "4.5.4", features = ["derive"] }
 clapper = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs" }
@@ -43,5 +43,5 @@ serde = { version = "1.0.201", features = ["derive"] }
 toml = "0.8.12"
 ureq = "2.9.7"
 url = { version = "2.5.0", features = ["serde"] }
-uuid = { version = "1.8.0", default = false, features = ["v5"] }
+uuid = { version = "1.8.0", features = ["v5", "serde"] }
 xmltree = "0.10.3"

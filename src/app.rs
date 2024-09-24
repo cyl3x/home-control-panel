@@ -96,10 +96,10 @@ impl Component for App {
     sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
     let model = Self {
+      screensaver: screensaver::Widget::builder().launch(config.screensaver.clone()).detach(),
       view: view::Widget::builder().launch(config).forward(sender.input_sender(), |output| match output {
         view::Output::CalDavError(err) => Self::Input::CalDavError(err),
       }),
-      screensaver: screensaver::Widget::builder().launch(()).detach(),
     };
 
     let widgets = view_output!();

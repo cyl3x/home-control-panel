@@ -1,25 +1,23 @@
 use std::path::PathBuf;
 
 use url::Url;
+use uuid::Uuid;
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize)]
 pub struct Config {
   pub ical: Ical,
-  pub videos: Option<Vec<Video>>,
+  #[serde(default)]
+  pub videos: Vec<Video>,
+  #[serde(default)]
+  pub screensaver: Screensaver,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Deserialize)]
 pub struct Ical {
   pub url: Url,
   pub username: String,
   pub password_file: Option<PathBuf>,
   pub password: Option<String>,
-}
-
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Video {
-  pub name: String,
-  pub url: Url,
 }
 
 impl core::fmt::Debug for Ical {
@@ -33,6 +31,38 @@ impl core::fmt::Debug for Ical {
   }
 }
 
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct Video {
+  pub name: String,
+  pub url: Url,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct Screensaver {
+  #[serde(default = "default_screensaver_timeout")]
+  pub timeout: u32,
+  #[serde(default)]
+  pub exclude: Vec<StartEndTimes>,
+  #[serde(default)]
+  pub dim: Vec<StartEndTimes>,
+}
+
+impl Default for Screensaver {
+  fn default() -> Self {
+    Self {
+      timeout: default_screensaver_timeout(),
+      exclude: Vec::default(),
+      dim: Vec::default(),
+    }
+  }
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct StartEndTimes {
+  pub start: chrono::NaiveTime,
+  pub end: chrono::NaiveTime,
+}
+
 pub fn init(path: PathBuf) -> Result<Config, Box<dyn std::error::Error>> {
   let string = std::fs::read_to_string(path)?;
   let mut config: Config = toml::from_str(&string)?;
@@ -44,4 +74,8 @@ pub fn init(path: PathBuf) -> Result<Config, Box<dyn std::error::Error>> {
   }
 
   Ok(config)
+}
+
+const fn default_screensaver_timeout() -> u32 {
+  600
 }

@@ -1,18 +1,21 @@
 use chrono::{DateTime, Utc};
 use chrono_tz::Europe;
-use gtk::glib::SourceId;
 use gtk::prelude::*;
 use relm4::prelude::*;
 
+use crate::config;
+
 #[derive(Debug)]
 pub struct Widget {
-  timeout: Option<SourceId>,
+  now: DateTime<Utc>,
+  last_activity: DateTime<Utc>,
+  config: config::Screensaver,
+  visible: bool,
 }
 
 #[derive(Debug, Clone)]
 pub enum Input {
   Tick(DateTime<Utc>),
-  Visible(bool),
   Reset,
 }
 
@@ -21,7 +24,7 @@ pub enum Output {}
 
 #[relm4::component(pub)]
 impl Component for Widget {
-  type Init = ();
+  type Init = config::Screensaver;
   type Input = Input;
   type Output = Output;
   type CommandOutput = ();
@@ -30,13 +33,16 @@ impl Component for Widget {
     gtk::Box {
       add_css_class: "screensaver",
       set_orientation: gtk::Orientation::Vertical,
+      inline_css: "font-size: 16px;",
+
+      #[watch] set_visible: model.visible,
       add_controller = gtk::GestureClick {
         connect_pressed[sender] => move |_, _, _, _| {
-          sender.input(Input::Visible(false));
+          sender.input(Input::Reset);
         },
       },
 
-      gtk::Box {
+      #[name(info)] gtk::Box {
         set_orientation: gtk::Orientation::Vertical,
         set_vexpand: true,
         set_hexpand: false,
@@ -47,12 +53,20 @@ impl Component for Widget {
           add_css_class: "screensaver-time",
           set_halign: gtk::Align::Center,
           set_valign: gtk::Align::Center,
+          #[watch] set_text: &model.now
+            .with_timezone(&Europe::Berlin)
+            .format("%H:%M:%S")
+            .to_string(),
         },
 
         #[name(date)] gtk::Label {
           add_css_class: "screensaver-date",
           set_halign: gtk::Align::Center,
           set_valign: gtk::Align::Center,
+          #[watch] set_text: &model.now
+            .with_timezone(&Europe::Berlin)
+            .format_localized("%d. %B", chrono::Locale::de_DE)
+            .to_string(),
         },
       },
     },
@@ -63,53 +77,50 @@ impl Component for Widget {
     widgets: &mut Self::Widgets,
     input: Self::Input,
     sender: ComponentSender<Self>,
-    root: &Self::Root,
+    _root: &Self::Root,
   ) {
     match input {
       Input::Tick(now) => {
-        let local = now.with_timezone(&Europe::Berlin);
+        self.now = now;
+        let time = now.time();
 
-        widgets.time.set_text(&local.format("%H:%M:%S").to_string());
-        widgets.date.set_text(&now.format_localized("%d. %B", chrono::Locale::de_DE).to_string());
-      }
-      Input::Visible(visible) => {
-        if visible {
-          let size = std::cmp::min(root.width() / 100, root.height() / 80);
-          root.inline_css(&format!("font-size: {}px;", size));
+        if self.config.exclude.iter().any(|exclude| time >= exclude.start && time <= exclude.end) {
+          self.last_activity = now;
         }
 
-        root.set_visible(visible);
+        if self.config.dim.iter().any(|dim| time >= dim.start && time <= dim.end) {
+          widgets.info.inline_css("font-size: 10px; opacity: 0.5;");
+        } else {
+          widgets.info.inline_css("font-size: 16px; opacity: 1;");
+        }
+
+        self.visible = (now - self.last_activity).num_seconds() > self.config.timeout as i64;
       }
       Input::Reset => {
-        root.set_visible(false);
-
-        if let Some(id) = self.timeout.take() {
-          id.remove();
-        }
-
-        self.timeout = Some(gtk::glib::timeout_add_seconds(600, gtk::glib::clone!(@strong sender => move || {
-          sender.input(Input::Visible(true));
-
-          gtk::glib::ControlFlow::Continue
-        })));
+        self.last_activity = Utc::now();
       }
     }
+
+    self.update_view(widgets, sender);
   }
 
   fn init(
-    _: Self::Init,
+    config: Self::Init,
     root: Self::Root,
     sender: ComponentSender<Self>,
   ) -> ComponentParts<Self> {
-    let model = Self { timeout: None };
+    let model = Self {
+      now: Utc::now(),
+      last_activity: Utc::now(),
+      config,
+      visible: false,
+    };
 
     gtk::glib::timeout_add_seconds(1, gtk::glib::clone!(@strong sender => move || {
       sender.input(Input::Tick(chrono::Utc::now()));
 
       gtk::glib::ControlFlow::Continue
     }));
-
-    sender.input(Input::Reset);
 
     let widgets = view_output!();
 
