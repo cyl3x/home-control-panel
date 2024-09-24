@@ -44,7 +44,7 @@ pub struct Calendars {
   pub day: Option<CalendarConfig>,
   pub days: Option<CalendarConfig>,
   pub month: Option<CalendarConfig>,
-  pub ticker: Option<CalendarConfig>,
+  pub single: Option<CalendarConfig>,
   pub week: Option<CalendarConfig>,
 }
 

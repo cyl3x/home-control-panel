@@ -8,13 +8,14 @@ use crate::calendar::{caldav, CalendarService, Event};
 use crate::config::{self, Config};
 use crate::calendar::CalendarMap;
 
-use super::{calendar_selection, day_calendar, month_calendar, video};
+use super::{calendar_selection, day_calendar, month_calendar, single_calendar, video};
 
 #[derive(Debug)]
 pub struct Widget {
   calendar_manager: CalendarService,
   month_calendar: Controller<month_calendar::Widget>,
   day_calendar: Controller<day_calendar::Widget>,
+  single_calendar: Controller<single_calendar::Widget>,
   calendar_selection: Controller<calendar_selection::Widget>,
   video: Controller<video::Widget>,
   calendar_configs: config::Calendars,
@@ -28,6 +29,7 @@ pub enum Input {
   CalendarSelectionClicked(Uuid, bool),
   BuildMonthCalendar(NaiveDate, NaiveDate),
   BuildDayCalendar(NaiveDate),
+  BuildSingleCalendar(NaiveDate),
   BuildCalendarSelection,
 }
 
@@ -63,6 +65,7 @@ impl Component for Widget {
         append: model.month_calendar.widget(),
         append: model.calendar_selection.widget(),
         append: model.day_calendar.widget(),
+        append: model.single_calendar.widget(),
       },
 
       #[wrap(Some)]
@@ -101,6 +104,7 @@ impl Component for Widget {
       Input::Tick(now) => {
         self.month_calendar.emit(month_calendar::Input::Tick(now));
         self.day_calendar.emit(day_calendar::Input::Tick(now));
+        self.single_calendar.emit(single_calendar::Input::Tick(now));
       }
       Input::BuildMonthCalendar(start, end) => {
         log::debug!("Building month calendar from {} to {}", start, end);
@@ -117,6 +121,15 @@ impl Component for Widget {
         for event in self.calendar_manager.events_filtered() {
           if is_included(event, &self.calendar_configs.day) && event.is_between_dates(date, date) {
             self.day_calendar.emit(day_calendar::Input::Add(Box::new(event.clone())));
+          }
+        }
+      }
+      Input::BuildSingleCalendar(date) => {
+        log::debug!("Building single calendar for {}", date);
+
+        for event in self.calendar_manager.events_filtered() {
+          if is_included(event, &self.calendar_configs.single) && event.is_between_dates(date, date) {
+            self.single_calendar.emit(single_calendar::Input::Add(Box::new(event.clone())));
           }
         }
       }
@@ -157,6 +170,7 @@ impl Component for Widget {
           self.month_calendar.emit(month_calendar::Input::Reset);
           self.day_calendar.emit(day_calendar::Input::Reset);
           self.calendar_selection.emit(calendar_selection::Input::Reset);
+          self.single_calendar.emit(single_calendar::Input::Reset);
         }
       }
     }
@@ -178,6 +192,9 @@ impl Component for Widget {
       }),
       day_calendar: day_calendar::Widget::builder().launch(date).forward(sender.input_sender(), |output| match output {
         day_calendar::Output::RequestEvents(date) => Input::BuildDayCalendar(date),
+      }),
+      single_calendar: single_calendar::Widget::builder().launch(()).forward(sender.input_sender(), |output| match output {
+        single_calendar::Output::RequestEvents(date) => Input::BuildSingleCalendar(date),
       }),
       calendar_selection: calendar_selection::Widget::builder().launch(()).forward(sender.input_sender(), |output| match output {
         calendar_selection::Output::RequestCalendars => Input::BuildCalendarSelection,
