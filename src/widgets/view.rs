@@ -4,8 +4,8 @@ use relm4::prelude::*;
 use uuid::Uuid;
 
 use crate::calendar::caldav::Credentials;
-use crate::calendar::{caldav, CalendarService};
-use crate::config::Config;
+use crate::calendar::{caldav, CalendarService, Event};
+use crate::config::{self, Config};
 use crate::calendar::CalendarMap;
 
 use super::{calendar_selection, day_calendar, month_calendar, video};
@@ -17,6 +17,7 @@ pub struct Widget {
   day_calendar: Controller<day_calendar::Widget>,
   calendar_selection: Controller<calendar_selection::Widget>,
   video: Controller<video::Widget>,
+  calendar_configs: config::Calendars,
 }
 
 #[derive(Debug, Clone)]
@@ -105,7 +106,7 @@ impl Component for Widget {
         log::debug!("Building month calendar from {} to {}", start, end);
 
         for event in self.calendar_manager.events_filtered() {
-          if event.is_between_dates(start, end) {
+          if is_included(event, &self.calendar_configs.month) && event.is_between_dates(start, end) {
             self.month_calendar.emit(month_calendar::Input::Add(Box::new(event.clone())));
           }
         }
@@ -114,7 +115,7 @@ impl Component for Widget {
         log::debug!("Building day calendar for {}", date);
 
         for event in self.calendar_manager.events_filtered() {
-          if event.is_between_dates(date, date) {
+          if is_included(event, &self.calendar_configs.day) && event.is_between_dates(date, date) {
             self.day_calendar.emit(day_calendar::Input::Add(Box::new(event.clone())));
           }
         }
@@ -169,7 +170,8 @@ impl Component for Widget {
     let date = chrono::Utc::now().date_naive();
 
     let model = Self {
-      calendar_manager: CalendarService::new(Credentials::from(&config), config.ical.url),
+      calendar_configs: config.calendar,
+      calendar_manager: CalendarService::new(Credentials::from(&config.ical), config.ical.url),
       month_calendar: month_calendar::Widget::builder().launch(date).forward(sender.input_sender(), |output| match output {
         month_calendar::Output::RequestEvents(start, end) => Input::BuildMonthCalendar(start, end),
         month_calendar::Output::Selected(date) => Input::MonthCalendarSelected(date),
@@ -180,9 +182,8 @@ impl Component for Widget {
       calendar_selection: calendar_selection::Widget::builder().launch(()).forward(sender.input_sender(), |output| match output {
         calendar_selection::Output::RequestCalendars => Input::BuildCalendarSelection,
         calendar_selection::Output::Clicked(uid, is_active) => Input::CalendarSelectionClicked(uid, is_active),
-
       }),
-      video: video::Widget::builder().launch(config.videos.unwrap_or_default()).detach(),
+      video: video::Widget::builder().launch(config.videos).detach(),
     };
 
     let widgets = view_output!();
@@ -206,5 +207,21 @@ impl Component for Widget {
     }));
 
     ComponentParts { model, widgets }
+  }
+}
+
+fn is_included(event: &Event, config: &Option<config::CalendarConfig>) -> bool {
+  if let Some(config) = config {
+    if !config.include.is_empty() && config.include.contains(&event.calendar_uid) {
+      return true;
+    }
+
+    if !config.exclude.is_empty() && !config.exclude.contains(&event.calendar_uid) {
+      return true;
+    }
+
+    false
+  } else {
+    true
   }
 }

@@ -6,7 +6,7 @@ use url::Url;
 use uuid::Uuid;
 use base64::prelude::*;
 
-use crate::config::Config;
+use crate::config;
 use crate::calendar::event_builder::EventBuilder;
 use crate::calendar::{Calendar, Event, EVENT_DEFAULT_COLOR};
 
@@ -18,11 +18,11 @@ pub enum Credentials {
   Bearer(String),
 }
 
-impl From<&Config> for Credentials {
-  fn from(config: &Config) -> Self {
+impl From<&config::Ical> for Credentials {
+  fn from(ical: &config::Ical) -> Self {
     Self::Basic(
-      config.ical.username.clone(),
-      config.ical.password.clone().unwrap_or_default(),
+      ical.username.clone(),
+      ical.password.clone().unwrap_or_default(),
     )
   }
 }
