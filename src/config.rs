@@ -46,11 +46,11 @@ pub struct Calendars {
   pub month: Option<CalendarConfig>,
   pub single: Option<CalendarConfig>,
   pub week: Option<CalendarConfig>,
+  pub selection: Option<CalendarConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct CalendarConfig {
-  pub interval: Option<u32>, // in days
   #[serde(default)]
   pub exclude: Vec<Uuid>,
   #[serde(default)]

@@ -4,7 +4,7 @@ use relm4::prelude::*;
 use uuid::Uuid;
 
 use crate::calendar::caldav::Credentials;
-use crate::calendar::{caldav, CalendarService, Event};
+use crate::calendar::{caldav, CalendarService};
 use crate::config::{self, Config};
 use crate::calendar::CalendarMap;
 
@@ -110,7 +110,7 @@ impl Component for Widget {
         log::debug!("Building month calendar from {} to {}", start, end);
 
         for event in self.calendar_manager.events_filtered() {
-          if is_included(event, &self.calendar_configs.month) && event.is_between_dates(start, end) {
+          if is_included(&event.calendar_uid, &self.calendar_configs.month) && event.is_between_dates(start, end) {
             self.month_calendar.emit(month_calendar::Input::Add(Box::new(event.clone())));
           }
         }
@@ -119,7 +119,7 @@ impl Component for Widget {
         log::debug!("Building day calendar for {}", date);
 
         for event in self.calendar_manager.events_filtered() {
-          if is_included(event, &self.calendar_configs.day) && event.is_between_dates(date, date) {
+          if is_included(&event.calendar_uid, &self.calendar_configs.day) && event.is_between_dates(date, date) {
             self.day_calendar.emit(day_calendar::Input::Add(Box::new(event.clone())));
           }
         }
@@ -128,14 +128,16 @@ impl Component for Widget {
         log::debug!("Building single calendar for {}", date);
 
         for event in self.calendar_manager.events_filtered() {
-          if is_included(event, &self.calendar_configs.single) && event.is_between_dates(date, date) {
+          if is_included(&event.calendar_uid, &self.calendar_configs.single) && event.is_between_dates(date, date) {
             self.single_calendar.emit(single_calendar::Input::Add(Box::new(event.clone())));
           }
         }
       }
       Input::BuildCalendarSelection => {
         for calendar in self.calendar_manager.calendars() {
-          self.calendar_selection.emit(calendar_selection::Input::Add(Box::new(calendar.clone())));
+          if is_included(&calendar.uid, &self.calendar_configs.selection) {
+            self.calendar_selection.emit(calendar_selection::Input::Add(Box::new(calendar.clone())));
+          }
         }
       }
       Input::MonthCalendarSelected(date) => {
@@ -227,13 +229,13 @@ impl Component for Widget {
   }
 }
 
-fn is_included(event: &Event, config: &Option<config::CalendarConfig>) -> bool {
+fn is_included(calendar_uid: &Uuid, config: &Option<config::CalendarConfig>) -> bool {
   if let Some(config) = config {
-    if !config.include.is_empty() && config.include.contains(&event.calendar_uid) {
+    if !config.include.is_empty() && config.include.contains(calendar_uid) {
       return true;
     }
 
-    if !config.exclude.is_empty() && !config.exclude.contains(&event.calendar_uid) {
+    if !config.exclude.is_empty() && !config.exclude.contains(calendar_uid) {
       return true;
     }
 
