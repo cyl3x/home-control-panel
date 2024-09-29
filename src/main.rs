@@ -9,28 +9,30 @@ use app::App;
 use clap::Parser;
 
 pub use chrono::prelude::*;
-pub use gtk::prelude::*;
-pub use relm4::prelude::*;
+use iced::daemon::Appearance;
+use iced::{Settings, Theme};
 
 mod app;
-mod cli;
-mod config;
 pub mod calendar;
-mod logger;
-mod widgets;
+mod cli;
+pub mod config;
+pub mod views;
+pub mod widgets;
 
-static CSS: &str = include_str!("style.css");
+fn main() -> iced::Result {
+    env_logger::builder().init();
 
-fn main() {
-  logger::init();
+    let cli = cli::Cli::parse();
+    let config = config::init(cli.config).expect("Could not load the configuration file");
 
-  let cli = cli::Cli::parse();
-
-  let config = config::init(cli.config).expect("Could not load the configuration file");
-
-  clapper::init().expect("Could not initialize the video player.");
-
-  let app = RelmApp::new("cyl3x.home-control-panel");
-  app.set_global_css(CSS);
-  app.with_args(vec![]).run::<App>(config);
+    iced::application::application("A cool counter", App::update, App::view)
+        .subscription(App::subscription)
+        .theme(|_| iced::Theme::TokyoNightLight)
+        .scale_factor(|_| 1.5)
+        .settings(Settings {
+            fonts: vec![include_bytes!("./InterVariable.ttf").into()],
+            default_font: iced::Font::with_name("Inter"),
+            ..Default::default()
+        })
+        .run_with(|| App::new(config))
 }

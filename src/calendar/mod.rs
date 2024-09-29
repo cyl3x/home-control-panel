@@ -1,14 +1,12 @@
+pub mod caldav;
 mod calendar;
 mod event;
+mod event_builder;
 mod extract;
+mod manager;
 mod map;
-mod service;
 
-pub mod caldav;
-pub mod event_builder;
-pub mod event_uuid;
-
-pub use calendar::*;
-pub use event::*;
-pub use map::*;
-pub use service::*;
+pub use calendar::Calendar;
+pub use event::Event;
+pub use manager::Manager;
+pub use map::CalendarMap;

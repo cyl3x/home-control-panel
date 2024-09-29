@@ -1,111 +1,110 @@
-use gtk::prelude::*;
-use relm4::prelude::*;
-use relm4::{Component, ComponentParts, ComponentSender};
+use iced::widget::{container, pane_grid, stack};
+use iced::Subscription;
 
-use crate::calendar::caldav;
 use crate::config::Config;
-use crate::widgets::{screensaver, view};
+use crate::views::{self, screensaver};
 
-pub struct App<> {
-  view: Controller<view::Widget>,
-  screensaver: Controller<screensaver::Widget>
+pub struct App {
+    video: views::Video,
+    calendar: views::Calendar,
+    screensaver: views::Screensaver,
+    panes: pane_grid::State<PaneState>,
+}
+
+enum PaneState {
+    Video,
+    Calendar,
 }
 
 #[derive(Debug)]
-pub enum Input {
-  CalDavError(caldav::Error),
-  Clicked,
+pub enum Message {
+    Calendar(views::calendars::Message),
+    Video(views::video::Message),
+    Screensaver(views::screensaver::Message),
+    PaneResized(pane_grid::ResizeEvent),
 }
 
-#[relm4::component(pub)]
-impl Component for App {
-  type Init = Config;
-  type Input = Input;
-  type Output = ();
-  type CommandOutput = ();
+impl App {
+    pub fn new(config: Config) -> (Self, iced::Task<Message>) {
+        let (mut state, pane) = pane_grid::State::new(PaneState::Calendar);
 
-  view! {
-    gtk::Window {
-      add_css_class: "window",
-      set_default_size: (600, 300),
+        state.split(pane_grid::Axis::Vertical, pane, PaneState::Video);
 
-      #[name(window_overlay)]
-      gtk::Overlay {
-        // #[name(notification_overlay)]
-        // add_overlay = &gtk::Box {
-        //   add_css_class: "notification-overlay-box",
-        //   add_css_class: "error",
+        let (calendar, task) = views::Calendar::new(config.ical, config.calendar);
 
-        //   set_orientation: gtk::Orientation::Vertical,
-        //   set_vexpand: true,
-        //   set_hexpand: true,
-        //   set_valign: gtk::Align::End,
-        //   set_halign: gtk::Align::End,
-        //   set_margin_bottom: 16,
-
-        //   #[name(loading_label)]
-        //   gtk::Label {
-        //     set_text: "Loading...",
-        //     set_halign: gtk::Align::Start,
-        //     set_valign: gtk::Align::Start,
-        //   }
-        // },
-
-        #[name(status_bar)]
-        add_overlay = &gtk::Statusbar {
-          set_hexpand: true,
-          set_vexpand: true,
-          set_valign: gtk::Align::End,
-          set_halign: gtk::Align::End,
-        },
-
-        add_overlay: model.screensaver.widget(),
-
-        gtk::Box {
-          append: model.view.widget(),
-
-          add_controller = gtk::GestureClick {
-            connect_pressed[sender] => move |_, _, _, _| {
-              sender.input(Input::Clicked);
+        (
+            Self {
+                video: views::Video::new(config.videos),
+                calendar,
+                screensaver: views::Screensaver::new(config.screensaver),
+                panes: state,
             },
-          },
+            task.map(Message::Calendar),
+        )
+    }
+
+    pub fn subscription(&self) -> Subscription<Message> {
+        Subscription::batch([
+            self.calendar.subscription().map(Message::Calendar),
+            self.screensaver.subscription().map(Message::Screensaver),
+        ])
+    }
+
+    pub fn update(&mut self, message: Message) -> iced::Task<Message> {
+        match message {
+            Message::Calendar(calendar_message) => self
+                .calendar
+                .update(calendar_message)
+                .map(Message::Calendar),
+            Message::Video(video_message) => self.video.update(video_message).map(Message::Video),
+            Message::PaneResized(pane_grid::ResizeEvent { split, ratio }) => {
+                self.panes.resize(split, ratio);
+
+                iced::Task::none()
+            }
+            Message::Screensaver(screensaver_message) => {
+                let before = self.screensaver.state;
+
+                self.screensaver.update(screensaver_message);
+
+                match (before, self.screensaver.state) {
+                    (screensaver::State::Inactive, screensaver::State::Active) => {
+                        log::info!("Screensaver activated");
+                    }
+                    (screensaver::State::Active, screensaver::State::Inactive) => {
+                        log::info!("Screensaver deactivated");
+                    }
+                    _ => {}
+                }
+
+                iced::Task::none()
+            }
         }
-      }
-    }
-  }
-
-  fn update_with_view(&mut self, widgets: &mut Self::Widgets, input: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
-    match input {
-      Input::CalDavError(err) => {
-        // let msg = &format!("{err:#?}");
-        // widgets.status_bar.context_id(msg);
-        // widgets.status_bar.push(0, msg);
-        log::error!("CalDav error: {:?}", err);
-      }
-      Input::Clicked => {
-        self.screensaver.emit(screensaver::Input::Reset);
-      }
     }
 
-    self.update_view(widgets, sender);
-  }
-
-  fn init(
-    config: Self::Init,
-    root: Self::Root,
-    sender: ComponentSender<Self>,
-  ) -> ComponentParts<Self> {
-    let model = Self {
-      screensaver: screensaver::Widget::builder().launch(config.screensaver.clone()).detach(),
-      view: view::Widget::builder().launch(config).forward(sender.input_sender(), |output| match output {
-        view::Output::CalDavError(err) => Self::Input::CalDavError(err),
-      }),
-    };
-
-    let widgets = view_output!();
-
-    ComponentParts { model, widgets }
-  }
+    pub fn view(&self) -> iced::Element<Message> {
+        stack![
+            match self.screensaver.state {
+                screensaver::State::Inactive => {
+                    pane_grid(&self.panes, |_, state, _| {
+                        pane_grid::Content::new(match state {
+                            PaneState::Video => container(self.video.view().map(Message::Video)),
+                            PaneState::Calendar => {
+                                container(self.calendar.view().map(Message::Calendar))
+                            }
+                        })
+                    })
+                    .spacing(12)
+                    .on_resize(12, Message::PaneResized)
+                    .into()
+                }
+                screensaver::State::Active =>
+                    self.screensaver.view_active().map(Message::Screensaver),
+            },
+            self.screensaver
+                .view_interaction()
+                .map(Message::Screensaver),
+        ]
+        .into()
+    }
 }
-
-impl App {}

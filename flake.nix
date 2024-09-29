@@ -41,21 +41,22 @@
 
         nativeBuildInputs = with pkgs; [
           pkg-config
-          wrapGAppsHook
         ];
 
         buildInputs = with pkgs; [
-          clapper
-          glib
           gst_all_1.gst-plugins-bad
           gst_all_1.gst-plugins-base
           gst_all_1.gst-plugins-good
           gst_all_1.gst-plugins-rs
           gst_all_1.gst-vaapi
           gst_all_1.gstreamer
-          gtk4
+          libGL
+          libxkbcommon
           openssl
+          wayland
         ];
+
+        LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath commonArgs.buildInputs}";
       };
 
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -74,7 +75,9 @@
 
         packages = [ pkgs.rust-analyzer rustToolchain ];
 
+        LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath commonArgs.buildInputs}";
         RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
+        RUST_BACKTRACE = 1;
       };
     });
 }

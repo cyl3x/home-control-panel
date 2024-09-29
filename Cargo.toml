@@ -2,9 +2,8 @@
 name = "home-control-panel"
 description = "A dashboard for my home"
 license = "GPL-3.0"
-license-file = "LICENSE"
 readme = "README.md"
-keywords = ["dashboard", "gtk", "gstreamer", "icalendar"]
+keywords = ["dashboard", "iced", "gstreamer", "icalendar"]
 categories = ["desktop-application"]
 repository = "https://github.com/cyl3x/home-control-panel"
 authors = ["cyl3x <cyl3x@posteo.de>"]
@@ -15,6 +14,9 @@ edition = "2021"
 name = "home-control-panel"
 path = "src/main.rs"
 
+[build]
+rustflags = ["-C", "symbol-mangling-version=v0"]
+
 [profile.release]
 codegen-units = 1
 debug = false
@@ -23,25 +25,20 @@ opt-level = 3
 strip = "debuginfo"
 
 [dependencies]
-anyhow = "1.0.83"
 base64 = "0.22"
 chrono = { version = "0.4.38", features = ["unstable-locales", "serde"] }
-chrono-tz = "0.8.6"
-clap = { version = "4.5.4", features = ["derive"] }
-clapper = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs" }
-clapper-gtk = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs" }
-derive_more = "0.99.17"
-env_logger = "0.11.3"
-gstreamer = "0.22.4"
-gtk = { package = "gtk4", version = "0.8.2", features = ["v4_12"] }
-icalendar = "0.16.1"
-log = { version = "0.4.21", features = ["kv", "kv_std"]}
-relm4 = "0.8"
-relm4-macros = "0.8"
-rrule = "0.12.0"
+chrono-tz = "=0.10.0"
+clap = { version = "4.5.18", features = ["derive"] }
+env_logger = "0.11.5"
+icalendar = "0.16.8"
+iced = { version = "=0.13.1", default-features = false, features = ["smol", "wgpu", "tiny-skia"] }
+iced_font_awesome = "0.2.0"
+iced_video_player = "0.4.0"
+log = { version = "0.4.22", features = ["kv", "kv_std"]}
+rrule = "0.13.0"
 serde = { version = "1.0.201", features = ["derive"] }
-toml = "0.8.12"
-ureq = "2.9.7"
-url = { version = "2.5.0", features = ["serde"] }
-uuid = { version = "1.8.0", features = ["v5", "serde"] }
-xmltree = "0.10.3"
+toml = "0.8.19"
+ureq = "2.10.1"
+url = { version = "2.5.2", features = ["serde"] }
+uuid = { version = "1.10.0", features = ["v5", "serde"] }
+xmltree = "0.11.0"

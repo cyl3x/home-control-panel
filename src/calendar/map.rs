@@ -1,177 +1,108 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::ops::Deref;
+use std::ops::Range;
 
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use uuid::Uuid;
 
-use super::event_uuid::EventUuid;
-use super::{Calendar, Event};
+use super::{calendar::Calendar, event::Event};
 
-pub type CalendarMap = BTreeMap<Uuid, (Calendar, BTreeMap<EventUuid, Event>)>;
-pub type CalendarFlatRef<'a> = (&'a Uuid, &'a Calendar, &'a EventUuid, &'a Event);
-
-#[derive(Debug, Clone)]
-pub enum CalendarMapChange {
-  Added(Event),
-  Changed(Event),
-  Removed(Event),
+#[derive(Debug, PartialEq, Default)]
+pub struct CalendarMap {
+    // Map of calendars by their uid
+    calendars: BTreeMap<Uuid, (bool, Calendar)>,
+    // Map of events and their calendar_uid by their uid
+    events: BTreeMap<Uuid, (Uuid, Event)>,
+    // Map of dates to events and their start time
+    event_map: BTreeMap<NaiveDateTime, BTreeSet<Uuid>>,
+    // Map of dates to events and their start time
+    calendar_map: BTreeMap<NaiveDateTime, BTreeSet<Uuid>>,
 }
 
-impl Deref for CalendarMapChange {
-  type Target = Event;
-
-  fn deref(&self) -> &Self::Target {
-    match self {
-      Self::Added(t) | Self::Changed(t) | Self::Removed(t) => t,
+impl CalendarMap {
+    pub const fn calendars(&self) -> &BTreeMap<Uuid, (bool, Calendar)> {
+        &self.calendars
     }
-  }
-}
 
-impl CalendarMapChange {
-  pub fn into_inner(self) -> Event {
-    match self {
-      Self::Added(t) | Self::Changed(t) | Self::Removed(t) => t,
+    pub fn toggle_calendar(&mut self, uid: Uuid) {
+        if let Some((enabled, _)) = self.calendars.get_mut(&uid) {
+            *enabled = !*enabled;
+        }
     }
-  }
 
-  pub const fn is_removed(&self) -> bool {
-    matches!(self, Self::Removed(_))
-  }
-}
+    pub fn clear(&mut self) {
+        self.calendars.clear();
+        self.events.clear();
+        self.event_map.clear();
+    }
 
-pub trait CalendarMapExt {
-  fn flat_iter(&self) -> impl Iterator<Item = CalendarFlatRef>;
-  fn flat_events(&self) -> impl Iterator<Item = &Event>;
-  fn flat_calendars(&self) -> impl Iterator<Item = &Calendar>;
-  fn flat_into_iter(self) -> impl Iterator<Item = (Uuid, EventUuid, Event)>;
-  fn flat_contains_key(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> bool;
-  fn flat_get(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<&Event>;
-  fn flat_get_mut(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<&mut Event>;
-  fn flat_get_key_value(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<(&EventUuid, &Event)>;
-  fn flat_insert(&mut self, cal_uid: &Uuid, event_uid: EventUuid, nested: Event) -> Option<Event>;
-  fn flat_remove(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<Event>;
-  fn flat_remove_entry(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<(EventUuid, Event)>;
-  fn flat_keys(&self) -> BTreeSet<(&Uuid, &EventUuid)>;
-  fn flat_pop_first(&mut self) -> Option<(Uuid, EventUuid, Event)>;
-  fn exchange(&mut self, other: Self) -> impl Iterator<Item = (Uuid, EventUuid, CalendarMapChange)>;
-}
+    pub fn add_calendar(&mut self, calendar: Calendar) {
+        self.calendars.insert(calendar.uid, (true, calendar));
+    }
 
-impl CalendarMapExt for CalendarMap {
-  fn flat_iter(&self) -> impl Iterator<Item = CalendarFlatRef> {
-    self.iter()
-      .flat_map(|(cal_uid, (calendar, events))| {
-        events
-          .iter()
-          .map(move |(event_uid, event)| (cal_uid, calendar, event_uid, event))
-      })
-  }
+    pub fn add_event(&mut self, calendar_uid: Uuid, event: Event) {
+        for date_time in event.all_date_times() {
+            self.event_map
+                .entry(date_time)
+                .or_default()
+                .insert(event.uid);
 
-  fn flat_events(&self) -> impl Iterator<Item = &Event> {
-    self.iter()
-      .flat_map(|(_, (_, events))| {
-        events.iter().map(move |(_, event)| event)
-      })
-  }
-
-  fn flat_calendars(&self) -> impl Iterator<Item = &Calendar> {
-    self.iter().map(|(_, (calendar, _))| calendar)
-  }
-
-  fn flat_into_iter(self) -> impl Iterator<Item = (Uuid, EventUuid, Event)> {
-    self.into_iter()
-      .flat_map(|(cal_uid, (_, events))| {
-        events
-          .into_iter()
-          .map(move |(event_uid, event)| (cal_uid, event_uid, event))
-      })
-  }
-
-  fn flat_contains_key(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> bool {
-    self.get(cal_uid).map_or(false, |(_, events)| events.contains_key(event_uid))
-  }
-
-  fn flat_get(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<&Event> {
-    self.get(cal_uid).and_then(|(_, events)| events.get(event_uid))
-  }
-
-  fn flat_get_mut(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<&mut Event> {
-    self.get_mut(cal_uid).and_then(|(_, events)| events.get_mut(event_uid))
-  }
-
-  fn flat_get_key_value(&self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<(&EventUuid, &Event)> {
-    self.get(cal_uid).and_then(|(_, events)| events.get_key_value(event_uid))
-  }
-
-  /// Panics if `cal_uid` does not exist
-  fn flat_insert(&mut self, cal_uid: &Uuid, event_uid: EventUuid, nested: Event) -> Option<Event> {
-    self.get_mut(cal_uid)
-      .unwrap()
-      .1
-      .insert(event_uid, nested)
-  }
-
-  fn flat_remove(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<Event> {
-    self.get_mut(cal_uid).and_then(|(_, events)| events.remove(event_uid))
-  }
-
-  fn flat_remove_entry(&mut self, cal_uid: &Uuid, event_uid: &EventUuid) -> Option<(EventUuid, Event)> {
-    self.get_mut(cal_uid).and_then(|(_, events)| events.remove_entry(event_uid))
-  }
-
-  fn flat_keys(&self) -> BTreeSet<(&Uuid, &EventUuid)> {
-    self.flat_iter().map(|(cal_uid, _, event_uid, _)| (cal_uid, event_uid)).collect()
-  }
-
-  fn flat_pop_first(&mut self) -> Option<(Uuid, EventUuid, Event)> {
-    if let Some((cal_uid, (calendar, mut events))) = self.pop_first() {
-      if let Some((event_uid, event)) = events.pop_first() {
-        if !events.is_empty() {
-          self.insert(cal_uid, (calendar, events));
+            self.calendar_map
+                .entry(date_time)
+                .or_default()
+                .insert(calendar_uid);
         }
 
-        return Some((cal_uid, event_uid, event));
-      }
+        self.events.insert(event.uid, (calendar_uid, event));
     }
 
-    None
-  }
+    pub fn events_between(
+        &self,
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> impl Iterator<Item = (&Calendar, &NaiveDateTime, &Event)> {
+        self.event_map
+            .range(range(start, end))
+            .flat_map(move |(date_time, id_set)| {
+                id_set.iter().filter_map(move |uid| {
+                    let (calendar_uid, event) = self.events.get(uid).unwrap();
+                    let (enabled, calendar) = self.calendars.get(calendar_uid).unwrap();
 
-  fn exchange(&mut self, other: Self) -> impl Iterator<Item = (Uuid, EventUuid, CalendarMapChange)> {
-    let mut other = std::mem::replace(self, other);
+                    match enabled {
+                        true => Some((calendar, date_time, event)),
+                        _ => None,
+                    }
+                })
+            })
+    }
 
-    let mut self_iter = self.flat_iter();
+    pub fn calendars_between(
+        &self,
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> impl Iterator<Item = (&NaiveDateTime, &Calendar)> {
+        self.calendar_map
+            .range(range(start, end))
+            .flat_map(move |(date_time, id_set)| {
+                id_set.iter().filter_map(move |uid| {
+                    let (enabled, calendar) = self.calendars.get(uid).unwrap();
 
-    std::iter::from_fn(move || {
-      if let Some((first_uid, _, second_uid, nested)) = self_iter.next() {
-        if let Some(old_nested) = other.flat_remove(first_uid, second_uid) {
-          if &old_nested != nested {
-            return Some((*first_uid, *second_uid, CalendarMapChange::Changed(nested.clone())));
-          }
-        } else {
-          return Some((*first_uid, *second_uid, CalendarMapChange::Added(nested.clone())));
-        }
-      } else if let Some((first_uid, second_uid, old_nested)) = other.flat_pop_first() {
-        return Some((first_uid, second_uid, CalendarMapChange::Removed(old_nested)));
-      }
+                    match enabled {
+                        true => Some((date_time, calendar)),
+                        _ => None,
+                    }
+                })
+            })
+    }
 
-      None
-    })
-  }
+    pub fn len_events(&self) -> usize {
+        self.events.len()
+    }
+
+    pub fn len_calendars(&self) -> usize {
+        self.calendars.len()
+    }
 }
 
-pub fn all_between<'a>((start, end): (NaiveDate, NaiveDate)) -> impl FnMut(&CalendarFlatRef<'a>) -> bool {
-  move |(_, _, _, event)| {
-    let event_start = event.start_date();
-    let event_end = event.end_date();
-
-    event_end >= start && event_start < end
-  }
-}
-pub fn all_between_events((start, end): (NaiveDate, NaiveDate)) -> impl FnMut(&&Event) -> bool {
-  move |event| {
-    let event_start = event.start_date();
-    let event_end = event.end_date();
-
-    event_end >= start && event_start < end
-  }
+fn range(start: NaiveDate, end: NaiveDate) -> Range<NaiveDateTime> {
+    start.and_time(NaiveTime::MIN)..(end.and_time(NaiveTime::MIN) + chrono::Duration::days(1))
 }
