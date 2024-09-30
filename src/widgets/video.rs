@@ -59,16 +59,24 @@ impl Video {
 
     pub fn update(&mut self, message: Message) {
         match message {
-            Message::SetVideo(idx) => self.video = Some(rtsp_video(&self.videos[idx].url)),
+            Message::SetVideo(idx) => self.video = rtsp_video(&self.videos[idx].url),
         }
     }
 }
 
-fn rtsp_video(url: &url::Url) -> iced_video_player::Video {
-    iced_video_player::Video::from_pipeline(
+fn rtsp_video(url: &url::Url) -> Option<iced_video_player::Video> {
+    let pipeline = iced_video_player::Video::from_pipeline(
         format!("uridecodebin uri={} ! videoconvert ! videoscale ! videorate ! appsink name=iced_video caps=video/x-raw,format=RGBA,pixel-aspect-ratio=1/1", url),
         Some(true),
-    ).unwrap()
+    );
+
+    match pipeline {
+        Ok(video) => Some(video),
+        Err(err) => {
+            log::error!("Error starting video: {:?}", err);
+            None
+        }
+    }
 }
 
 pub fn style_button(theme: &iced::Theme, _: button::Status) -> button::Style {
