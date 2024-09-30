@@ -36,7 +36,7 @@
         src = pkgs.lib.cleanSourceWith {
           src = craneLib.path ./.;
           filter = path: type:
-            (builtins.match ".*\.css$" path != null) || (craneLib.filterCargoSources path type);
+            (builtins.match ".*\.ttf$" path != null) || (craneLib.filterCargoSources path type);
         };
 
         nativeBuildInputs = with pkgs; [
