@@ -36,23 +36,31 @@
         src = pkgs.lib.cleanSourceWith {
           src = craneLib.path ./.;
           filter = path: type:
-            (builtins.match ".*\.ttf$" path != null) || (craneLib.filterCargoSources path type);
+            (pkgs.lib.hasSuffix "\.ttf" path) || (craneLib.filterCargoSources path type);
         };
 
+        strictDeps = true;
+
         nativeBuildInputs = with pkgs; [
+          autoPatchelfHook
+          wrapGAppsHook
           pkg-config
         ];
 
         buildInputs = with pkgs; [
+          libglvnd
+          openssl
+        ] ++ commonArgs.runtimeDependencies;
+
+        runtimeDependencies = with pkgs; [
           gst_all_1.gst-plugins-bad
           gst_all_1.gst-plugins-base
           gst_all_1.gst-plugins-good
           gst_all_1.gst-plugins-rs
           gst_all_1.gst-vaapi
           gst_all_1.gstreamer
-          libGL
           libxkbcommon
-          openssl
+          vulkan-loader
           wayland
         ];
 
