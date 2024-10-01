@@ -17,7 +17,7 @@ pub struct Screensaver {
     dim: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum State {
     Active,
     Inactive,
@@ -41,12 +41,11 @@ impl Screensaver {
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
-        match self.state {
-            State::Inactive => time::every(
-                time::Duration::from_secs(self.config.timeout) - self.last_interaction.elapsed(),
-            )
-            .map(Message::Tick),
-            State::Active => time::every(time::Duration::from_secs(1)).map(Message::Tick),
+        let timeout = time::Duration::from_secs(self.config.timeout);
+        if self.state == State::Active || timeout > self.last_interaction.elapsed() {
+            time::every(time::Duration::from_secs(1)).map(Message::Tick)
+        } else {
+            time::every(timeout - self.last_interaction.elapsed()).map(Message::Tick)
         }
     }
 

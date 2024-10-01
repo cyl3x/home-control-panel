@@ -68,10 +68,6 @@ where
             | Event::Mouse(mouse::Event::ButtonReleased(_))
             | Event::Keyboard(_)
             | Event::Touch(_) => {
-                if let Event::Touch(_) = event {
-                    println!("Touch event: {:?}", event);
-                }
-
                 if let Event::Touch(touch::Event::FingerMoved { .. }) = event {
                     return event::Status::Ignored;
                 }
