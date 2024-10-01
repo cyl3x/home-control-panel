@@ -128,6 +128,7 @@ impl Calendar {
             }
             Message::NextDay(_) => {
                 self.dates.now = chrono::Utc::now().naive_utc();
+                self.dates.selected = self.dates.now.date();
             }
             Message::UpdateMap(map) => {
                 if let Some(map) = *map {
