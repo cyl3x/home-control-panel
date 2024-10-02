@@ -92,11 +92,15 @@ impl PartialEq for Event {
 }
 
 fn dates_between(start: NaiveDateTime, end: NaiveDateTime) -> BTreeSet<NaiveDateTime> {
+    if start == end {
+        return [start].into();
+    }
+
     start
         .date()
         .iter_days()
-        .take_while(move |date| date <= &end.date())
         .map(|date| date.and_time(start.time()))
+        .take_while(|start| start < &end)
         .collect()
 }
 
