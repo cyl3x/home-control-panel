@@ -42,10 +42,12 @@ impl Screensaver {
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
         let timeout = time::Duration::from_secs(self.config.timeout);
-        if self.state == State::Active || timeout > self.last_interaction.elapsed() {
+        let elapsed = self.last_interaction.elapsed();
+
+        if self.state == State::Active || elapsed >= timeout {
             time::every(time::Duration::from_secs(1)).map(Message::Tick)
         } else {
-            time::every(timeout - self.last_interaction.elapsed()).map(Message::Tick)
+            time::every(timeout - elapsed).map(Message::Tick)
         }
     }
 
@@ -87,7 +89,7 @@ impl Screensaver {
 
     pub fn update(&mut self, message: Message) {
         match message {
-            Message::Tick(instant) => {
+            Message::Tick(_) => {
                 self.now = chrono::Utc::now().with_timezone(&Europe::Berlin);
                 let time = self.now.time();
 
@@ -106,7 +108,7 @@ impl Screensaver {
                     self.update(Message::Interact);
                 }
 
-                if instant - self.last_interaction > time::Duration::from_secs(self.config.timeout)
+                if self.last_interaction.elapsed() >= time::Duration::from_secs(self.config.timeout)
                 {
                     self.state = State::Active;
                 } else {
