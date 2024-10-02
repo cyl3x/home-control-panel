@@ -1,5 +1,6 @@
 use chrono::NaiveDateTime;
 use chrono_tz::Europe;
+use iced::theme::palette;
 use iced::widget::{column, container, row, scrollable, text, vertical_space, Column};
 use iced::{Alignment, Length};
 
@@ -40,7 +41,9 @@ impl Day {
                 .style(|_| style_event_indicator(calendar.color)),
             column![
                 text(event.summary.clone()).size(20),
-                text(event.description.as_deref().unwrap_or("")).size(20),
+                text(event.description.as_deref().unwrap_or(""))
+                    .style(style_event_description)
+                    .size(20),
             ]
             .spacing(2),
             column![text(
@@ -67,5 +70,14 @@ fn style_event_indicator(color: iced::Color) -> container::Style {
         background: Some(iced::Background::Color(color)),
         border: iced::border::rounded(12),
         ..Default::default()
+    }
+}
+
+
+fn style_event_description(theme: &iced::Theme) -> text::Style {
+    let palette = theme.palette();
+
+    text::Style {
+        color: Some(palette.text.scale_alpha(0.8)),
     }
 }
