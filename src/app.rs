@@ -47,6 +47,7 @@ impl App {
         Subscription::batch([
             self.calendar.subscription().map(Message::Calendar),
             self.screensaver.subscription().map(Message::Screensaver),
+            self.video.subscription().map(Message::Video),
         ])
     }
 

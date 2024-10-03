@@ -1,6 +1,5 @@
 use chrono::NaiveDateTime;
 use chrono_tz::Europe;
-use iced::theme::palette;
 use iced::widget::{column, container, row, scrollable, text, vertical_space, Column};
 use iced::{Alignment, Length};
 
@@ -72,7 +71,6 @@ fn style_event_indicator(color: iced::Color) -> container::Style {
         ..Default::default()
     }
 }
-
 
 fn style_event_description(theme: &iced::Theme) -> text::Style {
     let palette = theme.palette();

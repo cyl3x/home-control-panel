@@ -19,6 +19,10 @@ impl Video {
         }
     }
 
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        self.video.subscription().map(Message::VideoMessage)
+    }
+
     pub fn update(&mut self, message: Message) -> iced::Task<Message> {
         match message {
             Message::VideoMessage(video_message) => self.video.update(video_message),

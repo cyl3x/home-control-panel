@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use iced::widget::{button, row, text, Column};
 use iced::{Length, Padding};
 use iced_video_player::VideoPlayer;
@@ -7,11 +9,13 @@ use crate::config;
 pub struct Video {
     videos: Vec<config::Video>,
     video: Option<iced_video_player::Video>,
+    is_error: bool,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     SetVideo(usize),
+    RestartVideo,
 }
 
 impl Video {
@@ -19,6 +23,7 @@ impl Video {
         let mut video = Self {
             videos,
             video: None,
+            is_error: false,
         };
 
         if !video.videos.is_empty() {
@@ -26,6 +31,13 @@ impl Video {
         }
 
         video
+    }
+
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        match &self.is_error {
+            true => iced::time::every(Duration::from_secs(300)).map(|_| Message::RestartVideo),
+            false => iced::Subscription::none(),
+        }
     }
 
     pub fn view(&self) -> iced::Element<Message> {
@@ -36,7 +48,10 @@ impl Video {
         let mut column = Column::new();
 
         if let Some(video) = &self.video {
-            column = column.push(VideoPlayer::new(video));
+            column = column.push(VideoPlayer::new(video).on_error(|err| {
+                log::error!("Video error, restarting: {:?}", err);
+                Message::RestartVideo
+            }));
         }
 
         let buttons = self.videos.iter().enumerate().map(|(idx, video)| {
@@ -58,23 +73,35 @@ impl Video {
     }
 
     pub fn update(&mut self, message: Message) {
+        self.is_error = false;
+
         match message {
-            Message::SetVideo(idx) => self.video = rtsp_video(&self.videos[idx].url),
-        }
-    }
-}
+            Message::SetVideo(idx) => {
+                let pipeline = iced_video_player::Video::from_pipeline(
+                    format!("uridecodebin uri={} ! videoconvert ! videoscale ! videorate ! appsink name=iced_video caps=video/x-raw,format=RGBA,pixel-aspect-ratio=1/1", &self.videos[idx].url),
+                    Some(true),
+                );
 
-fn rtsp_video(url: &url::Url) -> Option<iced_video_player::Video> {
-    let pipeline = iced_video_player::Video::from_pipeline(
-        format!("uridecodebin uri={} ! videoconvert ! videoscale ! videorate ! appsink name=iced_video caps=video/x-raw,format=RGBA,pixel-aspect-ratio=1/1", url),
-        Some(true),
-    );
+                self.video = match pipeline {
+                    Ok(video) => Some(video),
+                    Err(err) => {
+                        self.is_error = true;
+                        log::error!("Error starting video: {:?}", err);
+                        None
+                    }
+                };
+            }
+            Message::RestartVideo => {
+                let Some(video) = &mut self.video else { return };
 
-    match pipeline {
-        Ok(video) => Some(video),
-        Err(err) => {
-            log::error!("Error starting video: {:?}", err);
-            None
+                let Err(err) = video.restart_stream() else {
+                    return;
+                };
+
+                self.is_error = true;
+
+                log::error!("Error restarting video: {:?}", err);
+            }
         }
     }
 }
