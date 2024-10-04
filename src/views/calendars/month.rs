@@ -68,7 +68,7 @@ impl Month {
         row![
             button(fa_icon_solid("caret-left").size(42.0))
                 .style(style_month_button)
-                .on_press_with(move || Message::SelectDate(selected + chrono::Months::new(1))),
+                .on_press_with(move || Message::SelectDate(selected - chrono::Months::new(1))),
             text(
                 selected
                     .format_localized("%B %Y", Locale::de_DE)
