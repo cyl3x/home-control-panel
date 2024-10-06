@@ -82,6 +82,10 @@ impl Video {
                     Some(true),
                 );
 
+                if let Some(video) = std::mem::replace(&mut self.video, None) {
+                    std::mem::drop(video);
+                }
+
                 self.video = match pipeline {
                     Ok(video) => Some(video),
                     Err(err) => {
