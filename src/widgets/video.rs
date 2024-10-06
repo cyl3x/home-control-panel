@@ -78,7 +78,7 @@ impl Video {
         match message {
             Message::SetVideo(idx) => {
                 let pipeline = iced_video_player::Video::from_pipeline(
-                    format!("uridecodebin uri={} ! videoconvert ! videoscale ! videorate ! appsink name=iced_video caps=video/x-raw,format=RGBA,pixel-aspect-ratio=1/1", &self.videos[idx].url),
+                    format!("uridecodebin uri={} ! videoconvert ! videoscale ! videorate ! appsink name=iced_video caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1", &self.videos[idx].url),
                     Some(true),
                 );
 
