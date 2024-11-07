@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveDateTime, Timelike};
+use chrono::{DateTime, Datelike, Days, Local, NaiveDate, NaiveDateTime, Timelike};
 use rrule::Unvalidated;
 use url::Url;
 use uuid::Uuid;
@@ -24,7 +24,7 @@ impl Event {
 
     pub fn tooltip(&self) -> String {
         if self.start == self.end {
-            return format!("{}\n{}", self.summary, format_date(&self.start_tz()),);
+            return format!("{}\n{}", self.summary, format_date(&self.start_tz()));
         }
 
         format!(
@@ -35,18 +35,12 @@ impl Event {
         )
     }
 
-    pub fn rrule_start(&self) -> DateTime<rrule::Tz> {
-        self.start.and_utc().with_timezone(&rrule::Tz::UTC)
-    }
-
     pub const fn start_date(&self) -> NaiveDate {
         self.start.date()
     }
 
-    pub fn start_tz(&self) -> DateTime<chrono_tz::Tz> {
-        self.start
-            .and_utc()
-            .with_timezone(&chrono_tz::Europe::Berlin)
+    pub fn start_tz(&self) -> DateTime<Local> {
+        self.start.and_utc().with_timezone(&Local)
     }
 
     pub fn end_date(&self) -> NaiveDate {
@@ -57,8 +51,8 @@ impl Event {
         }
     }
 
-    pub fn end_tz(&self) -> DateTime<chrono_tz::Tz> {
-        self.end.and_utc().with_timezone(&chrono_tz::Europe::Berlin)
+    pub fn end_tz(&self) -> DateTime<Local> {
+        self.end.and_utc().with_timezone(&Local)
     }
 
     pub fn start_end_dates(&self) -> (NaiveDate, NaiveDate) {
@@ -72,7 +66,7 @@ impl Event {
                 let limit = chrono::Utc::now().date_naive() + chrono::Duration::days(365 + 2);
 
                 let interval = self.end - self.start;
-                let start = self.rrule_start();
+                let start = self.start.and_utc().with_timezone(&rrule::Tz::LOCAL);
                 let set = rrule.clone().build(start).unwrap();
 
                 set.into_iter()
@@ -104,8 +98,8 @@ fn dates_between(start: NaiveDateTime, end: NaiveDateTime) -> BTreeSet<NaiveDate
         .collect()
 }
 
-fn format_date(date: &DateTime<chrono_tz::Tz>) -> String {
-    let now = chrono::Utc::now().with_timezone(&date.timezone());
+fn format_date(date: &DateTime<Local>) -> String {
+    let now = Local::now();
 
     let formatted = if date.year() == now.year() {
         date.format_localized("%m. %b %H:%M", chrono::Locale::de_DE)

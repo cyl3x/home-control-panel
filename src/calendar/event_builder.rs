@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use chrono::{DateTime, NaiveTime, TimeZone, Utc};
+use chrono::{NaiveDateTime, NaiveTime, TimeZone};
 use chrono_tz::Tz;
 use icalendar::{CalendarDateTime, Component as _, DatePerhapsTime};
 use rrule::{RRule, RRuleError, Unvalidated};
@@ -70,8 +70,8 @@ impl EventBuilder {
             uid,
             summary,
             description: self.description,
-            start: start.naive_utc(),
-            end: end.naive_utc(),
+            start,
+            end,
             url,
             rrule,
         })
@@ -161,17 +161,18 @@ impl From<&xmltree::Element> for EventBuilder {
     }
 }
 
-fn date_perhaps_time_to_date_time(date: DatePerhapsTime) -> Option<DateTime<Utc>> {
+fn date_perhaps_time_to_date_time(date: DatePerhapsTime) -> Option<NaiveDateTime> {
     Some(match date {
         DatePerhapsTime::DateTime(dt) => match dt {
-            CalendarDateTime::Floating(dt) => dt.and_utc(),
-            CalendarDateTime::WithTimezone { date_time, tzid } => Tz::from_str(&tzid)
+            CalendarDateTime::Floating(dt) => dt,
+            CalendarDateTime::WithTimezone { date_time, tzid } =>
+                Tz::from_str(&tzid)
                 .ok()?
                 .from_local_datetime(&date_time)
                 .single()?
-                .with_timezone(&Utc),
-            CalendarDateTime::Utc(dt) => dt,
+                .naive_utc(),
+            CalendarDateTime::Utc(dt) => dt.naive_utc(),
         },
-        DatePerhapsTime::Date(dt) => dt.and_time(NaiveTime::default()).and_utc(),
+        DatePerhapsTime::Date(dt) => dt.and_time(NaiveTime::default()),
     })
 }

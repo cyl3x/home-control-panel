@@ -1,5 +1,4 @@
 use chrono::NaiveDateTime;
-use chrono_tz::Europe;
 use iced::widget::{column, container, row, scrollable, text, vertical_space, Column};
 use iced::{Alignment, Length};
 
@@ -48,7 +47,7 @@ impl Day {
             column![text(
                 start
                     .and_utc()
-                    .with_timezone(&Europe::Berlin)
+                    .with_timezone(&chrono::Local)
                     .format("%H:%M")
                     .to_string()
             )

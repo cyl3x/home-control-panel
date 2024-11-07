@@ -1,7 +1,6 @@
 use std::time::Instant;
 
-use chrono::DateTime;
-use chrono_tz::{Europe, Tz};
+use chrono::{DateTime, Local};
 use iced::font;
 use iced::widget::{column, container, text};
 use iced::{time, Alignment, Color, Length};
@@ -13,7 +12,7 @@ pub struct Screensaver {
     config: config::Screensaver,
     pub state: State,
     last_interaction: Instant,
-    now: DateTime<Tz>,
+    now: DateTime<Local>,
     dim: bool,
 }
 
@@ -35,7 +34,7 @@ impl Screensaver {
             config,
             state: State::Inactive,
             last_interaction: time::Instant::now(),
-            now: chrono::Utc::now().with_timezone(&Europe::Berlin),
+            now: Local::now(),
             dim: false,
         }
     }
@@ -90,7 +89,7 @@ impl Screensaver {
     pub fn update(&mut self, message: Message) {
         match message {
             Message::Tick(_) => {
-                self.now = chrono::Utc::now().with_timezone(&Europe::Berlin);
+                self.now = Local::now();
                 let time = self.now.time();
 
                 self.dim = self
