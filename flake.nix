@@ -3,11 +3,9 @@
 
   nixConfig = {
     extra-trusted-substituters = [
-      "https://arm.cachix.org"
       "https://home-control-panel.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "arm.cachix.org-1:K3XjAeWPgWkFtSS9ge5LJSLw3xgnNqyOaG7MDecmTQ8="
       "home-control-panel.cachix.org-1:oFAMn0verQX4hIEJYrxpvVd8egU8M0szyC/7wy4eBYE="
     ];
   };

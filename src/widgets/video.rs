@@ -1,4 +1,8 @@
 use std::time::Duration;
+use glib::object::Cast;
+use gstreamer::prelude::GstBinExt;
+use gstreamer as gst;
+use gstreamer_app as gst_app;
 
 use iced::widget::{button, row, text, Column};
 use iced::{Length, Padding};
@@ -77,12 +81,9 @@ impl Video {
 
         match message {
             Message::SetVideo(idx) => {
-                let pipeline = iced_video_player::Video::from_pipeline(
-                    format!("uridecodebin uri={} ! videoconvert ! videoscale ! videorate ! appsink name=iced_video caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1", &self.videos[idx].url),
-                    Some(true),
-                );
+                let pipeline = from_pipeline(&self.videos[idx].url);
 
-                if let Some(video) = std::mem::replace(&mut self.video, None) {
+                if let Some(video) = self.video.take() {
                     std::mem::drop(video);
                 }
 
@@ -119,4 +120,20 @@ pub fn style_button(theme: &iced::Theme, _: button::Status) -> button::Style {
         border: iced::Border::default().rounded(3),
         ..Default::default()
     }
+}
+
+fn from_pipeline(uri: &url::Url) -> Result<iced_video_player::Video, iced_video_player::Error> {
+    gst::init()?;
+
+    let pipeline = format!("rtspsrc location=\"{}\" ! decodebin ! videoconvert ! videoscale ! videorate ! appsink name=iced_video drop=true caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1,framerate=24/1", uri.as_str());
+    let pipeline = gst::parse::launch(pipeline.as_ref())?
+        .downcast::<gst::Pipeline>()
+        .map_err(|_| iced_video_player::Error::Cast)?;
+
+    let app_sink = pipeline
+        .by_name("iced_video")
+        .and_then(|elem| elem.downcast::<gst_app::AppSink>().ok())
+        .ok_or(iced_video_player::Error::AppSink("iced_video".to_string()))?;
+
+    iced_video_player::Video::from_gst_pipeline(pipeline, app_sink, None)
 }
