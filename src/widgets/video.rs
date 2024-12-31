@@ -1,6 +1,6 @@
 use std::time::Duration;
-use glib::object::Cast;
-use gstreamer::prelude::GstBinExt;
+use glib::object::{Cast, ObjectExt};
+use gstreamer::prelude::*;
 use gstreamer as gst;
 use gstreamer_app as gst_app;
 
@@ -13,13 +13,14 @@ use crate::config;
 pub struct Video {
     videos: Vec<config::Video>,
     video: Option<iced_video_player::Video>,
-    is_error: bool,
+    playing: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     SetVideo(usize),
     RestartVideo,
+    CheckVideo,
 }
 
 impl Video {
@@ -27,7 +28,7 @@ impl Video {
         let mut video = Self {
             videos,
             video: None,
-            is_error: false,
+            playing: None,
         };
 
         if !video.videos.is_empty() {
@@ -38,10 +39,7 @@ impl Video {
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
-        match &self.is_error {
-            true => iced::time::every(Duration::from_secs(300)).map(|_| Message::RestartVideo),
-            false => iced::Subscription::none(),
-        }
+        iced::time::every(Duration::from_secs(60)).map(|_| Message::CheckVideo)
     }
 
     pub fn view(&self) -> iced::Element<Message> {
@@ -77,10 +75,10 @@ impl Video {
     }
 
     pub fn update(&mut self, message: Message) {
-        self.is_error = false;
-
         match message {
             Message::SetVideo(idx) => {
+                self.playing = Some(idx);
+
                 let pipeline = from_pipeline(&self.videos[idx].url);
 
                 if let Some(video) = self.video.take() {
@@ -90,7 +88,6 @@ impl Video {
                 self.video = match pipeline {
                     Ok(video) => Some(video),
                     Err(err) => {
-                        self.is_error = true;
                         log::error!("Error starting video: {:?}", err);
                         None
                     }
@@ -103,9 +100,20 @@ impl Video {
                     return;
                 };
 
-                self.is_error = true;
-
                 log::error!("Error restarting video: {:?}", err);
+            }
+            Message::CheckVideo => {
+                if let Some(video) = &mut self.video {
+                    let pipeline = video.pipeline();
+                    let state = pipeline.current_state();
+
+                    if video.eos() || ![gst::State::Ready, gst::State::Playing].contains(&state) {
+                        log::warn!("Video stopped, restarting: eos={} | state={:?}", video.eos(), state);
+                        self.update(Message::RestartVideo);
+                    };
+                } else if let Some(idx) = self.playing {
+                    self.update(Message::SetVideo(idx))
+                }
             }
         }
     }
@@ -125,15 +133,21 @@ pub fn style_button(theme: &iced::Theme, _: button::Status) -> button::Style {
 fn from_pipeline(uri: &url::Url) -> Result<iced_video_player::Video, iced_video_player::Error> {
     gst::init()?;
 
-    let pipeline = format!("rtspsrc location=\"{}\" ! decodebin ! videoconvert ! videoscale ! videorate ! appsink name=iced_video drop=true caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1,framerate=24/1", uri.as_str());
+    let pipeline = format!("playbin uri=\"{}\" video-sink=\"videoconvert ! videoscale ! videorate ! appsink name=iced_video drop=true caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1,framerate=24/1\"", uri.as_str());
     let pipeline = gst::parse::launch(pipeline.as_ref())?
         .downcast::<gst::Pipeline>()
         .map_err(|_| iced_video_player::Error::Cast)?;
 
-    let app_sink = pipeline
-        .by_name("iced_video")
-        .and_then(|elem| elem.downcast::<gst_app::AppSink>().ok())
-        .ok_or(iced_video_player::Error::AppSink("iced_video".to_string()))?;
+    let video_sink: gst::Element = pipeline.property("video-sink");
+    let pad = video_sink.pads().first().cloned().unwrap();
+    let pad = pad.dynamic_cast::<gst::GhostPad>().unwrap();
+    let bin = pad
+        .parent_element()
+        .unwrap()
+        .downcast::<gst::Bin>()
+        .unwrap();
+    let app_sink = bin.by_name("iced_video").unwrap();
+    let app_sink = app_sink.downcast::<gst_app::AppSink>().unwrap();
 
     iced_video_player::Video::from_gst_pipeline(pipeline, app_sink, None)
 }

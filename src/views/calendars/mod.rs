@@ -16,6 +16,8 @@ pub struct Calendar {
     manager: Manager,
     dates: Dates,
 
+    reset_dates_in: Option<Instant>,
+
     selection: selection::CalendarSelection,
     month: month::Month,
     day: day::Day,
@@ -72,6 +74,8 @@ impl Calendar {
                 selected: now.date(),
             },
 
+            reset_dates_in: Some(Instant::now() - Duration::from_secs(61)),
+
             selection: selection::CalendarSelection::new(configs.selection),
             month: month::Month::new(configs.month),
             day: day::Day::new(configs.day),
@@ -87,6 +91,19 @@ impl Calendar {
         iced::Subscription::batch([
             iced::time::every(until_next_day(self.dates.now)).map(Message::NextDay),
             iced::time::every(Duration::from_secs(600)).map(|_| Message::Sync),
+            self.reset_dates_in.map_or_else(
+                iced::Subscription::none,
+                |instant| {
+                    let trigger_in = instant + Duration::from_secs(60);
+                    let duration = trigger_in - Instant::now();
+
+                    if duration > Duration::ZERO {
+                        iced::time::every(duration).map(Message::NextDay)
+                    } else {
+                        iced::time::every(Duration::from_secs(1)).map(Message::NextDay)
+                    }
+                },
+            ),
         ])
     }
 
@@ -129,6 +146,8 @@ impl Calendar {
             Message::NextDay(_) => {
                 self.dates.now = chrono::Utc::now().naive_utc();
                 self.dates.selected = self.dates.now.date();
+                self.reset_dates_in = None;
+                log::info!("Next day: {}", self.dates.now);
             }
             Message::UpdateMap(map) => {
                 if let Some(map) = *map {
@@ -137,6 +156,7 @@ impl Calendar {
             }
             Message::SelectDate(date) => {
                 self.dates.selected = date;
+                self.reset_dates_in = Some(Instant::now());
             }
             Message::ToggleCalendar(uid) => {
                 self.manager.toggle_calendar(uid);
