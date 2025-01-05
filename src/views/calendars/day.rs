@@ -16,7 +16,7 @@ impl Day {
         Self { config }
     }
 
-    pub fn view<'a>(&'a self, manager: &'a Manager, dates: &Dates) -> iced::Element<Message> {
+    pub fn view<'a>(&'a self, manager: &'a Manager, dates: &Dates) -> iced::Element<'a, Message> {
         let events = manager
             .events_between(dates.selected, dates.selected, self.config.as_ref())
             .map(|item| self.view_event(item));
@@ -31,8 +31,8 @@ impl Day {
 
     fn view_event<'a>(
         &'a self,
-        (calendar, start, event): (&'a Calendar, &NaiveDateTime, &'a Event),
-    ) -> iced::Element<Message> {
+        (calendar, start, event): (&'a Calendar, &'a NaiveDateTime, &'a Event),
+    ) -> iced::Element<'a, Message> {
         row![
             container(vertical_space())
                 .width(8)

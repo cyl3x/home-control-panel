@@ -14,7 +14,7 @@ impl CalendarSelection {
         Self { config }
     }
 
-    pub fn view<'a>(&'a self, manager: &'a Manager) -> iced::Element<Message> {
+    pub fn view<'a>(&'a self, manager: &'a Manager) -> iced::Element<'a, Message> {
         let calendars = manager
             .calendars(self.config.as_ref())
             .map(|(enabled, calendar)| self.view_calendar(*enabled, calendar));
@@ -26,7 +26,7 @@ impl CalendarSelection {
         &'a self,
         enabled: bool,
         calendar: &'a Calendar,
-    ) -> iced::Element<Message> {
+    ) -> iced::Element<'a, Message> {
         let alpha = if enabled { 1.0 } else { 0.5 };
 
         button(column![

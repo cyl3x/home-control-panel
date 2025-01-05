@@ -43,7 +43,7 @@ impl Manager {
     pub fn calendars<'a>(
         &'a self,
         filter: Option<&'a config::UuidFilter>,
-    ) -> impl Iterator<Item = &(bool, Calendar)> {
+    ) -> impl Iterator<Item = &'a (bool, Calendar)> {
         self.map.calendars().values().filter(move |(_, calendar)| {
             filter.map_or(true, |filter| filter.is_included(&calendar.uid))
         })
@@ -58,7 +58,7 @@ impl Manager {
         start: NaiveDate,
         end: NaiveDate,
         filter: Option<&'a UuidFilter>,
-    ) -> impl Iterator<Item = (&Calendar, &NaiveDateTime, &Event)> {
+    ) -> impl Iterator<Item = (&'a Calendar, &'a NaiveDateTime, &'a Event)> {
         self.map
             .events_between(start, end)
             .filter(move |(calendar, _, _)| {
@@ -71,7 +71,7 @@ impl Manager {
         start: NaiveDate,
         end: NaiveDate,
         filter: Option<&'a UuidFilter>,
-    ) -> impl Iterator<Item = (&NaiveDateTime, &Calendar)> {
+    ) -> impl Iterator<Item = (&'a NaiveDateTime, &'a Calendar)> {
         self.map
             .calendars_between(start, end)
             .filter(move |(_, calendar)| {

@@ -18,7 +18,7 @@ impl Event {
         Self { config }
     }
 
-    pub fn view<'a>(&'a self, manager: &'a Manager, dates: &Dates) -> iced::Element<Message> {
+    pub fn view<'a>(&'a self, manager: &'a Manager, dates: &Dates) -> iced::Element<'a, Message> {
         let event = manager
             .events_between(dates.now.date(), dates.now.date(), self.config.as_ref())
             .next()
@@ -35,7 +35,7 @@ impl Event {
     fn view_event<'a>(
         &'a self,
         (calendar, _, event): (&'a Calendar, &NaiveDateTime, &'a calendar::Event),
-    ) -> iced::Element<Message> {
+    ) -> iced::Element<'a, Message> {
         row![
             fa_icon_solid("circle").color(calendar.color).size(26.0),
             text(event.summary.clone()).size(29),
