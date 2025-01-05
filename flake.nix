@@ -81,9 +81,10 @@
 
         packages = [ pkgs.rust-analyzer rustToolchain ];
 
-        LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath commonArgs.buildInputs}";
+        LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath commonArgs.buildInputs}:$LD_LIBRARY_PATH";
         RUST_SRC_PATH = "${rustToolchain}/lib/rustlib/src/rust/library";
         RUST_BACKTRACE = 1;
+        RUST_LOG = "info";
       };
     });
 }
