@@ -28,7 +28,11 @@ impl App {
     pub fn new(config: Config) -> (Self, iced::Task<Message>) {
         let (mut state, pane) = pane_grid::State::new(PaneState::Calendar);
 
-        state.split(pane_grid::Axis::Vertical, pane, PaneState::Video);
+        let node = state.split(pane_grid::Axis::Vertical, pane, PaneState::Video);
+
+        if let Some((_, split)) = node {
+            state.resize(split, 0.4);
+        }
 
         let (calendar, task) = views::Calendar::new(config.ical, config.calendar);
 
