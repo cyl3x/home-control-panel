@@ -3,7 +3,7 @@ use chrono::NaiveDate;
 use ureq::Agent;
 use url::Url;
 
-use super::event_builder::EventBuilder;
+use super::event_builder::{EventBuilder, EventBuilderError};
 use super::{Calendar, Event};
 use crate::config;
 
@@ -249,6 +249,10 @@ impl Client {
             })
             .filter_map(|result| match result {
                 Ok(events) => Some(events),
+                Err(EventBuilderError::NoUid) => {
+                    log::warn!("Error parsing event: {:?}", EventBuilderError::NoUid);
+                    None
+                }
                 Err(e) => {
                     log::error!("Error parsing event: {:?}", e);
                     None
