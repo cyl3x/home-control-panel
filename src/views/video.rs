@@ -10,6 +10,7 @@ pub struct Video {
 #[derive(Debug, Clone)]
 pub enum Message {
     VideoMessage(video::Message),
+    CheckVideo,
 }
 
 impl Video {
@@ -26,6 +27,7 @@ impl Video {
     pub fn update(&mut self, message: Message) -> iced::Task<Message> {
         match message {
             Message::VideoMessage(video_message) => self.video.update(video_message),
+            Message::CheckVideo => self.video.update(video::Message::CheckVideo),
         }
 
         iced::Task::none()

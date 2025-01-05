@@ -71,14 +71,16 @@ impl App {
                 match (before, self.screensaver.state) {
                     (screensaver::State::Inactive, screensaver::State::Active) => {
                         log::info!("Screensaver activated");
+
+                        iced::Task::none()
                     }
                     (screensaver::State::Active, screensaver::State::Inactive) => {
                         log::info!("Screensaver deactivated");
-                    }
-                    _ => {}
-                }
 
-                iced::Task::none()
+                        self.video.update(views::video::Message::CheckVideo).map(Message::Video)
+                    }
+                    _ => iced::Task::none()
+                }
             }
         }
     }

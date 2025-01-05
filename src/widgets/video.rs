@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use glib::object::{Cast, ObjectExt};
 use gstreamer::prelude::*;
 use gstreamer as gst;
@@ -14,11 +14,15 @@ pub struct Video {
     videos: Vec<config::Video>,
     video: Option<iced_video_player::Video>,
     playing: Option<usize>,
+
+    restart_trys: u8,
+    restart_trigger: Option<Instant>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     SetVideo(usize),
+    ResetVideo,
     RestartVideo,
     CheckVideo,
 }
@@ -29,6 +33,9 @@ impl Video {
             videos,
             video: None,
             playing: None,
+
+            restart_trys: 0,
+            restart_trigger: None,
         };
 
         if !video.videos.is_empty() {
@@ -39,7 +46,22 @@ impl Video {
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
-        iced::time::every(Duration::from_secs(60)).map(|_| Message::CheckVideo)
+        iced::Subscription::batch([
+            iced::time::every(Duration::from_secs(60)).map(|_| Message::CheckVideo),
+            self.restart_trigger.map_or_else(
+                iced::Subscription::none,
+                |instant| {
+                    let trigger_in = instant + Duration::from_secs(2);
+                    let duration = trigger_in - Instant::now();
+
+                    if duration > Duration::ZERO {
+                        iced::time::every(duration).map(|_| Message::RestartVideo)
+                    } else {
+                        iced::time::every(Duration::from_secs(1)).map(|_| Message::RestartVideo)
+                    }
+                },
+            ),
+        ])
     }
 
     pub fn view(&self) -> iced::Element<Message> {
@@ -50,10 +72,14 @@ impl Video {
         let mut column = Column::new();
 
         if let Some(video) = &self.video {
-            column = column.push(VideoPlayer::new(video).on_error(|err| {
-                log::error!("Video error, restarting: {:?}", err);
-                Message::RestartVideo
-            }));
+            let player = VideoPlayer::new(video)
+                .on_error(|err| {
+                    log::error!("Error while playing video: {:?}", err);
+                    Message::ResetVideo
+                })
+                .on_end_of_stream(Message::RestartVideo);
+
+            column = column.push(player);
         }
 
         let buttons = self.videos.iter().enumerate().map(|(idx, video)| {
@@ -78,6 +104,8 @@ impl Video {
         match message {
             Message::SetVideo(idx) => {
                 self.playing = Some(idx);
+                self.restart_trigger = None;
+                self.restart_trys = 0;
 
                 let pipeline = from_pipeline(&self.videos[idx].url);
 
@@ -86,21 +114,37 @@ impl Video {
                 }
 
                 self.video = match pipeline {
-                    Ok(video) => Some(video),
+                    Ok(video) => {
+                        log::info!("Set playing video to: {}", idx);
+                        Some(video)
+                    },
                     Err(err) => {
                         log::error!("Error starting video: {:?}", err);
                         None
                     }
                 };
             }
+            Message::ResetVideo => self.update(self.playing.map_or(Message::RestartVideo, Message::SetVideo)),
             Message::RestartVideo => {
                 let Some(video) = &mut self.video else { return };
 
-                let Err(err) = video.restart_stream() else {
+                if self.restart_trigger.is_none() {
                     return;
-                };
+                }
 
-                log::error!("Error restarting video: {:?}", err);
+                match video.restart_stream() {
+                    Ok(_) => {
+                        self.restart_trigger = None;
+                        self.restart_trys = 0;
+                    },
+                    Err(err) => {
+                        // delay restarts 2sec
+                        self.restart_trigger = Some(Instant::now());
+                        self.restart_trys += 1;
+
+                        log::error!("Error restarting video ({}): {:?}", self.restart_trys, err);
+                    }
+                }
             }
             Message::CheckVideo => {
                 if let Some(video) = &mut self.video {
@@ -108,7 +152,7 @@ impl Video {
                     let state = pipeline.current_state();
 
                     if video.eos() || ![gst::State::Ready, gst::State::Playing].contains(&state) {
-                        log::warn!("Video stopped, restarting: eos={} | state={:?}", video.eos(), state);
+                        log::warn!("Checking video failed, restarting vidoe: eos={} | state={:?}", video.eos(), state);
                         self.update(Message::RestartVideo);
                     };
                 } else if let Some(idx) = self.playing {
