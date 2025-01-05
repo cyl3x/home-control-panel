@@ -9,7 +9,6 @@ use app::App;
 use clap::Parser;
 
 pub use chrono::prelude::*;
-use iced::daemon::Appearance;
 use iced::{Settings, Theme};
 
 mod app;
@@ -25,9 +24,9 @@ fn main() -> iced::Result {
     let cli = cli::Cli::parse();
     let config = config::init(cli.config).expect("Could not load the configuration file");
 
-    iced::application::application("A cool counter", App::update, App::view)
+    iced::application::application("Home control panel", App::update, App::view)
         .subscription(App::subscription)
-        .theme(|_| iced::Theme::TokyoNightLight)
+        .theme(|_| Theme::CatppuccinLatte)
         .scale_factor(|_| 1.5)
         .settings(Settings {
             fonts: vec![include_bytes!("./InterVariable.ttf").into()],
