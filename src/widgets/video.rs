@@ -178,7 +178,7 @@ pub fn style_button(theme: &iced::Theme, _: button::Status) -> button::Style {
 fn from_pipeline(uri: &url::Url) -> Result<iced_video_player::Video, iced_video_player::Error> {
     gst::init()?;
 
-    let pipeline = format!("playbin uri=\"{}\" video-sink=\"videoconvert ! videorate ! videoscale ! appsink name=iced_video drop=true caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1,framerate=24/1\"", uri.as_str());
+    let pipeline = format!("playbin uri=\"{}\" video-sink=\"videorate ! videoscale ! appsink name=iced_video drop=true caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1,framerate=25/1,width=[1,2048]\"", uri.as_str());
     let pipeline = gst::parse::launch(pipeline.as_ref())?
         .downcast::<gst::Pipeline>()
         .map_err(|_| iced_video_player::Error::Cast)?;
