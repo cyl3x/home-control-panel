@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use chrono::{Datelike, NaiveDate, NaiveDateTime};
+use chrono::{Datelike, Days, NaiveDate, NaiveDateTime};
 use iced::widget::column;
 use uuid::Uuid;
 
@@ -11,6 +11,7 @@ mod day;
 mod event;
 mod month;
 mod selection;
+mod upcomming;
 
 pub struct Calendar {
     manager: Manager,
@@ -22,6 +23,7 @@ pub struct Calendar {
     month: month::Month,
     day: day::Day,
     event: event::Event,
+    upcomming: upcomming::Upcomming,
 }
 
 pub struct Dates {
@@ -80,6 +82,7 @@ impl Calendar {
             month: month::Month::new(configs.month),
             day: day::Day::new(configs.day),
             event: event::Event::new(configs.event),
+            upcomming: upcomming::Upcomming::new(configs.upcomming),
         };
 
         let task = calendar.update(Message::Sync);
@@ -91,9 +94,8 @@ impl Calendar {
         iced::Subscription::batch([
             iced::time::every(until_next_day(self.dates.now)).map(Message::NextDay),
             iced::time::every(Duration::from_secs(600)).map(|_| Message::Sync),
-            self.reset_dates_in.map_or_else(
-                iced::Subscription::none,
-                |instant| {
+            self.reset_dates_in
+                .map_or_else(iced::Subscription::none, |instant| {
                     let trigger_in = instant + Duration::from_secs(60);
                     let duration = trigger_in - Instant::now();
 
@@ -102,8 +104,7 @@ impl Calendar {
                     } else {
                         iced::time::every(Duration::from_secs(1)).map(Message::NextDay)
                     }
-                },
-            ),
+                }),
         ])
     }
 
@@ -164,6 +165,10 @@ impl Calendar {
         };
 
         iced::Task::none()
+    }
+
+    pub fn view_upcomming(&self) -> iced::Element<Message> {
+        self.upcomming.view(&self.manager, &self.dates)
     }
 }
 

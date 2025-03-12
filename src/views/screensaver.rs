@@ -50,8 +50,8 @@ impl Screensaver {
         }
     }
 
-    pub fn view_active(&self) -> iced::Element<Message> {
-        let clock = match self.dim {
+    pub fn view_clock(&self) -> iced::Element<Message> {
+        match self.dim {
             true => column![],
             false => column![
                 text(self.time())
@@ -72,12 +72,8 @@ impl Screensaver {
                     }),
             ]
             .align_x(Alignment::Center),
-        };
-
-        container(clock)
-            .center(Length::Fill)
-            .style(style_container)
-            .into()
+        }
+        .into()
     }
 
     pub fn view_interaction(&self) -> iced::Element<Message> {
@@ -133,7 +129,7 @@ impl Screensaver {
     }
 }
 
-fn style_container(_: &iced::Theme) -> container::Style {
+pub fn style_container(_: &iced::Theme) -> container::Style {
     container::Style {
         background: Some(iced::Background::Color(Color::from_rgb8(0, 0, 0))),
         text_color: Some(Color::from_rgb8(255, 255, 255)),

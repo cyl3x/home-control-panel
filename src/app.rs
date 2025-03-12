@@ -1,5 +1,5 @@
-use iced::widget::{container, pane_grid, stack};
-use iced::Subscription;
+use iced::widget::{column, container, pane_grid, stack};
+use iced::{Alignment, Length, Subscription};
 
 use crate::config::Config;
 use crate::views::{self, screensaver};
@@ -105,8 +105,21 @@ impl App {
                     .on_resize(12, Message::PaneResized)
                     .into()
                 }
-                screensaver::State::Active =>
-                    self.screensaver.view_active().map(Message::Screensaver),
+                screensaver::State::Active => {
+                    let calendar = self.calendar.view_upcomming().map(Message::Calendar);
+                    let clock = self.screensaver.view_clock().map(Message::Screensaver);
+
+                    let widget = column![clock, calendar]
+                        .spacing(16)
+                        .align_x(Alignment::Center);
+
+                    let el: iced::Element<Message> = container(widget)
+                        .center(Length::Fill)
+                        .style(screensaver::style_container)
+                        .into();
+
+                    el
+                }
             },
             self.screensaver
                 .view_interaction()

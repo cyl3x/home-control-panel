@@ -47,6 +47,7 @@ pub struct Calendars {
     pub event: Option<UuidFilter>,
     pub ticker: Option<UuidFilter>,
     pub week: Option<UuidFilter>,
+    pub upcomming: Option<UpcommingFilter>,
     pub selection: Option<UuidFilter>,
 }
 
@@ -56,6 +57,16 @@ pub struct UuidFilter {
     pub exclude: Vec<Uuid>,
     #[serde(default)]
     pub include: Vec<Uuid>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct UpcommingFilter {
+    #[serde(default)]
+    pub exclude: Vec<Uuid>,
+    #[serde(default)]
+    pub include: Vec<Uuid>,
+    #[serde(default)]
+    pub skip_oneliner: Vec<Uuid>,
 }
 
 impl UuidFilter {
