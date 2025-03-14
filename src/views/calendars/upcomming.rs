@@ -1,6 +1,6 @@
 use chrono::{Datelike, Days, NaiveDate, NaiveDateTime, TimeDelta, Timelike, Weekday};
 use iced::widget::{column, container, row, text};
-use iced::{Alignment, Length, Padding};
+use iced::{Alignment, Color, Padding};
 use iced_font_awesome::fa_icon_solid;
 use uuid::Uuid;
 
@@ -26,46 +26,48 @@ impl Upcomming {
 
     pub fn view<'a>(&'a self, manager: &'a Manager, dates: &'a Dates) -> iced::Element<'a, Message> {
         let now = dates.now.date();
-        let saturday = self.current_saturday(now);
 
-        column![]
-            .push_maybe(self.view_row(manager, now, "Heute", now, now))
-            .push_maybe(self.view_row(manager, now, "Morgen", now + Days::new(1), now + Days::new(1)))
-            .push_maybe(self.view_row(
-                manager,
-                dates.now.date(),
-                if dates.now.date() >= saturday { "Dieses Wochenende" } else { "Nächstes Wochenende" },
-                saturday,
-                saturday + Days::new(1),
-            ))
-            .spacing(16)
-            .width(Length::Fill)
-            .into()
+        let mut dates = column![].spacing(8).align_x(Alignment::End);
+        let mut events = column![].spacing(8);
+
+        let today = self.map_events(manager, now, now, now);
+        dates = dates.push_maybe(self.view_name("Heute", today.len()));
+        events = events.push_maybe(self.view_events(today));
+
+        let tomorrow = self.map_events(manager, now, now + Days::new(1), now + Days::new(1));
+        dates = dates.push_maybe(self.view_name("Morgen", tomorrow.len()));
+        events = events.push_maybe(self.view_events(tomorrow));
+
+        if now.weekday() == Weekday::Fri {
+            let sunday = self.map_events(manager, now, now + Days::new(2), now + Days::new(2));
+            dates = dates.push_maybe(self.view_name("Sontag", sunday.len()));
+            events = events.push_maybe(self.view_events(sunday));
+        } else if !matches!(now.weekday(), Weekday::Sat | Weekday::Sun) {
+            let num = now.weekday().num_days_from_monday() as u64;
+            let weekend = self.map_events(manager, now, now + Days::new(5 - num), now + Days::new(6 - num));
+            dates = dates.push_maybe(self.view_name("Nächstes Wochenende", weekend.len()));
+            events = events.push_maybe(self.view_events(weekend));
+        }
+
+        row![dates, events].spacing(16).into()
     }
 
-    fn view_row<'a>(
-        &'a self,
-        manager: &'a Manager,
-        now: NaiveDate,
-        name: &'a str,
-        from: NaiveDate,
-        to: NaiveDate,
-    ) -> Option<iced::Element<'a, Message>> {
-        let elements = manager
-            .events_between(from, to, self.filter.as_ref())
-            .map(|item| self.view_event(item, now))
-            .collect::<Vec<_>>();
-
-        if !elements.is_empty() {
-            let row = row![
-                text(name).width(Length::FillPortion(1)).align_x(Alignment::End),
-                column![].spacing(8).width(Length::FillPortion(1)).extend(elements),
-            ].spacing(8).into();
-
-            Some(row)
-        } else {
-            None
+    fn view_name<'a>(&'a self, name: &'a str, len: usize) -> Option<iced::Element<'a, Message>> {
+        if len == 0 {
+            return None;
         }
+
+        Some(column([text(name).color(Color::from_rgb8(192, 192, 192)).into()])
+            .extend((1..len).map(|_| text("").into()))
+            .spacing(8).into())
+    }
+
+    fn view_events<'a>(&'a self, events: Vec<iced::Element<'a, Message>>) -> Option<iced::Element<'a, Message>> {
+        if events.is_empty() {
+            return None;
+        }
+
+        Some(column(events).spacing(8).into())
     }
 
     fn view_event<'a>(
@@ -81,18 +83,29 @@ impl Upcomming {
                 event.summary.clone()
             } else {
                 self.oneliner(event, now)
-            }),
+            }).color(Color::from_rgb8(192, 192, 192)),
         ]
         .spacing(8)
         .into()
+    }
+
+    fn map_events<'a>(
+        &'a self,
+        manager: &'a Manager,
+        now: NaiveDate,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Vec<iced::Element<'a, Message>> {
+        manager
+            .events_between(from, to, self.filter.as_ref())
+            .map(|item| self.view_event(item, now))
+            .collect::<Vec<_>>()
     }
 
     // @TODO: start and end times for rrules are out of place
     fn oneliner(&self, event: &calendar::Event, now: NaiveDate) -> String {
         let start = event.start_tz();
         let end = event.end_tz();
-
-        println!("{}", event.start);
 
         let delta = event.end - event.start;
         let is_delta_whole_days = event.start.and_utc().hour() == 0 && delta.num_days() * 86400 == delta.num_seconds();
@@ -127,18 +140,6 @@ impl Upcomming {
         } else {
             format!("{} ({info})", event.summary)
         }
-    }
-
-    fn current_saturday(&self, date: NaiveDate) -> NaiveDate {
-        if date.weekday() == Weekday::Sat {
-            return date;
-        }
-
-        if date.weekday() == Weekday::Sun {
-            return date - Days::new(1);
-        }
-
-        date + Days::new(5 - date.weekday().num_days_from_monday() as u64)
     }
 
     fn should_skip(&self, uid: &Uuid) -> bool {

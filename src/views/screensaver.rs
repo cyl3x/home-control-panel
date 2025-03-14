@@ -3,7 +3,7 @@ use std::time::Instant;
 use chrono::{DateTime, Local};
 use iced::font;
 use iced::widget::{column, container, text};
-use iced::{time, Alignment, Color, Length};
+use iced::{time, Alignment, Color};
 
 use crate::config;
 use crate::widgets::interaction_tracker::InteractionTracker;
@@ -13,7 +13,7 @@ pub struct Screensaver {
     pub state: State,
     last_interaction: Instant,
     now: DateTime<Local>,
-    dim: bool,
+    pub dim: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -32,7 +32,7 @@ impl Screensaver {
     pub fn new(config: config::Screensaver) -> Self {
         Self {
             config,
-            state: State::Inactive,
+            state: State::Active,
             last_interaction: time::Instant::now(),
             now: Local::now(),
             dim: false,
@@ -51,28 +51,25 @@ impl Screensaver {
     }
 
     pub fn view_clock(&self) -> iced::Element<Message> {
-        match self.dim {
-            true => column![],
-            false => column![
-                text(self.time())
-                    .size(90)
-                    .color(Color::from_rgb8(127, 127, 127))
-                    .font(font::Font {
-                        family: font::Family::Name("Inter"),
-                        weight: font::Weight::Bold,
-                        ..Default::default()
-                    }),
-                text(self.date())
-                    .size(60)
-                    .color(Color::from_rgb8(127, 127, 127))
-                    .font(font::Font {
-                        family: font::Family::Name("Inter"),
-                        weight: font::Weight::Semibold,
-                        ..Default::default()
-                    }),
-            ]
-            .align_x(Alignment::Center),
-        }
+        column![
+            text(self.time())
+                .size(90)
+                .color(Color::from_rgb8(127, 127, 127))
+                .font(font::Font {
+                    family: font::Family::Name("Inter"),
+                    weight: font::Weight::Bold,
+                    ..Default::default()
+                }),
+            text(self.date())
+                .size(60)
+                .color(Color::from_rgb8(127, 127, 127))
+                .font(font::Font {
+                    family: font::Family::Name("Inter"),
+                    weight: font::Weight::Semibold,
+                    ..Default::default()
+                }),
+        ]
+        .align_x(Alignment::Center)
         .into()
     }
 

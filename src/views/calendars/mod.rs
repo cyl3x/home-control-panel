@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use chrono::{Datelike, Days, NaiveDate, NaiveDateTime};
+use chrono::{Datelike, NaiveDate, NaiveDateTime};
 use iced::widget::column;
 use uuid::Uuid;
 
