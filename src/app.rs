@@ -106,15 +106,15 @@ impl App {
                     .into()
                 }
                 screensaver::State::Active => {
-                    let el: iced::Element<Message> = if self.screensaver.dim {
+                    let el: iced::Element<Message> = (if self.screensaver.dim {
+                        container(column![])
+                    } else {
                         let calendar = self.calendar.view_upcomming().map(Message::Calendar);
                         let clock = self.screensaver.view_clock().map(Message::Screensaver);
                         let col = column![clock, calendar].spacing(16).align_x(Alignment::Center);
 
-                        container(col).center(Length::Fill)
-                    } else {
-                        container(column![])
-                    }.style(screensaver::style_container).into();
+                        container(col)
+                    }).center(Length::Fill).style(screensaver::style_container).into();
 
                     el
                 }
