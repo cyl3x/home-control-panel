@@ -57,7 +57,11 @@ impl Upcomming {
             return None;
         }
 
-        Some(column([text(name).color(Color::from_rgb8(192, 192, 192)).into()])
+        let name = text(name)
+            .color(Color::from_rgb8(192, 192, 192))
+            .size(24);
+
+        Some(column([name.into()])
             .extend((1..len).map(|_| text("").into()))
             .spacing(8).into())
     }
@@ -75,15 +79,15 @@ impl Upcomming {
         (calendar, _, event): (&'a Calendar, &NaiveDateTime, &'a calendar::Event),
         now: NaiveDate,
     ) -> iced::Element<'a, Message> {
-        let icon = fa_icon_solid("circle").color(calendar.color).size(8.0);
+        let icon = fa_icon_solid("circle").color(calendar.color).size(12.0);
 
         row![
-            container(icon).padding(Padding::ZERO.top(6.0)),
+            container(icon).padding(Padding::ZERO.top(9.0)),
             text(if self.should_skip(&calendar.uid) {
                 event.summary.clone()
             } else {
                 self.oneliner(event, now)
-            }).color(Color::from_rgb8(192, 192, 192)),
+            }).size(24).color(Color::from_rgb8(192, 192, 192)),
         ]
         .spacing(8)
         .into()
