@@ -9,7 +9,8 @@ use app::App;
 use clap::Parser;
 
 pub use chrono::prelude::*;
-use iced::{Settings, Theme};
+use iced::window::settings::PlatformSpecific;
+use iced::{window, Settings, Theme};
 
 mod app;
 pub mod calendar;
@@ -31,6 +32,13 @@ fn main() -> iced::Result {
         .settings(Settings {
             fonts: vec![include_bytes!("./InterVariable.ttf").into()],
             default_font: iced::Font::with_name("Inter"),
+            ..Default::default()
+        })
+        .window(window::Settings {
+            platform_specific: PlatformSpecific {
+                application_id: "de.cyl3x.home-control-panel".to_string(),
+                ..Default::default()
+            },
             ..Default::default()
         })
         .run_with(|| App::new(config))
