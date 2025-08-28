@@ -8,14 +8,11 @@ categories = ["desktop-application"]
 repository = "https://github.com/cyl3x/home-control-panel"
 authors = ["cyl3x <cyl3x@posteo.de>"]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "home-control-panel"
 path = "src/main.rs"
-
-[build]
-rustflags = ["-C", "symbol-mangling-version=v0"]
 
 [profile.release]
 codegen-units = 1

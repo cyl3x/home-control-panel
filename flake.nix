@@ -28,6 +28,8 @@
       systems = [ "x86_64-linux" "aarch64-linux" ];
 
       perSystem = { config, self', inputs', pkgs, system, ... }: {
+        nixpkgs.crossSystem = "aarch64-linux";
+
         rust-project = {
           crates."home-control-panel".crane = rec {
             args.nativeBuildInputs = with pkgs; [
@@ -48,6 +50,7 @@
               wayland
             ];
 
+            args.CARGO_BUILD_RUSTFLAGS = "-C symbol-mangling-version=v0";
 
             extraBuildArgs = {
               runtimeDependenciesPath = pkgs.lib.makeLibraryPath args.buildInputs;
