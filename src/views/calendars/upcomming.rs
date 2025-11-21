@@ -40,7 +40,7 @@ impl Upcomming {
 
         if now.weekday() == Weekday::Fri {
             let sunday = self.map_events(manager, now, now + Days::new(2), now + Days::new(2));
-            dates = dates.push_maybe(self.view_name("Sontag", sunday.len()));
+            dates = dates.push_maybe(self.view_name("Sonntag", sunday.len()));
             events = events.push_maybe(self.view_events(sunday));
         } else if !matches!(now.weekday(), Weekday::Sat | Weekday::Sun) {
             let num = now.weekday().num_days_from_monday() as u64;
