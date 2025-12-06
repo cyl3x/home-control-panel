@@ -33,7 +33,7 @@
         rust-project = {
           crates."home-control-panel".crane = rec {
             args.nativeBuildInputs = with pkgs; [
-              wrapGAppsHook
+              wrapGAppsHook3
               makeWrapper
               pkg-config
             ];
