@@ -1,8 +1,8 @@
-use std::time::{Duration, Instant};
 use glib::object::{Cast, ObjectExt};
-use gstreamer::prelude::*;
 use gstreamer as gst;
+use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
+use std::time::{Duration, Instant};
 
 use iced::widget::{button, row, text, Column};
 use iced::{Length, Padding};
@@ -48,9 +48,8 @@ impl Video {
     pub fn subscription(&self) -> iced::Subscription<Message> {
         iced::Subscription::batch([
             iced::time::every(Duration::from_secs(60)).map(|_| Message::CheckVideo),
-            self.restart_trigger.map_or_else(
-                iced::Subscription::none,
-                |instant| {
+            self.restart_trigger
+                .map_or_else(iced::Subscription::none, |instant| {
                     let trigger_in = instant + Duration::from_secs(2);
                     let duration = trigger_in - Instant::now();
 
@@ -59,8 +58,7 @@ impl Video {
                     } else {
                         iced::time::every(Duration::from_secs(1)).map(|_| Message::RestartVideo)
                     }
-                },
-            ),
+                }),
         ])
     }
 
@@ -118,14 +116,17 @@ impl Video {
                     Ok(video) => {
                         log::info!("Set playing video to: {}", idx);
                         Some(video)
-                    },
+                    }
                     Err(err) => {
                         log::error!("Error starting video: {:?}", err);
                         None
                     }
                 };
             }
-            Message::ResetVideo => self.update(self.playing.map_or(Message::RestartVideo, Message::SetVideo)),
+            Message::ResetVideo => self.update(
+                self.playing
+                    .map_or(Message::RestartVideo, Message::SetVideo),
+            ),
             Message::RestartVideo => {
                 let Some(video) = &mut self.video else { return };
 
@@ -137,7 +138,7 @@ impl Video {
                     Ok(_) => {
                         self.restart_trigger = None;
                         self.restart_trys = 0;
-                    },
+                    }
                     Err(err) => {
                         // delay restarts 2sec
                         self.restart_trigger = Some(Instant::now());
@@ -153,7 +154,11 @@ impl Video {
                     let state = pipeline.current_state();
 
                     if video.eos() || ![gst::State::Ready, gst::State::Playing].contains(&state) {
-                        log::warn!("Checking video failed, restarting vidoe: eos={} | state={:?}", video.eos(), state);
+                        log::warn!(
+                            "Checking video failed, restarting vidoe: eos={} | state={:?}",
+                            video.eos(),
+                            state
+                        );
                         self.update(Message::RestartVideo);
                     };
                 } else if let Some(idx) = self.playing {

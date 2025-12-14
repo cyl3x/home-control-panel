@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use iced::widget::{column, container, row, scrollable, text, vertical_space, Column};
+use iced::widget::{column, container, row, scrollable, text, space, Column};
 use iced::{Alignment, Length};
 
 use crate::calendar::{Calendar, Event, Manager};
@@ -34,7 +34,7 @@ impl Day {
         (calendar, start, event): (&'a Calendar, &'a NaiveDateTime, &'a Event),
     ) -> iced::Element<'a, Message> {
         row![
-            container(vertical_space())
+            container(space::vertical())
                 .width(8)
                 .style(|_| style_event_indicator(calendar.color)),
             column![

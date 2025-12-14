@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use url::Url;
 use uuid::Uuid;
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize)]
 pub struct Config {
     pub ical: Ical,
     #[serde(default)]
@@ -14,7 +14,7 @@ pub struct Config {
     pub screensaver: Screensaver,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 pub struct Ical {
     pub url: Url,
     pub username: String,

@@ -32,7 +32,7 @@ impl Screensaver {
     pub fn new(config: config::Screensaver) -> Self {
         Self {
             config,
-            state: State::Active,
+            state: State::Inactive,
             last_interaction: time::Instant::now(),
             now: Local::now(),
             dim: false,

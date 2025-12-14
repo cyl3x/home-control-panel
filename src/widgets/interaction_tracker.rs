@@ -1,4 +1,3 @@
-use iced::advanced::graphics::core::event;
 use iced::advanced::renderer;
 use iced::advanced::widget::Tree;
 use iced::advanced::{self, layout, Widget};
@@ -32,7 +31,7 @@ where
     }
 
     fn layout(
-        &self,
+        &mut self,
         _tree: &mut Tree,
         _renderer: &Renderer,
         limits: &layout::Limits,
@@ -52,34 +51,33 @@ where
     ) {
     }
 
-    fn on_event(
+    fn update(
         &mut self,
         _state: &mut Tree,
-        event: iced::Event,
+        event: &iced::Event,
         _layout: layout::Layout<'_>,
         _cursor: iced::advanced::mouse::Cursor,
         _renderer: &Renderer,
         _clipboard: &mut dyn iced::advanced::Clipboard,
         shell: &mut iced::advanced::Shell<'_, Message>,
         _viewport: &Rectangle,
-    ) -> event::Status {
+    ) {
         match event {
             Event::Mouse(mouse::Event::ButtonPressed(_))
             | Event::Mouse(mouse::Event::ButtonReleased(_))
             | Event::Keyboard(_)
             | Event::Touch(_) => {
                 if let Event::Touch(touch::Event::FingerMoved { .. }) = event {
-                    return event::Status::Ignored;
+                    return;
                 }
 
                 if let Some(message) = self.on_interaction.take() {
                     shell.publish(message);
+                    shell.capture_event();
                 }
             }
             _ => {}
         }
-
-        event::Status::Ignored
     }
 }
 

@@ -1,4 +1,4 @@
-use iced::widget::{button, column, container, horizontal_space, text, Row};
+use iced::widget::{button, column, container, space, text, Row};
 use iced::Length;
 
 use super::Message;
@@ -30,13 +30,13 @@ impl CalendarSelection {
         let alpha = if enabled { 1.0 } else { 0.5 };
 
         button(column![
-            container(horizontal_space())
+            container(space::horizontal())
                 .height(4)
                 .style(move |_| style_container(calendar.color.scale_alpha(alpha))),
             container(text(&calendar.name).size(18).wrapping(text::Wrapping::None))
                 .center_x(Length::Fill)
                 .padding(4),
-            container(horizontal_space())
+            container(space::horizontal())
                 .height(4)
                 .style(move |_| style_container(calendar.color.scale_alpha(alpha))),
         ])

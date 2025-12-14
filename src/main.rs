@@ -25,9 +25,10 @@ fn main() -> iced::Result {
     let cli = cli::Cli::parse();
     let config = config::init(cli.config).expect("Could not load the configuration file");
 
-    iced::application::application("Home control panel", App::update, App::view)
+    iced::application::application(move || App::new(config.clone()), App::update, App::view)
+        .title("Home control panel")
         .subscription(App::subscription)
-        .theme(|_| Theme::CatppuccinLatte)
+        .theme(theme)
         .scale_factor(|_| 1.5)
         .settings(Settings {
             fonts: vec![include_bytes!("./InterVariable.ttf").into()],
@@ -41,5 +42,9 @@ fn main() -> iced::Result {
             },
             ..Default::default()
         })
-        .run_with(|| App::new(config))
+        .run()
+}
+
+const fn theme(_: &App) -> Theme {
+    Theme::CatppuccinLatte
 }

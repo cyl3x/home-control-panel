@@ -24,7 +24,7 @@ impl Event {
             .next()
             .map(|item| self.view_event(item));
 
-        let entry = column![].push_maybe(event);
+        let entry = column![].push(event);
 
         scrollable(entry)
             .width(Length::Fill)

@@ -1,6 +1,8 @@
 use base64::prelude::*;
 use chrono::NaiveDate;
-use ureq::Agent;
+use ureq::config::Config;
+use ureq::http::Request;
+use ureq::{Agent, http};
 use url::Url;
 
 use super::event_builder::{EventBuilder, EventBuilderError};
@@ -60,9 +62,33 @@ impl Client {
     pub fn new(base_url: Url, credentials: Credentials) -> Self {
         Self {
             credentials,
-            agent: Agent::new(),
+            agent: Config::builder()
+                .allow_non_standard_methods(true)
+                .build()
+                .new_agent(),
             base_url,
         }
+    }
+
+    fn request(&self, request: Request<impl ureq::AsSendBody>) -> Result<ureq::Body, Error> {
+        let uri = request.uri().to_string();
+        let response = self
+            .agent
+            .run(request)
+            .map_err(|e| Error {
+                kind: ErrorKind::Http,
+                message: e.to_string(),
+            })?;
+
+        if !response.status().is_success() {
+            return Err(Error {
+                kind: ErrorKind::Http,
+                message: format!("HTTP error calling \"{}\": {}", uri, response.status()),
+            });
+        }
+
+
+        Ok(response.into_body())
     }
 
     fn get_auth_header(&self) -> String {
@@ -90,33 +116,31 @@ impl Client {
     ) -> Result<(String, xmltree::Element), Error> {
         let auth = self.get_auth_header();
 
-        let content = self
-            .agent
-            .request("PROPFIND", url.as_str())
-            .set("Authorization", &auth)
-            .set("Content-Type", "application/xml")
-            .set("Depth", depth)
-            .send_bytes(body.as_bytes())?
-            .into_string()
+        let request = http::Request::builder()
+            .method("PROPFIND")
+            .uri(url.as_str())
+            .header("Authorization", &auth)
+            .header("Content-Type", "application/xml")
+            .header("Depth", depth)
+            .body(body)
             .map_err(|e| Error {
                 kind: ErrorKind::Parsing,
                 message: e.to_string(),
             })?;
 
-        // log::trace!("CalDAV propfind response: {:?}", content);
-        let reader = content.as_bytes();
+        let mut content = self.request(request)?;
 
-        let root = xmltree::Element::parse(reader)?;
+        // log::trace!("CalDAV propfind response: {:?}", content);
+
+        let root = xmltree::Element::parse(content.as_reader())?;
         let mut element = &root;
         let mut searched = 0;
         for prop in prop_path {
             for e in &element.children {
-                if let Some(child) = e.as_element() {
-                    if child.name == *prop {
-                        searched += 1;
-                        element = child;
-                        break;
-                    }
+                if let Some(child) = e.as_element() && child.name == *prop {
+                    searched += 1;
+                    element = child;
+                    break;
                 }
             }
         }
@@ -222,21 +246,22 @@ impl Client {
         calendar_ref: &Calendar,
     ) -> Result<Vec<Event>, Error> {
         let auth = self.get_auth_header();
-        let content = self
-            .agent
-            .request("REPORT", calendar_ref.url_str.as_str())
-            .set("Authorization", &auth)
-            .set("Depth", "1")
-            .set("Content-Type", "application/xml")
-            .send_bytes(request_event(time_range).as_bytes())?
-            .into_string()
+
+        let request = http::Request::builder()
+            .method("REPORT")
+            .uri(calendar_ref.url_str.as_str())
+            .header("Authorization", &auth)
+            .header("Depth", "1")
+            .header("Content-Type", "application/xml")
+            .body(request_event(time_range))
             .map_err(|e| Error {
                 kind: ErrorKind::Parsing,
                 message: e.to_string(),
             })?;
 
-        let reader = content.as_bytes();
-        let root = xmltree::Element::parse(reader)?;
+        let mut content = self.request(request)?;
+
+        let root = xmltree::Element::parse(content.as_reader())?;
 
         let events = root
             .children
@@ -274,21 +299,21 @@ impl Client {
     ) -> Result<Vec<Event>, Error> {
         let auth = self.get_auth_header();
 
-        let content = self
-            .agent
-            .request("REPORT", calendar_ref.url_str.as_str())
-            .set("Authorization", &auth)
-            .set("Depth", "1")
-            .set("Content-Type", "application/xml")
-            .send_bytes(request_event(time_range).as_bytes())?
-            .into_string()
+        let request = http::Request::builder()
+            .method("REPORT")
+            .uri(calendar_ref.url_str.as_str())
+            .header("Authorization", &auth)
+            .header("Depth", "1")
+            .header("Content-Type", "application/xml")
+            .body(request_event(time_range))
             .map_err(|e| Error {
                 kind: ErrorKind::Parsing,
                 message: e.to_string(),
             })?;
 
-        let reader = content.as_bytes();
-        let root = xmltree::Element::parse(reader)?;
+        let mut content = self.request(request)?;
+
+        let root = xmltree::Element::parse(content.as_reader())?;
 
         let todos = root
             .children
@@ -345,11 +370,17 @@ impl Client {
     pub fn remove_event(&self, event: &Event) -> Result<(), Error> {
         let auth = self.get_auth_header();
 
-        let _response = self
-            .agent
-            .delete(event.url.as_str())
-            .set("Authorization", &auth)
-            .call()?;
+        let request = http::Request::builder()
+            .method("DELETE")
+            .uri(event.url.as_str())
+            .header("Authorization", &auth)
+            .body(())
+            .map_err(|e| Error {
+                kind: ErrorKind::Parsing,
+                message: e.to_string(),
+            })?;
+
+        let _response = self.request(request)?;
 
         Ok(())
     }

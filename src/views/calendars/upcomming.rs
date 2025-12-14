@@ -1,6 +1,6 @@
 use chrono::{Datelike, Days, NaiveDate, NaiveDateTime, TimeDelta, Timelike, Weekday};
-use iced::widget::{column, container, row, text};
-use iced::{Alignment, Color, Padding};
+use iced::widget::{column, row, text};
+use iced::{Alignment, Color};
 use iced_font_awesome::fa_icon_solid;
 use uuid::Uuid;
 
@@ -31,22 +31,22 @@ impl Upcomming {
         let mut events = column![].spacing(8);
 
         let today = self.map_events(manager, now, now, now);
-        dates = dates.push_maybe(self.view_name("Heute", today.len()));
-        events = events.push_maybe(self.view_events(today));
+        dates = dates.push(self.view_name("Heute", today.len()));
+        events = events.push(self.view_events(today));
 
         let tomorrow = self.map_events(manager, now, now + Days::new(1), now + Days::new(1));
-        dates = dates.push_maybe(self.view_name("Morgen", tomorrow.len()));
-        events = events.push_maybe(self.view_events(tomorrow));
+        dates = dates.push(self.view_name("Morgen", tomorrow.len()));
+        events = events.push(self.view_events(tomorrow));
 
         if now.weekday() == Weekday::Fri {
             let sunday = self.map_events(manager, now, now + Days::new(2), now + Days::new(2));
-            dates = dates.push_maybe(self.view_name("Sonntag", sunday.len()));
-            events = events.push_maybe(self.view_events(sunday));
+            dates = dates.push(self.view_name("Sonntag", sunday.len()));
+            events = events.push(self.view_events(sunday));
         } else if !matches!(now.weekday(), Weekday::Sat | Weekday::Sun) {
             let num = now.weekday().num_days_from_monday() as u64;
             let weekend = self.map_events(manager, now, now + Days::new(5 - num), now + Days::new(6 - num));
-            dates = dates.push_maybe(self.view_name("Nächstes Wochenende", weekend.len()));
-            events = events.push_maybe(self.view_events(weekend));
+            dates = dates.push(self.view_name("Nächstes Wochenende", weekend.len()));
+            events = events.push(self.view_events(weekend));
         }
 
         row![dates, events].spacing(16).into()

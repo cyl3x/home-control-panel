@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use iced::color;
 use uuid::Uuid;
 
@@ -20,7 +22,7 @@ impl Calendar {
         let href = extract::href(element)?;
         let name = extract::calendar_name(element)?;
         let color = extract::calendar_color(element)
-            .and_then(|color| iced::Color::parse(&color))
+            .and_then(|color| iced::Color::from_str(&color).ok())
             .unwrap_or_else(|| color!(0xdeb887));
 
         let uid = Uuid::new_v5(&Uuid::NAMESPACE_URL, href.as_bytes());
