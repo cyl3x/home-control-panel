@@ -73,7 +73,6 @@ where
 
                 if let Some(message) = self.on_interaction.take() {
                     shell.publish(message);
-                    shell.capture_event();
                 }
             }
             _ => {}
