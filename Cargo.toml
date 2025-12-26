@@ -25,16 +25,12 @@ strip = "debuginfo"
 base64 = "0.22"
 chrono = { version = "0.4.39", features = ["unstable-locales", "serde"] }
 chrono-tz = "0.10.4"
-clap = { version = "4.5.53", features = ["derive"] }
+clapper = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs", rev = "3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f" }
+clapper-gtk = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs", rev = "3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f" }
+color = "0.3.2"
 env_logger = "0.11.8"
-glib = "0.20"
-gstreamer = "0.23"
-gstreamer-app = "0.23"
+gtk = { package = "gtk4", version = "0.10.3", features = ["v4_20"] }
 icalendar = "0.17.6"
-iced = { version = "0.14", default-features = false, features = ["smol", "wgpu", "tiny-skia"] }
-iced_font_awesome = "0.4.1"
-iced_video_player = { git = "https://github.com/jazzfool/iced_video_player.git", rev = "121b77de686d49e7bc768771b1a1c1c18f50c51f" }
-iced_wgpu = "0.14.0"
 log = { version = "0.4.29", features = ["kv", "kv_std"]}
 rrule = "0.14"
 serde = { version = "1.0.217", features = ["derive"] }

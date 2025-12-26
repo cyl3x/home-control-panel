@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use iced::color;
+use color::Rgba8;
 use uuid::Uuid;
 
 use super::extract;
@@ -10,7 +10,7 @@ pub struct Calendar {
     pub uid: Uuid,
     pub url_str: String,
     pub name: String,
-    pub color: iced::Color,
+    pub color: Rgba8,
 }
 
 impl Calendar {
@@ -21,9 +21,9 @@ impl Calendar {
 
         let href = extract::href(element)?;
         let name = extract::calendar_name(element)?;
-        let color = extract::calendar_color(element)
-            .and_then(|color| iced::Color::from_str(&color).ok())
-            .unwrap_or_else(|| color!(0xdeb887));
+        let color: Rgba8 = extract::calendar_color(element)
+            .and_then(|color| color.try_into().ok())
+            .unwrap_or_else(|| Rgba8::from_u32(0xdeb887));
 
         let uid = Uuid::new_v5(&Uuid::NAMESPACE_URL, href.as_bytes());
 
@@ -35,8 +35,8 @@ impl Calendar {
         })
     }
 
-    pub fn fg_color(&self) -> iced::Color {
-        fg_from_bg_w3c(&self.color).unwrap_or(iced::Color::BLACK)
+    pub fn fg_color(&self) -> Rgba8 {
+        fg_from_bg_w3c(&self.color).unwrap_or(Rgba8::from_u32(0x000000))
     }
 }
 
@@ -46,8 +46,9 @@ impl PartialEq for Calendar {
     }
 }
 
-fn fg_from_bg_w3c(bg_color: &iced::Color) -> Option<iced::Color> {
-    let rgb = bg_color.into_linear().map(|c| {
+fn fg_from_bg_w3c(bg_color: &Rgba8) -> Option<Rgba8> {
+    let linear: [f64; 4] = [bg_color.r.into() / 255, bg_color.g.into() / 255, bg_color.b.into() / 255, bg_color.a.into() / 255];
+    let rgb = linear.map(|c| {
         if c <= 0.04045 {
             c / 12.92
         } else {
@@ -56,8 +57,8 @@ fn fg_from_bg_w3c(bg_color: &iced::Color) -> Option<iced::Color> {
     });
 
     if rgb[0].mul_add(0.2126, rgb[1].mul_add(0.7152, rgb[2] * 0.0722)) > 0.179 {
-        Some(iced::Color::BLACK)
+        Some(Rgba8::from_u32(0x000000))
     } else {
-        Some(iced::Color::WHITE)
+        Some(Rgba8::from_u32(0xffffff))
     }
 }

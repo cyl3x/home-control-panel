@@ -33,12 +33,15 @@
         rust-project = {
           crates."home-control-panel".crane = rec {
             args.nativeBuildInputs = with pkgs; [
-              wrapGAppsHook3
+              wrapGAppsHook4
               makeWrapper
               pkg-config
             ];
 
             args.buildInputs = with pkgs; [
+              clapper-unwrapped
+              gtk4
+              glib
               gst_all_1.gst-plugins-bad
               gst_all_1.gst-plugins-base
               gst_all_1.gst-plugins-good
@@ -74,12 +77,15 @@
 
         overlayAttrs = { inherit (self'.packages) home-control-panel; };
 
-        devShells.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShell.override {
+            stdenv = pkgs.stdenvAdapters.useMoldLinker pkgs.clangStdenv;
+        } {
           inputsFrom = [ self'.devShells.rust ];
 
           RUST_LOG = "info";
           RUST_BACKTRACE = "full";
           LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${self'.packages.home-control-panel.runtimeDependenciesPath}";
+          RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
         };
       };
     };
