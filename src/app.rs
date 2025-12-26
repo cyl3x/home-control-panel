@@ -1,128 +1,85 @@
-use iced::widget::{column, container, pane_grid, stack};
-use iced::{Alignment, Length, Subscription};
-
 use crate::config::Config;
-use crate::views::{self, screensaver};
+use crate::messaging;
+use crate::messaging::AppMessage;
+use crate::prelude::*;
+use crate::widgets::calendar::CalendarWidget;
+use crate::widgets::grafana::GrafanaWidget;
+use crate::widgets::screensaver::ScreensaverWidget;
+use crate::widgets::video::Video;
 
 pub struct App {
-    video: views::Video,
-    calendar: views::Calendar,
-    screensaver: views::Screensaver,
-    panes: pane_grid::State<PaneState>,
-}
-
-enum PaneState {
-    Video,
-    Calendar,
-}
-
-#[derive(Debug)]
-pub enum Message {
-    Calendar(views::calendars::Message),
-    Video(views::video::Message),
-    Screensaver(views::screensaver::Message),
-    PaneResized(pane_grid::ResizeEvent),
+    window: gtk::ApplicationWindow,
+    calendar: CalendarWidget,
+    video: Video,
+    screensaver: ScreensaverWidget,
+    grafana: GrafanaWidget,
 }
 
 impl App {
-    pub fn new(config: Config) -> (Self, iced::Task<Message>) {
-        let (mut state, pane) = pane_grid::State::new(PaneState::Calendar);
+    pub fn new(app: &gtk::Application, config: &Config) -> Self {
+        let calendar = CalendarWidget::new(config);
+        let video = Video::new(config);
+        let screensaver = ScreensaverWidget::new(config, calendar.upcoming());
+        let grafana = GrafanaWidget::new(config);
 
-        let node = state.split(pane_grid::Axis::Vertical, pane, PaneState::Video);
+        let paned = gtk::Paned::new(gtk::Orientation::Horizontal);
+        paned.add_css_class("paned");
+        paned.set_expand(true);
+        paned.set_start_child(Some(calendar.widget()));
+        paned.set_end_child(Some(video.widget()));
 
-        if let Some((_, split)) = node {
-            state.resize(split, 0.4);
+        calendar.widget().set_width_request(100);
+        video.widget().set_width_request(800);
+
+        let stack = gtk::Stack::new();
+        stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
+        stack.set_transition_duration(300);
+        stack.add_titled(&paned, Some("calendar"), "Kalendar");
+        stack.add_titled(grafana.widget(), Some("grafana"), "Grafana");
+
+        let stack_switcher = gtk::StackSwitcher::new();
+        stack_switcher.set_hexpand(true);
+        stack_switcher.set_stack(Some(&stack));
+
+        let view = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        view.set_expand(true);
+        view.append(&stack_switcher);
+        view.append(&stack);
+
+        let overlay = gtk::Overlay::new();
+        overlay.set_expand(true);
+        overlay.set_child(Some(&view));
+        overlay.add_overlay(screensaver.widget());
+
+        let controller = gtk::GestureClick::new();
+        controller.connect_pressed(move |controller, _, _, _| {
+            if controller.current_button() == gtk::gdk::BUTTON_PRIMARY {
+                messaging::send_message(messaging::ScreensaverMessage::Reset);
+            }
+        });
+
+        let window = gtk::ApplicationWindow::new(app);
+        window.set_default_width(900);
+        window.set_default_height(600);
+        window.set_child(Some(&overlay));
+        window.add_controller(controller);
+        window.present();
+
+        Self {
+            window,
+            calendar,
+            video,
+            screensaver,
+            grafana,
         }
-
-        let (calendar, task) = views::Calendar::new(config.ical, config.calendar);
-
-        (
-            Self {
-                video: views::Video::new(config.videos),
-                calendar,
-                screensaver: views::Screensaver::new(config.screensaver),
-                panes: state,
-            },
-            task.map(Message::Calendar),
-        )
     }
 
-    pub fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch([
-            self.calendar.subscription().map(Message::Calendar),
-            self.screensaver.subscription().map(Message::Screensaver),
-            self.video.subscription().map(Message::Video),
-        ])
-    }
-
-    pub fn update(&mut self, message: Message) -> iced::Task<Message> {
+    pub fn update(&mut self, message: AppMessage) {
         match message {
-            Message::Calendar(calendar_message) => self
-                .calendar
-                .update(calendar_message)
-                .map(Message::Calendar),
-            Message::Video(video_message) => self.video.update(video_message).map(Message::Video),
-            Message::PaneResized(pane_grid::ResizeEvent { split, ratio }) => {
-                self.panes.resize(split, ratio);
-
-                iced::Task::none()
-            }
-            Message::Screensaver(screensaver_message) => {
-                let before = self.screensaver.state;
-
-                self.screensaver.update(screensaver_message);
-
-                match (before, self.screensaver.state) {
-                    (screensaver::State::Inactive, screensaver::State::Active) => {
-                        log::info!("Screensaver activated");
-
-                        iced::Task::none()
-                    }
-                    (screensaver::State::Active, screensaver::State::Inactive) => {
-                        log::info!("Screensaver deactivated");
-
-                        self.video.update(views::video::Message::CheckVideo).map(Message::Video)
-                    }
-                    _ => iced::Task::none()
-                }
-            }
-        }
-    }
-
-    pub fn view(&self) -> iced::Element<Message> {
-        stack![
-            match self.screensaver.state {
-                screensaver::State::Inactive => {
-                    pane_grid(&self.panes, |_, state, _| {
-                        pane_grid::Content::new(match state {
-                            PaneState::Video => container(self.video.view().map(Message::Video)),
-                            PaneState::Calendar => {
-                                container(self.calendar.view().map(Message::Calendar))
-                            }
-                        })
-                    })
-                    .spacing(12)
-                    .on_resize(12, Message::PaneResized)
-                    .into()
-                }
-                screensaver::State::Active => {
-                    let el: iced::Element<Message> = (if self.screensaver.dim {
-                        container(column![])
-                    } else {
-                        let calendar = self.calendar.view_upcomming().map(Message::Calendar);
-                        let clock = self.screensaver.view_clock().map(Message::Screensaver);
-                        let col = column![clock, calendar].spacing(16).align_x(Alignment::Center);
-
-                        container(col)
-                    }).center(Length::Fill).style(screensaver::style_container).into();
-
-                    el
-                }
-            },
-            self.screensaver
-                .view_interaction()
-                .map(Message::Screensaver),
-        ]
-        .into()
+            AppMessage::Calendar(message) => self.calendar.update(message),
+            AppMessage::Video(message) => self.video.update(message),
+            AppMessage::Screensaver(message) => self.screensaver.update(message),
+            AppMessage::Grafana(message) => self.grafana.update(message),
+        };
     }
 }

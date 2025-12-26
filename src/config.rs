@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use serde::Deserialize;
+use serde::de::{self, Deserializer};
 use url::Url;
 use uuid::Uuid;
 
@@ -12,14 +14,16 @@ pub struct Config {
     pub calendar: Calendars,
     #[serde(default)]
     pub screensaver: Screensaver,
+    #[serde(default)]
+    pub grafana: Grafana,
 }
 
 #[derive(Clone, serde::Deserialize)]
 pub struct Ical {
     pub url: Url,
     pub username: String,
-    pub password_file: Option<PathBuf>,
-    pub password: Option<String>,
+    #[serde(deserialize_with = "deserialize_from_file_opt")]
+    pub password: String,
 }
 
 impl core::fmt::Debug for Ical {
@@ -27,7 +31,6 @@ impl core::fmt::Debug for Ical {
         f.debug_struct("IcalUrl")
             .field("url", &self.url)
             .field("username", &self.username)
-            .field("password_file", &self.password_file)
             .field("password", &"<hidden>")
             .finish()
     }
@@ -47,7 +50,7 @@ pub struct Calendars {
     pub event: Option<UuidFilter>,
     pub ticker: Option<UuidFilter>,
     pub week: Option<UuidFilter>,
-    pub upcomming: Option<UpcommingFilter>,
+    pub upcomming: Option<UpcomingFilter>,
     pub selection: Option<UuidFilter>,
 }
 
@@ -60,7 +63,7 @@ pub struct UuidFilter {
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
-pub struct UpcommingFilter {
+pub struct UpcomingFilter {
     #[serde(default)]
     pub exclude: Vec<Uuid>,
     #[serde(default)]
@@ -103,6 +106,35 @@ impl Default for Screensaver {
     }
 }
 
+#[derive(Clone, Debug, serde::Deserialize, Default)]
+pub struct Grafana {
+    pub panels: Vec<GrafanaPanel>,
+    pub login: Option<GrafanaLogin>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct GrafanaLogin {
+    pub url: Url,
+    pub username: String,
+    #[serde(deserialize_with = "deserialize_from_file_opt")]
+    pub password: String,
+    #[serde(deserialize_with = "deserialize_from_file_opt")]
+    pub js_script: String,
+    #[serde(default)]
+    pub developer_extras: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct GrafanaPanel {
+    pub url: Url,
+    pub column: u32,
+    pub row: u32,
+    pub width: u32,
+    pub height: u32,
+    #[serde(default)]
+    pub developer_extras: bool,
+}
+
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct StartEndTimes {
     pub start: chrono::NaiveTime,
@@ -111,17 +143,26 @@ pub struct StartEndTimes {
 
 pub fn init(path: PathBuf) -> Result<Config, Box<dyn std::error::Error>> {
     let string = std::fs::read_to_string(path)?;
-    let mut config: Config = toml::from_str(&string)?;
-
-    if let Some(file) = &config.ical.password_file {
-        let password = std::fs::read_to_string(file)?;
-
-        config.ical.password = Some(password);
-    }
+    let config: Config = toml::from_str(&string)?;
 
     Ok(config)
 }
 
 const fn default_screensaver_timeout() -> u64 {
     600
+}
+
+fn deserialize_from_file_opt<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = <String as Deserialize>::deserialize(deserializer)?;
+
+    if let Some(path) = s.strip_prefix("file:") {
+        std::fs::read_to_string(path).map_err(de::Error::custom)
+    } else if std::path::Path::new(&s).exists() {
+        std::fs::read_to_string(&s).map_err(de::Error::custom)
+    } else {
+        Ok(s)
+    }
 }

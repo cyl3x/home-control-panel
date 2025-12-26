@@ -1,7 +1,7 @@
-use std::str::FromStr;
-
-use iced::color;
+use palette::rgb::Rgb;
 use uuid::Uuid;
+
+use crate::calendar::Color;
 
 use super::extract;
 
@@ -10,7 +10,7 @@ pub struct Calendar {
     pub uid: Uuid,
     pub url_str: String,
     pub name: String,
-    pub color: iced::Color,
+    pub color: Color,
 }
 
 impl Calendar {
@@ -20,23 +20,28 @@ impl Calendar {
         }
 
         let href = extract::href(element)?;
-        let name = extract::calendar_name(element)?;
-        let color = extract::calendar_color(element)
-            .and_then(|color| iced::Color::from_str(&color).ok())
-            .unwrap_or_else(|| color!(0xdeb887));
 
         let uid = Uuid::new_v5(&Uuid::NAMESPACE_URL, href.as_bytes());
 
         Some(Self {
             uid,
             url_str: href,
-            name,
-            color,
+            name: extract::calendar_name(element)?,
+            color: extract::calendar_color(element)
+                .and_then(|color| color.parse().ok())
+                .unwrap_or_else(|| Rgb::new(222, 184, 135)),
         })
     }
 
-    pub fn fg_color(&self) -> iced::Color {
-        fg_from_bg_w3c(&self.color).unwrap_or(iced::Color::BLACK)
+    pub fn css_color(&self) -> String {
+        format!(
+            "rgb({}, {}, {})",
+            self.color.red, self.color.green, self.color.blue
+        )
+    }
+
+    pub fn fg_color(&self) -> Color {
+        fg_from_bg_w3c(&self.color).unwrap_or(Rgb::new(0, 0, 0))
     }
 }
 
@@ -46,8 +51,13 @@ impl PartialEq for Calendar {
     }
 }
 
-fn fg_from_bg_w3c(bg_color: &iced::Color) -> Option<iced::Color> {
-    let rgb = bg_color.into_linear().map(|c| {
+fn fg_from_bg_w3c(bg_color: &Color) -> Option<Color> {
+    let linear = [
+        f32::from(bg_color.red) / 255.0,
+        f32::from(bg_color.green) / 255.0,
+        f32::from(bg_color.blue) / 255.0,
+    ];
+    let rgb = linear.map(|c| {
         if c <= 0.04045 {
             c / 12.92
         } else {
@@ -56,8 +66,8 @@ fn fg_from_bg_w3c(bg_color: &iced::Color) -> Option<iced::Color> {
     });
 
     if rgb[0].mul_add(0.2126, rgb[1].mul_add(0.7152, rgb[2] * 0.0722)) > 0.179 {
-        Some(iced::Color::BLACK)
+        Some(Rgb::new(0, 0, 0))
     } else {
-        Some(iced::Color::WHITE)
+        Some(Rgb::new(255, 255, 255))
     }
 }

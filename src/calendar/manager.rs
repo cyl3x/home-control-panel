@@ -30,23 +30,24 @@ impl Manager {
     }
 
     // Returns true if the fetched map is different from the current map
-    pub fn update(&mut self) -> bool {
-        match self.client.get_map() {
-            Ok(map) => self.set_map(map),
-            Err(e) => {
-                log::error!("Error fetching calendar map: {:?}", e);
-                false
-            }
-        }
-    }
+    // pub fn update(&mut self) -> bool {
+    //     match self.client.get_map() {
+    //         Ok(map) => self.set_map(map),
+    //         Err(e) => {
+    //             log::error!("Error fetching calendar map: {:?}", e);
+    //             false
+    //         }
+    //     }
+    // }
 
     pub fn calendars<'a>(
         &'a self,
         filter: Option<&'a config::UuidFilter>,
-    ) -> impl Iterator<Item = &'a (bool, Calendar)> {
-        self.map.calendars().values().filter(move |(_, calendar)| {
-            filter.map_or(true, |filter| filter.is_included(&calendar.uid))
-        })
+    ) -> impl Iterator<Item = (&'a Uuid, &'a (bool, Calendar))> {
+        self.map
+            .calendars()
+            .iter()
+            .filter(move |(uid, _)| filter.is_none_or(|filter| filter.is_included(uid)))
     }
 
     pub fn toggle_calendar(&mut self, uid: Uuid) {
@@ -62,7 +63,7 @@ impl Manager {
         self.map
             .events_between(start, end)
             .filter(move |(calendar, _, _)| {
-                filter.map_or(true, |filter| filter.is_included(&calendar.uid))
+                filter.is_none_or(|filter| filter.is_included(&calendar.uid))
             })
     }
 
@@ -75,7 +76,7 @@ impl Manager {
         self.map
             .calendars_between(start, end)
             .filter(move |(_, calendar)| {
-                filter.map_or(true, |filter| filter.is_included(&calendar.uid))
+                filter.is_none_or(|filter| filter.is_included(&calendar.uid))
             })
     }
 }

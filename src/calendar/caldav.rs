@@ -19,7 +19,7 @@ pub enum Credentials {
 
 impl From<config::Ical> for Credentials {
     fn from(ical: config::Ical) -> Self {
-        Self::Basic(ical.username, ical.password.unwrap_or_default())
+        Self::Basic(ical.username, ical.password)
     }
 }
 
@@ -72,13 +72,10 @@ impl Client {
 
     fn request(&self, request: Request<impl ureq::AsSendBody>) -> Result<ureq::Body, Error> {
         let uri = request.uri().to_string();
-        let response = self
-            .agent
-            .run(request)
-            .map_err(|e| Error {
-                kind: ErrorKind::Http,
-                message: e.to_string(),
-            })?;
+        let response = self.agent.run(request).map_err(|e| Error {
+            kind: ErrorKind::Http,
+            message: e.to_string(),
+        })?;
 
         if !response.status().is_success() {
             return Err(Error {
@@ -86,7 +83,6 @@ impl Client {
                 message: format!("HTTP error calling \"{}\": {}", uri, response.status()),
             });
         }
-
 
         Ok(response.into_body())
     }
@@ -137,7 +133,9 @@ impl Client {
         let mut searched = 0;
         for prop in prop_path {
             for e in &element.children {
-                if let Some(child) = e.as_element() && child.name == *prop {
+                if let Some(child) = e.as_element()
+                    && child.name == *prop
+                {
                     searched += 1;
                     element = child;
                     break;

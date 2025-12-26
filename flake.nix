@@ -33,12 +33,16 @@
         rust-project = {
           crates."home-control-panel".crane = rec {
             args.nativeBuildInputs = with pkgs; [
-              wrapGAppsHook3
+              wrapGAppsHook4
               makeWrapper
               pkg-config
             ];
 
             args.buildInputs = with pkgs; [
+              clapper-unwrapped
+              gtk4
+              glib
+              glib-networking # webkit https-support
               gst_all_1.gst-plugins-bad
               gst_all_1.gst-plugins-base
               gst_all_1.gst-plugins-good
@@ -46,11 +50,12 @@
               gst_all_1.gst-vaapi
               gst_all_1.gstreamer
               libxkbcommon
-              vulkan-loader
+              webkitgtk_6_0
               wayland
             ];
 
             args.CARGO_BUILD_RUSTFLAGS = "-C symbol-mangling-version=v0";
+            args.GIO_MODULE_DIR = "${pkgs.glib-networking}/lib/gio/modules/";
 
             extraBuildArgs = {
               runtimeDependenciesPath = pkgs.lib.makeLibraryPath args.buildInputs;
@@ -66,7 +71,7 @@
           src = pkgs.lib.cleanSourceWith {
             src = ./.;
             filter = path: type:
-              (pkgs.lib.hasSuffix "\.ttf" path) ||
+              (pkgs.lib.hasSuffix "\.css" path) ||
               (config.rust-project.crane-lib.filterCargoSources path type)
             ;
           };
@@ -74,12 +79,16 @@
 
         overlayAttrs = { inherit (self'.packages) home-control-panel; };
 
-        devShells.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShell.override {
+            stdenv = pkgs.stdenvAdapters.useMoldLinker pkgs.clangStdenv;
+        } {
           inputsFrom = [ self'.devShells.rust ];
 
           RUST_LOG = "info";
           RUST_BACKTRACE = "full";
           LD_LIBRARY_PATH = "$LD_LIBRARY_PATH:${self'.packages.home-control-panel.runtimeDependenciesPath}";
+          RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
+          GIO_MODULE_DIR = "${pkgs.glib-networking}/lib/gio/modules/";
         };
       };
     };

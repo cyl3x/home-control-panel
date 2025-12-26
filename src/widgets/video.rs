@@ -1,203 +1,142 @@
-use glib::object::{Cast, ObjectExt};
-use gstreamer as gst;
-use gstreamer::prelude::*;
-use gstreamer_app as gst_app;
-use std::time::{Duration, Instant};
+use clapper::MediaItem;
+use clapper::Player;
+use clapper::PlayerState;
+use clapper::Queue;
+use gtk::glib;
 
-use iced::widget::{button, row, text, Column};
-use iced::{Length, Padding};
-use iced_video_player::VideoPlayer;
-
-use crate::config;
+use crate::config::Config;
+use crate::messaging;
+use crate::messaging::VideoMessage;
+use crate::prelude::*;
 
 pub struct Video {
-    videos: Vec<config::Video>,
-    video: Option<iced_video_player::Video>,
-    playing: Option<usize>,
+    wrapper: gtk::Box,
 
-    restart_trys: u8,
-    restart_trigger: Option<Instant>,
-}
-
-#[derive(Debug, Clone)]
-pub enum Message {
-    SetVideo(usize),
-    ResetVideo,
-    RestartVideo,
-    CheckVideo,
+    player: Player,
+    queue: Queue,
+    spinners: Vec<gtk::Spinner>,
 }
 
 impl Video {
-    pub fn new(videos: Vec<config::Video>) -> Self {
-        let mut video = Self {
-            videos,
-            video: None,
-            playing: None,
+    pub fn new(config: &Config) -> Self {
+        let video_player = clapper_gtk::Video::builder()
+            .visible(true)
+            .css_classes(["clapper"])
+            .build();
 
-            restart_trys: 0,
-            restart_trigger: None,
-        };
+        let player = video_player.player().unwrap();
+        player.set_audio_enabled(false);
+        player.set_autoplay(true);
+        player.set_subtitles_enabled(false);
 
-        if !video.videos.is_empty() {
-            video.update(Message::SetVideo(0));
+        let queue = player.queue().unwrap();
+        for video in &config.videos {
+            let media_item = MediaItem::builder()
+                .uri(video.url.as_str())
+                .name(&video.name)
+                .build();
+
+            queue.add_item(&media_item);
         }
 
-        video
-    }
+        let button_wrapper = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(8)
+            .css_classes(["buttons"])
+            .build();
 
-    pub fn subscription(&self) -> iced::Subscription<Message> {
-        iced::Subscription::batch([
-            iced::time::every(Duration::from_secs(60)).map(|_| Message::CheckVideo),
-            self.restart_trigger
-                .map_or_else(iced::Subscription::none, |instant| {
-                    let trigger_in = instant + Duration::from_secs(2);
-                    let duration = trigger_in - Instant::now();
+        let mut spinners = Vec::with_capacity(config.videos.len());
+        for (idx, video) in config.videos.iter().enumerate() {
+            let label = gtk::Label::builder()
+                .label(&video.name)
+                .hexpand(false)
+                .build();
 
-                    if duration > Duration::ZERO {
-                        iced::time::every(duration).map(|_| Message::RestartVideo)
-                    } else {
-                        iced::time::every(Duration::from_secs(1)).map(|_| Message::RestartVideo)
-                    }
-                }),
-        ])
-    }
+            let spinner = gtk::Spinner::builder()
+                .visible(false)
+                .height_request(4)
+                .width_request(4)
+                .build();
 
-    pub fn view(&self) -> iced::Element<Message> {
-        if self.videos.is_empty() {
-            return text("No videos").into();
+            let content = gtk::Box::builder()
+                .orientation(gtk::Orientation::Horizontal)
+                .halign(gtk::Align::Center)
+                .hexpand(true)
+                .spacing(4)
+                .build();
+
+            content.append(&label);
+            content.append(&spinner);
+
+            let button = gtk::Button::builder().child(&content).hexpand(true).build();
+
+            button_wrapper.append(&button);
+
+            button.connect_clicked(move |_| {
+                messaging::send_message(VideoMessage::VideoSelectIndex(idx));
+            });
+
+            spinners.push(spinner);
         }
 
-        let mut column = Column::new();
+        let wrapper = gtk::Box::builder()
+            .orientation(gtk::Orientation::Vertical)
+            .css_classes(["video-player"])
+            .build();
 
-        if let Some(video) = &self.video {
-            let player = VideoPlayer::new(video)
-                .on_error(|err| {
-                    log::error!("Error while playing video: {:?}", err);
-                    Message::ResetVideo
-                })
-                .on_end_of_stream(Message::RestartVideo)
-                .width(Length::Fill);
+        wrapper.append(&video_player);
+        wrapper.append(&button_wrapper);
 
-            column = column.push(player);
-        }
-
-        let buttons = self.videos.iter().enumerate().map(|(idx, video)| {
-            button(text(&video.name).center())
-                .on_press(Message::SetVideo(idx))
-                .width(Length::Fill)
-                .height(36)
-                .style(style_button)
-                .into()
+        player.connect_state_notify(move |player| {
+            messaging::send_message(VideoMessage::VideoStateChanged(player.state()));
         });
 
-        let button_row = row(buttons)
-            .spacing(16)
-            .padding(Padding::ZERO.right(16.0))
-            .width(Length::Fill)
-            .height(Length::Shrink);
-
-        column.push(button_row).spacing(16).into()
+        Self {
+            wrapper,
+            player,
+            queue,
+            spinners,
+        }
     }
 
-    pub fn update(&mut self, message: Message) {
+    pub const fn widget(&self) -> &gtk::Box {
+        &self.wrapper
+    }
+
+    pub fn update(&mut self, message: VideoMessage) {
         match message {
-            Message::SetVideo(idx) => {
-                self.playing = Some(idx);
-                self.restart_trigger = None;
-                self.restart_trys = 0;
-
-                let pipeline = from_pipeline(&self.videos[idx].url);
-
-                if let Some(video) = self.video.take() {
-                    std::mem::drop(video);
-                }
-
-                self.video = match pipeline {
-                    Ok(video) => {
-                        log::info!("Set playing video to: {}", idx);
-                        Some(video)
-                    }
-                    Err(err) => {
-                        log::error!("Error starting video: {:?}", err);
-                        None
-                    }
-                };
-            }
-            Message::ResetVideo => self.update(
-                self.playing
-                    .map_or(Message::RestartVideo, Message::SetVideo),
-            ),
-            Message::RestartVideo => {
-                let Some(video) = &mut self.video else { return };
-
-                if self.restart_trigger.is_none() {
-                    return;
-                }
-
-                match video.restart_stream() {
-                    Ok(_) => {
-                        self.restart_trigger = None;
-                        self.restart_trys = 0;
-                    }
-                    Err(err) => {
-                        // delay restarts 2sec
-                        self.restart_trigger = Some(Instant::now());
-                        self.restart_trys += 1;
-
-                        log::error!("Error restarting video ({}): {:?}", self.restart_trys, err);
+            VideoMessage::VideoStateChanged(player_state) => match player_state {
+                PlayerState::Playing | PlayerState::Buffering => {
+                    for spinner in self.spinners.iter() {
+                        spinner.stop();
+                        spinner.set_visible(false);
                     }
                 }
-            }
-            Message::CheckVideo => {
-                if let Some(video) = &mut self.video {
-                    let pipeline = video.pipeline();
-                    let state = pipeline.current_state();
-
-                    if video.eos() || ![gst::State::Ready, gst::State::Playing].contains(&state) {
-                        log::warn!(
-                            "Checking video failed, restarting vidoe: eos={} | state={:?}",
-                            video.eos(),
-                            state
-                        );
-                        self.update(Message::RestartVideo);
-                    };
-                } else if let Some(idx) = self.playing {
-                    self.update(Message::SetVideo(idx))
+                PlayerState::Stopped | PlayerState::Paused => {
+                    let current_index = self.queue.current_index();
+                    glib::timeout_add_seconds_once(1, move || {
+                        messaging::send_message(VideoMessage::VideoSelectIndex(
+                            current_index as usize,
+                        ));
+                    });
                 }
+                _ => (),
+            },
+            VideoMessage::VideoSelectIndex(clicked_idx) => {
+                for (idx, spinner) in self.spinners.iter().enumerate() {
+                    if idx == clicked_idx {
+                        spinner.start();
+                        spinner.set_visible(true);
+                    } else {
+                        spinner.stop();
+                        spinner.set_visible(false);
+                    }
+                }
+
+                self.player.seek(0.0);
+                self.queue.set_current_index(clicked_idx as u32);
+                self.player.play();
             }
         }
     }
-}
-
-pub fn style_button(theme: &iced::Theme, _: button::Status) -> button::Style {
-    let palette = theme.extended_palette();
-
-    button::Style {
-        text_color: palette.primary.strong.text,
-        background: Some(palette.primary.strong.color.into()),
-        border: iced::Border::default().rounded(3),
-        ..Default::default()
-    }
-}
-
-fn from_pipeline(uri: &url::Url) -> Result<iced_video_player::Video, iced_video_player::Error> {
-    gst::init()?;
-
-    let pipeline = format!("playbin uri=\"{}\" video-sink=\"videorate ! videoscale ! appsink name=iced_video drop=true caps=video/x-raw,format=NV12,pixel-aspect-ratio=1/1,framerate=25/1,width=[1,2048]\"", uri.as_str());
-    let pipeline = gst::parse::launch(pipeline.as_ref())?
-        .downcast::<gst::Pipeline>()
-        .map_err(|_| iced_video_player::Error::Cast)?;
-
-    let video_sink: gst::Element = pipeline.property("video-sink");
-    let pad = video_sink.pads().first().cloned().unwrap();
-    let pad = pad.dynamic_cast::<gst::GhostPad>().unwrap();
-    let bin = pad
-        .parent_element()
-        .unwrap()
-        .downcast::<gst::Bin>()
-        .unwrap();
-    let app_sink = bin.by_name("iced_video").unwrap();
-    let app_sink = app_sink.downcast::<gst_app::AppSink>().unwrap();
-
-    iced_video_player::Video::from_gst_pipeline(pipeline, app_sink, None)
 }

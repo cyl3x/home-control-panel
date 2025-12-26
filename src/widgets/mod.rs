@@ -1,2 +1,4 @@
-pub mod interaction_tracker;
+pub mod calendar;
+pub mod grafana;
+pub mod screensaver;
 pub mod video;

@@ -165,8 +165,7 @@ fn date_perhaps_time_to_date_time(date: DatePerhapsTime) -> Option<NaiveDateTime
     Some(match date {
         DatePerhapsTime::DateTime(dt) => match dt {
             CalendarDateTime::Floating(dt) => dt,
-            CalendarDateTime::WithTimezone { date_time, tzid } =>
-                Tz::from_str(&tzid)
+            CalendarDateTime::WithTimezone { date_time, tzid } => Tz::from_str(&tzid)
                 .ok()?
                 .from_local_datetime(&date_time)
                 .single()?
