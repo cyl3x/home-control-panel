@@ -1,3 +1,64 @@
 * {
   all: unset;
 }
+
+window {
+    background-color: #fff;
+    color: #000;
+}
+
+button {
+    padding: 8px 8px;
+    border-radius: 4px;
+    /* https://getcssscan.com/css-box-shadow-examples */
+    box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+}
+
+.paned separator {
+    background-color: #ccc;
+    width: 4px;
+    margin: 0 8px;
+}
+
+.calendar-month {
+
+}
+
+.calendar-month-weekday-label {
+    font-weight: bold;
+}
+
+.calendar-month-grid {
+
+}
+
+.calendar-month-grid-item {
+    border: 1px solid #000;
+}
+
+.calendar-month-grid-item.today {
+    background-color: #0000FF;
+}
+
+.calendar-month-grid-item.selected {
+    background-color: #00FFFF;
+}
+
+.calendar-month-grid-item-label {
+
+}
+
+.calendar-month-grid-item-indicators {
+
+}
+
+.video-player {
+
+}
+
+.video-player .clapper {
+}
+
+.video-player .buttons {
+    margin: 8px;
+}

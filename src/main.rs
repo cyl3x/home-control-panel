@@ -8,8 +8,8 @@
 use std::path::PathBuf;
 
 use app::App;
-use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, CssProvider};
+use gtk::{glib, prelude::*};
+use gtk::{Application, CssProvider, gdk::Display};
 
 pub use chrono::prelude::*;
 
@@ -17,10 +17,13 @@ mod app;
 pub mod calendar;
 pub mod config;
 // pub mod views;
-// pub mod widgets;
+pub mod messaging;
+pub mod widgets;
+pub mod prelude;
 
 fn main() {
     env_logger::builder().init();
+    clapper::init().unwrap();
 
     let mut args = std::env::args().collect::<Vec<_>>();
 
@@ -43,12 +46,18 @@ fn main() {
         gtk::style_context_add_provider_for_display(
             &Display::default().expect("Could not connect to a display."),
             &provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            gtk::STYLE_PROVIDER_PRIORITY_USER,
         );
     });
 
-    app.connect_activate(|app| {
-        App::new(app);
+    app.connect_activate(move |app| {
+        let mut app = App::new(&app, &config);
+
+        glib::spawn_future_local(async move {
+            while let Ok(message) = messaging::receiver().recv().await {
+                app.update(message);
+            }
+        });
     });
 
     let exit_code = app.run_with_args(&args);

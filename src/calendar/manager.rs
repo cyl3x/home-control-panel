@@ -30,15 +30,15 @@ impl Manager {
     }
 
     // Returns true if the fetched map is different from the current map
-    pub fn update(&mut self) -> bool {
-        match self.client.get_map() {
-            Ok(map) => self.set_map(map),
-            Err(e) => {
-                log::error!("Error fetching calendar map: {:?}", e);
-                false
-            }
-        }
-    }
+    // pub fn update(&mut self) -> bool {
+    //     match self.client.get_map() {
+    //         Ok(map) => self.set_map(map),
+    //         Err(e) => {
+    //             log::error!("Error fetching calendar map: {:?}", e);
+    //             false
+    //         }
+    //     }
+    // }
 
     pub fn calendars<'a>(
         &'a self,
