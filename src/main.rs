@@ -36,7 +36,7 @@ fn main() {
     let config = match config::init(config_path) {
         Ok(config) => config,
         Err(e) => {
-            eprintln!("Failed to load config: {}", e);
+            eprintln!("Failed to load config: {e}");
             std::process::exit(1);
         }
     };

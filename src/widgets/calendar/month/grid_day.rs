@@ -87,8 +87,7 @@ impl GridDayWidget {
         for (uid, indicator) in indicators {
             if indicator_map
                 .get(&date)
-                .map(|map| !map.contains_key(&uid))
-                .unwrap_or(true)
+                .is_none_or(|map| !map.contains_key(&uid))
             {
                 self.indicator_wrapper.remove(&indicator);
             } else {

@@ -58,7 +58,7 @@ impl UpcomingWidget {
         let mut grid_row = 0;
 
         if let Some(events) = self.map_events(manager, now, now, now) {
-            let label = self.view_name("Heute");
+            let label = Self::create_name("Heute");
             grid.attach(&label, 0, grid_row, 1, 1);
             grid.attach(&events, 1, grid_row, 1, 1);
             grid_row += 1;
@@ -66,7 +66,7 @@ impl UpcomingWidget {
 
         if let Some(events) = self.map_events(manager, now, now + Days::new(1), now + Days::new(1))
         {
-            let label = self.view_name("Morgen");
+            let label = Self::create_name("Morgen");
             grid.attach(&label, 0, grid_row, 1, 1);
             grid.attach(&events, 1, grid_row, 1, 1);
             grid_row += 1;
@@ -76,18 +76,18 @@ impl UpcomingWidget {
             && let Some(events) =
                 self.map_events(manager, now, now + Days::new(2), now + Days::new(2))
         {
-            let label = self.view_name("Sonntag");
+            let label = Self::create_name("Sonntag");
             grid.attach(&label, 0, grid_row, 1, 1);
             grid.attach(&events, 1, grid_row, 1, 1);
         } else if !matches!(now.weekday(), Weekday::Sat | Weekday::Sun) {
-            let num = now.weekday().num_days_from_monday() as u64;
+            let num = u64::from(now.weekday().num_days_from_monday());
             if let Some(events) = self.map_events(
                 manager,
                 now,
                 now + Days::new(5 - num),
                 now + Days::new(6 - num),
             ) {
-                let label = self.view_name("Nächstes Wochenende");
+                let label = Self::create_name("Nächstes Wochenende");
                 grid.attach(&label, 0, grid_row, 1, 1);
                 grid.attach(&events, 1, grid_row, 1, 1);
             }
@@ -98,12 +98,12 @@ impl UpcomingWidget {
         self.grid = Some(grid);
     }
 
-    fn view_name<'a>(&'a self, name: &'a str) -> gtk::Label {
-        gtk::Label::builder()
-            .label(name)
-            .valign(gtk::Align::Start)
-            .halign(gtk::Align::End)
-            .build()
+    fn create_name(name: &str) -> gtk::Label {
+        let label = gtk::Label::new(Some(name));
+        label.set_valign(gtk::Align::Start);
+        label.set_halign(gtk::Align::End);
+
+        label
     }
 
     fn map_events<'a>(
@@ -115,7 +115,7 @@ impl UpcomingWidget {
     ) -> Option<gtk::Box> {
         let events = manager
             .events_between(from, to, self.filter.as_ref())
-            .map(|item| self.view_event(item, now))
+            .map(|item| self.create_event(item, now))
             .collect::<Vec<_>>();
 
         if events.is_empty() {
@@ -130,7 +130,7 @@ impl UpcomingWidget {
         Some(wrapper)
     }
 
-    fn view_event<'a>(
+    fn create_event<'a>(
         &'a self,
         (calendar, _, event): (&'a Calendar, &NaiveDateTime, &'a calendar::Event),
         now: NaiveDate,
@@ -177,12 +177,12 @@ impl UpcomingWidget {
                     .format_localized("%a", chrono::Locale::de_DE)
                     .to_string(),
             );
-        };
+        }
 
         if !is_delta_whole_days {
             info.push(' ');
-            info.push_str(&start.format("%H:%M").to_string())
-        };
+            info.push_str(&start.format("%H:%M").to_string());
+        }
 
         info.push_str(" -");
 
@@ -195,12 +195,12 @@ impl UpcomingWidget {
                 &end.format_localized("%a", chrono::Locale::de_DE)
                     .to_string(),
             );
-        };
+        }
 
         if !is_delta_whole_days && !delta.is_zero() {
             info.push(' ');
-            info.push_str(&end.format("%H:%M").to_string())
-        };
+            info.push_str(&end.format("%H:%M").to_string());
+        }
 
         info = info.trim_end_matches(" -").trim().to_string();
 

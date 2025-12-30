@@ -73,6 +73,7 @@ pub struct UpcomingFilter {
 }
 
 impl UuidFilter {
+    #[must_use]
     pub fn is_included(&self, uid: &Uuid) -> bool {
         if !self.include.is_empty() && self.include.contains(uid) {
             return true;
@@ -89,7 +90,7 @@ impl UuidFilter {
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct Screensaver {
     #[serde(default = "default_screensaver_timeout")]
-    pub timeout: u64,
+    pub timeout: u16,
     #[serde(default)]
     pub exclude: Vec<StartEndTimes>,
     #[serde(default)]
@@ -127,10 +128,10 @@ pub struct GrafanaLogin {
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct GrafanaPanel {
     pub url: Url,
-    pub column: u32,
-    pub row: u32,
-    pub width: u32,
-    pub height: u32,
+    pub column: u16,
+    pub row: u16,
+    pub width: u16,
+    pub height: u16,
     #[serde(default)]
     pub developer_extras: bool,
 }
@@ -148,7 +149,7 @@ pub fn init(path: PathBuf) -> Result<Config, Box<dyn std::error::Error>> {
     Ok(config)
 }
 
-const fn default_screensaver_timeout() -> u64 {
+const fn default_screensaver_timeout() -> u16 {
     600
 }
 
@@ -159,10 +160,8 @@ where
     let s = <String as Deserialize>::deserialize(deserializer)?;
 
     if let Some(path) = s.strip_prefix("file:") {
-        std::fs::read_to_string(path).map_err(de::Error::custom)
-    } else if std::path::Path::new(&s).exists() {
-        std::fs::read_to_string(&s).map_err(de::Error::custom)
-    } else {
-        Ok(s)
+        return std::fs::read_to_string(path).map_err(de::Error::custom);
     }
+
+    Ok(s)
 }

@@ -117,7 +117,7 @@ impl ScreensaverWidget {
                 }
 
                 self.wrapper.set_visible(
-                    (self.now - self.last_activity).num_seconds() > self.config.timeout as i64,
+                    (self.now - self.last_activity).num_seconds() > i64::from(self.config.timeout),
                 );
 
                 self.time

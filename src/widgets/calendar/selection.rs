@@ -30,10 +30,10 @@ impl SelectionWidget {
         let calendars: BTreeMap<_, _> = manager.calendars(self.filter.as_ref()).collect();
 
         for (uid, button) in std::mem::take(&mut self.buttons) {
-            if !calendars.contains_key(&uid) {
-                self.wrapper.remove(&button);
-            } else {
+            if calendars.contains_key(&uid) {
                 self.buttons.insert(uid, button);
+            } else {
+                self.wrapper.remove(&button);
             }
         }
 
@@ -70,7 +70,7 @@ fn create_button(calendar: &Calendar) -> gtk::Button {
     button.set_hexpand(true);
     button.inline_css(&format!("border-color: {};", calendar.css_color()));
     button.connect_clicked(move |_| {
-        messaging::send_message(messaging::CalendarMessage::ToggleCalendar(uid))
+        messaging::send_message(messaging::CalendarMessage::ToggleCalendar(uid));
     });
 
     button

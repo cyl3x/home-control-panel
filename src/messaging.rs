@@ -8,17 +8,17 @@ pub type AppReceiver = async_channel::Receiver<AppMessage>;
 static CHANNEL: OnceLock<(AppSender, AppReceiver)> = OnceLock::new();
 
 fn sender() -> &'static AppSender {
-    &CHANNEL.get_or_init(|| async_channel::unbounded()).0
+    &CHANNEL.get_or_init(async_channel::unbounded).0
 }
 
 pub fn receiver() -> &'static AppReceiver {
-    &CHANNEL.get_or_init(|| async_channel::unbounded()).1
+    &CHANNEL.get_or_init(async_channel::unbounded).1
 }
 
 pub fn send_message(message: impl Into<AppMessage>) {
     if let Err(err) = sender().send_blocking(message.into()) {
-        log::error!("Failed to send message: {err}")
-    };
+        log::error!("Failed to send message: {err}");
+    }
 }
 
 #[derive(Debug)]

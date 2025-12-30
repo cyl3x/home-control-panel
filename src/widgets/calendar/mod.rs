@@ -144,7 +144,7 @@ impl CalendarWidget {
             CalendarMessage::SelectGridIndex(idx) => {
                 messaging::send_message(CalendarMessage::SelectDate(
                     start_grid_date(self.dates.selected) + Duration::days(idx as i64),
-                ))
+                ));
             }
             CalendarMessage::MonthPrev => messaging::send_message(CalendarMessage::SelectDate(
                 self.dates.selected - chrono::Months::new(1),

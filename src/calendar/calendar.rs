@@ -41,7 +41,7 @@ impl Calendar {
     }
 
     pub fn fg_color(&self) -> Color {
-        fg_from_bg_w3c(&self.color).unwrap_or(Rgb::new(0, 0, 0))
+        fg_from_bg_w3c(self.color)
     }
 }
 
@@ -51,7 +51,7 @@ impl PartialEq for Calendar {
     }
 }
 
-fn fg_from_bg_w3c(bg_color: &Color) -> Option<Color> {
+fn fg_from_bg_w3c(bg_color: Color) -> Color {
     let linear = [
         f32::from(bg_color.red) / 255.0,
         f32::from(bg_color.green) / 255.0,
@@ -66,8 +66,8 @@ fn fg_from_bg_w3c(bg_color: &Color) -> Option<Color> {
     });
 
     if rgb[0].mul_add(0.2126, rgb[1].mul_add(0.7152, rgb[2] * 0.0722)) > 0.179 {
-        Some(Rgb::new(0, 0, 0))
+        Rgb::new(0, 0, 0)
     } else {
-        Some(Rgb::new(255, 255, 255))
+        Rgb::new(255, 255, 255)
     }
 }

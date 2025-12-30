@@ -277,7 +277,7 @@ impl Client {
                     None
                 }
                 Err(e) => {
-                    log::error!("Error parsing event: {:?}", e);
+                    log::error!("Error parsing event: {e:?}");
                     None
                 }
             })
@@ -325,7 +325,7 @@ impl Client {
             .filter_map(|result| match result {
                 Ok(events) => Some(events),
                 Err(e) => {
-                    log::error!("Error parsing event: {:?}", e);
+                    log::error!("Error parsing event: {e:?}");
                     None
                 }
             })

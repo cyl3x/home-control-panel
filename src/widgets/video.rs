@@ -107,7 +107,7 @@ impl Video {
         match message {
             VideoMessage::VideoStateChanged(player_state) => match player_state {
                 PlayerState::Playing | PlayerState::Buffering => {
-                    for spinner in self.spinners.iter() {
+                    for spinner in &self.spinners {
                         spinner.stop();
                         spinner.set_visible(false);
                     }

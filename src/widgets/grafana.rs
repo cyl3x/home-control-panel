@@ -62,7 +62,7 @@ impl GrafanaWidget {
             }
         }));
 
-        let web_context = WebContext::default().unwrap();
+        let web_context = WebContext::new();
         web_context.set_cache_model(webkit6::CacheModel::WebBrowser);
 
         let base_cache_dir = std::env::home_dir().map(|p| p.join(".cache/home-control-panel"));
@@ -73,7 +73,7 @@ impl GrafanaWidget {
         let network_session = webkit6::NetworkSession::new(data_dir.as_deref(), cache_dir.as_deref());
 
         if let Some(cookie_dir) = &cookie_dir {
-            std::fs::create_dir_all(std::path::Path::new(cookie_dir).parent().unwrap()).ok();
+            std::fs::create_dir_all(std::path::Path::new(cookie_dir).parent().expect("Should have parent")).ok();
             network_session.cookie_manager().unwrap().set_persistent_storage(cookie_dir, webkit6::CookiePersistentStorage::Sqlite);
         }
 
@@ -172,7 +172,7 @@ impl GrafanaWidget {
             webview_wrapper.append(&webview);
             webview_wrapper.set_overflow(gtk::Overflow::Hidden);
 
-            grid.attach(&webview_wrapper, panel.column as i32, panel.row as i32, panel.width as i32, panel.height as i32);
+            grid.attach(&webview_wrapper, panel.column.into(), panel.row.into(), panel.width.into(), panel.height.into());
 
             webviews.push((panel.url.clone(), webview));
         }
@@ -208,6 +208,7 @@ impl GrafanaWidget {
 
                 for (panel, webview) in &self.webviews {
                     log::info!("Loading Grafana panel");
+
                     webview.inspector().unwrap().show();
                     webview.set_visible(true);
 
@@ -219,9 +220,14 @@ impl GrafanaWidget {
                 self.spinner.set_visible(false);
             }
             messaging::GrafanaMessage::RefreshPanels => {
-                for (_, webview) in &self.webviews {
+                for (panel, webview) in &self.webviews {
                     log::info!("Refreshing Grafana panel");
-                    webview.reload();
+
+                    webview.stop_loading();
+
+                    glib::timeout_add_seconds_local_once(1, glib::clone!(#[strong] webview, #[strong] panel, move || {
+                        webview.load_uri(panel.as_str());
+                    }));
                 }
             }
         }

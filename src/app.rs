@@ -8,6 +8,7 @@ use crate::widgets::screensaver::ScreensaverWidget;
 use crate::widgets::video::Video;
 
 pub struct App {
+    #[allow(unused)]
     window: gtk::ApplicationWindow,
     calendar: CalendarWidget,
     video: Video,
@@ -34,7 +35,7 @@ impl App {
         let stack = gtk::Stack::new();
         stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
         stack.set_transition_duration(300);
-        stack.add_titled(&paned, Some("calendar"), "Kalendar");
+        stack.add_titled(&paned, Some("calendar"), "Kalender");
         stack.add_titled(grafana.widget(), Some("grafana"), "Grafana");
 
         let stack_switcher = gtk::StackSwitcher::new();
@@ -80,6 +81,6 @@ impl App {
             AppMessage::Video(message) => self.video.update(message),
             AppMessage::Screensaver(message) => self.screensaver.update(message),
             AppMessage::Grafana(message) => self.grafana.update(message),
-        };
+        }
     }
 }
