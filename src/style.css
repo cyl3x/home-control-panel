@@ -93,6 +93,10 @@ stackswitcher > *:checked {
 .video-player .clapper {
 }
 
+.video-player .osd {
+    color: var(--background-color);
+}
+
 .video-player .buttons {
     margin: 8px;
 }

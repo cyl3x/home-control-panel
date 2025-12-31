@@ -127,6 +127,7 @@ pub struct GrafanaLogin {
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct GrafanaPanel {
+    pub name: String,
     pub url: Url,
     pub column: u16,
     pub row: u16,

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use gtk::glib;
 use webkit6::{Settings, WebContext, WebView};
 
@@ -5,7 +7,7 @@ use crate::{config, messaging, prelude::*};
 
 pub struct GrafanaWidget {
     wrapper: gtk::Overlay,
-    webviews: Vec<(url::Url, WebView)>,
+    webviews: Vec<(Rc<config::GrafanaPanel>, WebView)>,
     login_view: Option<WebView>,
     panels_view: gtk::Box,
     spinner: gtk::Spinner,
@@ -174,7 +176,7 @@ impl GrafanaWidget {
 
             grid.attach(&webview_wrapper, panel.column.into(), panel.row.into(), panel.width.into(), panel.height.into());
 
-            webviews.push((panel.url.clone(), webview));
+            webviews.push((Rc::new(panel.clone()), webview));
         }
 
         Self {
@@ -197,7 +199,7 @@ impl GrafanaWidget {
                     return;
                 }
 
-                log::info!("Grafana: login successful, setup panels");
+                log::info!("Grafana: login successful");
 
                 if let Some(login_view) = self.login_view.take() {
                     login_view.stop_loading();
@@ -211,7 +213,8 @@ impl GrafanaWidget {
                     webview.set_visible(true);
 
                     glib::timeout_add_seconds_local_once(1, glib::clone!(#[strong] webview, #[strong] panel, move || {
-                        webview.load_uri(panel.as_str());
+                        log::info!("Grafana: loading \"{}\"", panel.name);
+                        webview.load_uri(panel.url.as_str());
                     }));
                 }
 
@@ -224,7 +227,8 @@ impl GrafanaWidget {
                     webview.stop_loading();
 
                     glib::timeout_add_seconds_local_once(1, glib::clone!(#[strong] webview, #[strong] panel, move || {
-                        webview.load_uri(panel.as_str());
+                        log::info!("Grafana: refreshing \"{}\"", panel.name);
+                        webview.load_uri(panel.url.as_str());
                     }));
                 }
             }
