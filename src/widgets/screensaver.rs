@@ -116,9 +116,14 @@ impl ScreensaverWidget {
                     self.center_wrapper.remove_css_class("dim");
                 }
 
-                self.wrapper.set_visible(
-                    (self.now - self.last_activity).num_seconds() > i64::from(self.config.timeout),
-                );
+
+                let activate = (self.now - self.last_activity).num_seconds() > i64::from(self.config.timeout);
+
+                if activate != self.wrapper.is_visible() {
+                    log::info!("Screensaver: {}", if activate { "activated" } else { "deactivated" });
+                }
+
+                self.wrapper.set_visible(activate);
 
                 self.time
                     .set_label(&self.now.format("%H:%M:%S").to_string());
@@ -130,6 +135,8 @@ impl ScreensaverWidget {
                 );
             }
             ScreensaverMessage::Reset => {
+                log::debug!("Screensaver: reset due to user activity");
+
                 self.last_activity = Utc::now();
             }
         }

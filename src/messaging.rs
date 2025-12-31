@@ -17,7 +17,7 @@ pub fn receiver() -> &'static AppReceiver {
 
 pub fn send_message(message: impl Into<AppMessage>) {
     if let Err(err) = sender().send_blocking(message.into()) {
-        log::error!("Failed to send message: {err}");
+        log::error!("Messaging: Failed to send: {err}");
     }
 }
 

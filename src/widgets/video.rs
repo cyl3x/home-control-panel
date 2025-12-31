@@ -113,6 +113,8 @@ impl Video {
                     }
                 }
                 PlayerState::Stopped | PlayerState::Paused => {
+                    log::warn!("Video player: stopped, restarting current video");
+
                     let current_index = self.queue.current_index();
                     glib::timeout_add_seconds_once(1, move || {
                         messaging::send_message(VideoMessage::VideoSelectIndex(
@@ -123,6 +125,8 @@ impl Video {
                 _ => (),
             },
             VideoMessage::VideoSelectIndex(clicked_idx) => {
+                log::info!("Video player: selecting video index {}", clicked_idx);
+
                 for (idx, spinner) in self.spinners.iter().enumerate() {
                     if idx == clicked_idx {
                         spinner.start();

@@ -79,4 +79,8 @@ impl Manager {
                 filter.is_none_or(|filter| filter.is_included(&calendar.uid))
             })
     }
+
+    pub fn calendar_name(&self, uid: &Uuid) -> Option<String> {
+        self.map.calendars().get(uid).map(|(_, calendar)| calendar.name.to_string())
+    }
 }

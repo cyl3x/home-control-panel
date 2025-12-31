@@ -106,22 +106,6 @@ impl MonthWidget {
         &self.wrapper
     }
 
-    pub fn update(&self, message: &CalendarMessage, dates: &Dates) {
-        match message {
-            CalendarMessage::MonthPrev => {
-                messaging::send_message(CalendarMessage::SelectDate(
-                    dates.selected - chrono::Months::new(1),
-                ));
-            }
-            CalendarMessage::MonthNext => {
-                messaging::send_message(CalendarMessage::SelectDate(
-                    dates.selected + chrono::Months::new(1),
-                ));
-            }
-            _ => (),
-        }
-    }
-
     pub fn update_calendar(&mut self, manager: &Manager, dates: &Dates) {
         self.grid_start = start_grid_date(dates.selected);
         self.label.set_label(

@@ -101,10 +101,10 @@ impl CalendarWidget {
                 let client = self.manager.client.clone();
 
                 gtk::gio::spawn_blocking(move || match client.get_map() {
-                    Err(err) => log::error!("Failed to fetch calendar map: {err:?}"),
+                    Err(err) => log::error!("Calendar: failed to fetch map: {err:?}"),
                     Ok(map) => {
                         log::info!(
-                            "Fetched calendar map: {} calendars, {} events",
+                            "Calendar: fetched map: {} calendars, {} events",
                             map.len_calendars(),
                             map.len_events()
                         );
@@ -117,15 +117,16 @@ impl CalendarWidget {
             }
             CalendarMessage::UpdateMap(map) => {
                 if self.manager.set_map(*map) {
-                    self.update_calendar();
+                    log::info!("Calendar: map changed and updated");
 
-                    log::info!("Calendar map updated");
+                    self.update_calendar();
                 }
             }
             CalendarMessage::SelectNow => {
                 self.dates.now = chrono::Utc::now().naive_utc();
                 self.dates.selected = self.dates.now.date();
-                log::info!("Next day: {}", self.dates.now);
+
+                log::info!("Calendar: selected now {}", self.dates.now);
 
                 self.remove_reset_dates();
                 self.update_calendar();
@@ -139,12 +140,16 @@ impl CalendarWidget {
             CalendarMessage::ToggleCalendar(uid) => {
                 self.manager.toggle_calendar(uid);
 
+                log::info!("Calendar: toggled \"{}\"", self.manager.calendar_name(&uid).unwrap_or_else(|| uid.to_string()));
+
                 self.update_calendar();
             }
             CalendarMessage::SelectGridIndex(idx) => {
-                messaging::send_message(CalendarMessage::SelectDate(
-                    start_grid_date(self.dates.selected) + Duration::days(idx as i64),
-                ));
+                let selected_date = start_grid_date(self.dates.selected) + Duration::days(idx as i64);
+
+                log::info!("Calendar: selected date {}", selected_date);
+
+                messaging::send_message(CalendarMessage::SelectDate(selected_date));
             }
             CalendarMessage::MonthPrev => messaging::send_message(CalendarMessage::SelectDate(
                 self.dates.selected - chrono::Months::new(1),
@@ -161,6 +166,8 @@ impl CalendarWidget {
         self.selection.update_calendar(&self.manager);
         self.event.update_calendar(&self.manager, &self.dates);
         self.upcoming.update_calendar(&self.manager, &self.dates);
+
+        log::info!("Calendar: updated for date {}", self.dates.selected);
     }
 
     fn remove_reset_dates(&mut self) {

@@ -76,6 +76,8 @@ impl App {
     }
 
     pub fn update(&mut self, message: AppMessage) {
+        log::debug!("App received message: {:?}", message);
+
         match message {
             AppMessage::Calendar(message) => self.calendar.update(message),
             AppMessage::Video(message) => self.video.update(message),

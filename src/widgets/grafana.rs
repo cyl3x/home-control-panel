@@ -78,7 +78,7 @@ impl GrafanaWidget {
         }
 
         let (js, login_view) = config.grafana.login.as_ref().map_or_else(|| (None, None), |login| {
-            log::info!("Logging in into Grafana");
+            log::info!("Grafana: logging in");
 
             let js = format!(
                 r#"
@@ -156,7 +156,7 @@ impl GrafanaWidget {
                 .build();
 
             if let Some(js) = &js {
-                log::info!("Setting up JS injection");
+                log::info!("Grafana: setting up JS injection");
                 webview.connect_load_changed(glib::clone!(#[strong] webview, #[strong] js, move |_, event| {
                     if event == webkit6::LoadEvent::Finished && let Some(uri) = webview.uri() && uri.starts_with("http") {
                         glib::spawn_future_local(glib::clone!(#[strong] webview, #[strong] js, async move {
@@ -197,7 +197,7 @@ impl GrafanaWidget {
                     return;
                 }
 
-                log::info!("Grafana login successful, load widgets");
+                log::info!("Grafana: login successful, setup panels");
 
                 if let Some(login_view) = self.login_view.take() {
                     login_view.stop_loading();
@@ -207,9 +207,7 @@ impl GrafanaWidget {
                 self.wrapper.set_child(Some(&self.panels_view));
 
                 for (panel, webview) in &self.webviews {
-                    log::info!("Loading Grafana panel");
-
-                    webview.inspector().unwrap().show();
+                    // webview.inspector().unwrap().show();
                     webview.set_visible(true);
 
                     glib::timeout_add_seconds_local_once(1, glib::clone!(#[strong] webview, #[strong] panel, move || {
@@ -221,7 +219,7 @@ impl GrafanaWidget {
             }
             messaging::GrafanaMessage::RefreshPanels => {
                 for (panel, webview) in &self.webviews {
-                    log::info!("Refreshing Grafana panel");
+                    log::info!("Grafana: refreshing panel");
 
                     webview.stop_loading();
 
