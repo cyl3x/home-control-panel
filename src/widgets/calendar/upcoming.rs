@@ -46,7 +46,7 @@ impl UpcomingWidget {
             self.wrapper.remove(&grid);
         }
 
-        let now = dates.now.date();
+        let now = dates.now.naive_utc().date();
 
         let grid = gtk::Grid::new();
         grid.add_css_class("calendar-upcoming");

@@ -1,5 +1,5 @@
 use chrono::DateTime;
-use chrono::Utc;
+use chrono::Local;
 
 use crate::config;
 use crate::config::Config;
@@ -9,8 +9,8 @@ use crate::prelude::*;
 use crate::widgets::calendar::upcoming::UpcomingWidget;
 
 pub struct ScreensaverWidget {
-    now: DateTime<Utc>,
-    last_activity: DateTime<Utc>,
+    now: DateTime<Local>,
+    last_activity: DateTime<Local>,
     config: config::Screensaver,
 
     wrapper: gtk::Box,
@@ -77,8 +77,8 @@ impl ScreensaverWidget {
 
         Self {
             config: config.screensaver.clone(),
-            now: Utc::now(),
-            last_activity: Utc::now(),
+            now: Local::now(),
+            last_activity: Local::now(),
             wrapper,
             center_wrapper,
             date,
@@ -93,7 +93,7 @@ impl ScreensaverWidget {
     pub fn update(&mut self, message: ScreensaverMessage) {
         match message {
             ScreensaverMessage::Tick => {
-                self.now = Utc::now();
+                self.now = Local::now();
                 let time = self.now.time();
 
                 if self
@@ -137,7 +137,7 @@ impl ScreensaverWidget {
             ScreensaverMessage::Reset => {
                 log::debug!("Screensaver: reset due to user activity");
 
-                self.last_activity = Utc::now();
+                self.last_activity = Local::now();
             }
         }
     }

@@ -17,13 +17,13 @@ pub mod selection;
 pub mod upcoming;
 
 pub struct Dates {
-    pub now: NaiveDateTime,
+    pub now: DateTime<Local>,
     pub selected: NaiveDate,
 }
 
 impl Dates {
     pub fn is_today(&self, date: NaiveDate) -> bool {
-        date == self.now.date()
+        date == self.now.date_naive()
     }
 
     pub fn is_selected(&self, date: NaiveDate) -> bool {
@@ -51,8 +51,8 @@ pub struct CalendarWidget {
 impl CalendarWidget {
     pub fn new(config: &Config) -> Self {
         let dates = Dates {
-            now: chrono::Utc::now().naive_utc(),
-            selected: chrono::Utc::now().naive_utc().date(),
+            now: chrono::Local::now(),
+            selected: chrono::Local::now().naive_local().date(),
         };
 
         let month = MonthWidget::new(config, &dates);
@@ -67,7 +67,7 @@ impl CalendarWidget {
         wrapper.append(day.widget());
         wrapper.append(event.widget());
 
-        next_day_timeout(dates.now);
+        next_day_timeout(dates.now.naive_local());
         calendar_sync_timeout();
 
         messaging::send_message(CalendarMessage::SelectNow);
@@ -123,8 +123,8 @@ impl CalendarWidget {
                 }
             }
             CalendarMessage::SelectNow => {
-                self.dates.now = chrono::Utc::now().naive_utc();
-                self.dates.selected = self.dates.now.date();
+                self.dates.now = chrono::Local::now();
+                self.dates.selected = self.dates.now.date_naive();
 
                 log::info!("Calendar: selected now {}", self.dates.now);
 
@@ -209,6 +209,6 @@ fn next_day_timeout(now: NaiveDateTime) {
     glib::timeout_add_seconds_once(seconds, move || {
         messaging::send_message(CalendarMessage::SelectNow);
 
-        next_day_timeout(chrono::Utc::now().naive_utc());
+        next_day_timeout(chrono::Local::now().naive_local());
     });
 }
