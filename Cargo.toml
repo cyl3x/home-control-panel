@@ -26,8 +26,8 @@ async-channel = "2.5.0"
 base64 = "0.22"
 chrono = { version = "0.4.39", features = ["unstable-locales", "serde"] }
 chrono-tz = "0.10.4"
-clapper = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs", rev = "3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f" }
-clapper-gtk = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs", rev = "3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f", features = ["gtk_v4_18"]}
+clapper = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs.git", rev = "3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f" }
+clapper-gtk = { git = "https://gitlab.gnome.org/JanGernert/clapper-rs.git", rev = "3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f", features = ["gtk_v4_18"]}
 env_logger = "0.11.8"
 gtk = { package = "gtk4", version = "0.10.3", features = ["v4_18"] }
 icalendar = "0.17.6"

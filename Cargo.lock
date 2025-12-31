@@ -210,7 +210,7 @@ dependencies = [
 [[package]]
 name = "clapper"
 version = "0.1.1"
-source = "git+https://gitlab.gnome.org/JanGernert/clapper-rs?rev=3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f#3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f"
+source = "git+https://gitlab.gnome.org/JanGernert/clapper-rs.git?rev=3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f#3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f"
 dependencies = [
  "bitflags",
  "clapper-sys",
@@ -223,7 +223,7 @@ dependencies = [
 [[package]]
 name = "clapper-gtk"
 version = "0.1.1"
-source = "git+https://gitlab.gnome.org/JanGernert/clapper-rs?rev=3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f#3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f"
+source = "git+https://gitlab.gnome.org/JanGernert/clapper-rs.git?rev=3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f#3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f"
 dependencies = [
  "bitflags",
  "clapper",
@@ -238,7 +238,7 @@ dependencies = [
 [[package]]
 name = "clapper-gtk-sys"
 version = "0.1.1"
-source = "git+https://gitlab.gnome.org/JanGernert/clapper-rs?rev=3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f#3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f"
+source = "git+https://gitlab.gnome.org/JanGernert/clapper-rs.git?rev=3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f#3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f"
 dependencies = [
  "clapper-sys",
  "gio-sys",
@@ -251,7 +251,7 @@ dependencies = [
 [[package]]
 name = "clapper-sys"
 version = "0.1.1"
-source = "git+https://gitlab.gnome.org/JanGernert/clapper-rs?rev=3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f#3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f"
+source = "git+https://gitlab.gnome.org/JanGernert/clapper-rs.git?rev=3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f#3eb57f8a13d9e849d2f3df6d7fcf11362100ac5f"
 dependencies = [
  "gio-sys",
  "glib-sys",
