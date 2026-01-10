@@ -1,8 +1,11 @@
+use std::time::Duration;
+
 use clapper::MediaItem;
 use clapper::Player;
 use clapper::PlayerState;
 use clapper::Queue;
 use gtk::glib;
+use gtk::glib::Priority;
 
 use crate::config::Config;
 use crate::messaging;
@@ -26,7 +29,7 @@ impl Video {
 
         let player = video_player.player().unwrap();
         player.set_audio_enabled(false);
-        player.set_autoplay(true);
+        player.set_autoplay(false);
         player.set_subtitles_enabled(false);
 
         let queue = player.queue().unwrap();
@@ -87,8 +90,14 @@ impl Video {
         wrapper.append(&video_player);
         wrapper.append(&button_wrapper);
 
-        player.connect_state_notify(move |player| {
-            messaging::send_message(VideoMessage::VideoStateChanged(player.state()));
+        if !config.videos.is_empty() {
+            messaging::send_message(VideoMessage::VideoSelectIndex(0));
+        }
+
+        glib::timeout_add_local_full(Duration::from_secs(5), Priority::DEFAULT_IDLE, || {
+            messaging::send_message(VideoMessage::CheckVideoState);
+
+            glib::ControlFlow::Continue
         });
 
         Self {
@@ -105,11 +114,13 @@ impl Video {
 
     pub fn update(&mut self, message: VideoMessage) {
         match message {
-            VideoMessage::VideoStateChanged(player_state) => match player_state {
+            VideoMessage::CheckVideoState => match self.player.state() {
                 PlayerState::Playing | PlayerState::Buffering => {
-                    for spinner in &self.spinners {
-                        spinner.stop();
-                        spinner.set_visible(false);
+                    if self.spinners.first().is_some_and(|s| s.is_visible()) {
+                        for spinner in &self.spinners {
+                            spinner.stop();
+                            spinner.set_visible(false);
+                        }
                     }
                 }
                 PlayerState::Stopped | PlayerState::Paused => {
