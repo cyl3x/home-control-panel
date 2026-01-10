@@ -64,6 +64,12 @@ fn main() {
                 app.update(message);
             }
         });
+
+        glib::unix_signal_add_local(10 /* USR1 */, || {
+            messaging::send_message(messaging::CalendarMessage::SelectNow);
+
+            glib::ControlFlow::Continue
+        });
     });
 
     let exit_code = app.run_with_args(&args);
