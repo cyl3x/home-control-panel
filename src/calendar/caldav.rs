@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use base64::prelude::*;
 use chrono::NaiveDate;
 use ureq::config::Config;
@@ -64,6 +66,7 @@ impl Client {
             credentials,
             agent: Config::builder()
                 .allow_non_standard_methods(true)
+                .timeout_global(Some(Duration::from_secs(5)))
                 .build()
                 .new_agent(),
             base_url,
