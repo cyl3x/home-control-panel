@@ -45,6 +45,7 @@ pub struct CalendarWidget {
 
     manager: Manager,
     reset_dates: Option<glib::SourceId>,
+    next_day: Option<glib::SourceId>,
     dates: Dates,
 }
 
@@ -67,8 +68,11 @@ impl CalendarWidget {
         wrapper.append(day.widget());
         wrapper.append(event.widget());
 
-        next_day_timeout(dates.now.naive_local());
-        calendar_sync_timeout();
+        glib::timeout_add_seconds(600, move || {
+            messaging::send_message(CalendarMessage::Fetch);
+
+            glib::ControlFlow::Continue
+        });
 
         messaging::send_message(CalendarMessage::SelectNow);
         messaging::send_message(CalendarMessage::Fetch);
@@ -83,6 +87,7 @@ impl CalendarWidget {
 
             manager: Manager::new(config.ical.clone()),
             reset_dates: None,
+            next_day: None,
             dates,
         }
     }
@@ -99,6 +104,8 @@ impl CalendarWidget {
         match message {
             CalendarMessage::Fetch => {
                 let client = self.manager.client.clone();
+
+                log::info!("Calendar: fetching calendar map");
 
                 gtk::gio::spawn_blocking(move || match client.get_map() {
                     Err(err) => log::error!("Calendar: failed to fetch map: {err:?}"),
@@ -130,6 +137,7 @@ impl CalendarWidget {
 
                 self.remove_reset_dates();
                 self.update_calendar();
+                self.add_next_day_timeout();
             }
             CalendarMessage::SelectDate(date) => {
                 self.dates.selected = date;
@@ -187,28 +195,32 @@ impl CalendarWidget {
             messaging::send_message(CalendarMessage::SelectNow);
         }));
     }
+
+    fn remove_next_day_timeout(&mut self) {
+        if let Some(id) = self.next_day.take()
+            && glib::MainContext::default()
+                .find_source_by_id(&id)
+                .is_some()
+        {
+            id.remove();
+        }
+    }
+
+    fn add_next_day_timeout(&mut self) {
+        self.remove_next_day_timeout();
+
+        let now = self.dates.now.naive_local();
+        let next_day = now
+            .date()
+            .succ_opt()
+            .and_then(|d| d.and_hms_opt(0, 0, 0))
+            .unwrap();
+
+        let seconds = (next_day - now).num_seconds() as u32 + 30;
+
+        self.next_day = Some(glib::timeout_add_seconds_once(seconds, move || {
+            messaging::send_message(CalendarMessage::SelectNow);
+        }));
+    }
 }
 
-fn calendar_sync_timeout() {
-    glib::timeout_add_seconds(600, move || {
-        messaging::send_message(CalendarMessage::Fetch);
-
-        glib::ControlFlow::Continue
-    });
-}
-
-fn next_day_timeout(now: NaiveDateTime) {
-    let next_day = now
-        .date()
-        .succ_opt()
-        .and_then(|d| d.and_hms_opt(0, 0, 0))
-        .unwrap();
-
-    let seconds = (next_day - now).num_seconds() as u32 + 30;
-
-    glib::timeout_add_seconds_once(seconds, move || {
-        messaging::send_message(CalendarMessage::SelectNow);
-
-        next_day_timeout(chrono::Local::now().naive_local());
-    });
-}
