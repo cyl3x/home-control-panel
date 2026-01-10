@@ -66,6 +66,8 @@ fn main() {
         });
 
         glib::unix_signal_add_local(10 /* USR1 */, || {
+            log::info!("Received USR1 signal: selecting now");
+
             messaging::send_message(messaging::CalendarMessage::SelectNow);
 
             glib::ControlFlow::Continue
