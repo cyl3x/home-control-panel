@@ -1,5 +1,8 @@
+use std::time::Duration;
+
 use chrono::DateTime;
 use chrono::Local;
+use gtk::glib::Priority;
 
 use crate::config;
 use crate::config::Config;
@@ -69,7 +72,7 @@ impl ScreensaverWidget {
         wrapper.append(&center_wrapper);
         wrapper.add_controller(controller);
 
-        gtk::glib::timeout_add_seconds(1, move || {
+        gtk::glib::timeout_add_local_full(Duration::from_secs(1), Priority::DEFAULT_IDLE, move || {
             messaging::send_message(ScreensaverMessage::Tick);
 
             gtk::glib::ControlFlow::Continue
