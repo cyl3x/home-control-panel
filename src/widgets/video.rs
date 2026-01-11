@@ -18,6 +18,8 @@ pub struct Video {
     player: Player,
     queue: Queue,
     spinners: Vec<gtk::Spinner>,
+
+    reset_timeout: Option<glib::SourceId>,
 }
 
 impl Video {
@@ -29,7 +31,7 @@ impl Video {
 
         let player = video_player.player().unwrap();
         player.set_audio_enabled(false);
-        player.set_autoplay(false);
+        player.set_autoplay(true);
         player.set_subtitles_enabled(false);
 
         let queue = player.queue().unwrap();
@@ -76,7 +78,7 @@ impl Video {
             button_wrapper.append(&button);
 
             button.connect_clicked(move |_| {
-                messaging::send_message(VideoMessage::VideoSelectIndex(idx));
+                messaging::send_message(VideoMessage::VideoSelectIndex(Some(idx)));
             });
 
             spinners.push(spinner);
@@ -91,10 +93,10 @@ impl Video {
         wrapper.append(&button_wrapper);
 
         if !config.videos.is_empty() {
-            messaging::send_message(VideoMessage::VideoSelectIndex(0));
+            messaging::send_message(VideoMessage::VideoSelectIndex(Some(0)));
         }
 
-        glib::timeout_add_local_full(Duration::from_secs(5), Priority::DEFAULT_IDLE, || {
+        glib::timeout_add_local_full(Duration::from_secs(3), Priority::DEFAULT_IDLE, || {
             messaging::send_message(VideoMessage::CheckVideoState);
 
             glib::ControlFlow::Continue
@@ -105,6 +107,7 @@ impl Video {
             player,
             queue,
             spinners,
+            reset_timeout: None,
         }
     }
 
@@ -116,27 +119,25 @@ impl Video {
         match message {
             VideoMessage::CheckVideoState => match self.player.state() {
                 PlayerState::Playing | PlayerState::Buffering => {
-                    if self.spinners.first().is_some_and(|s| s.is_visible()) {
-                        for spinner in &self.spinners {
+                    for spinner in &self.spinners {
+                        if spinner.is_visible() {
                             spinner.stop();
                             spinner.set_visible(false);
                         }
                     }
                 }
                 PlayerState::Stopped | PlayerState::Paused => {
-                    log::warn!("Video player: stopped, restarting current video");
-
-                    let current_index = self.queue.current_index();
-                    glib::timeout_add_seconds_once(1, move || {
-                        messaging::send_message(VideoMessage::VideoSelectIndex(
-                            current_index as usize,
-                        ));
-                    });
+                    self.reset_timeout = Some(glib::timeout_add_seconds_local_once(1, move || {
+                        messaging::send_message(VideoMessage::VideoSelectIndex(None));
+                    }));
                 }
                 _ => (),
             },
             VideoMessage::VideoSelectIndex(clicked_idx) => {
-                log::info!("Video player: selecting video index {}", clicked_idx);
+                remove_source(self.reset_timeout.take());
+
+                let clicked_idx = clicked_idx.unwrap_or_else(|| self.queue.current_index() as usize);
+                log::info!("Video player: selecting video \"{}\"", self.item_name(clicked_idx));
 
                 for (idx, spinner) in self.spinners.iter().enumerate() {
                     if idx == clicked_idx {
@@ -148,10 +149,17 @@ impl Video {
                     }
                 }
 
-                self.player.seek(0.0);
+                self.queue.select_item(None);
                 self.queue.set_current_index(clicked_idx as u32);
                 self.player.play();
             }
         }
+    }
+
+    fn item_name(&self, idx: usize) -> String {
+        self.queue
+            .item(idx as u32)
+            .and_then(|item| item.property_value("name").get::<String>().ok())
+            .unwrap_or_else(|| format!("index {}", idx))
     }
 }

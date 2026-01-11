@@ -50,7 +50,7 @@ impl From<CalendarMessage> for AppMessage {
 #[derive(Debug)]
 pub enum VideoMessage {
     CheckVideoState,
-    VideoSelectIndex(usize),
+    VideoSelectIndex(Option<usize>),
 }
 
 impl From<VideoMessage> for AppMessage {

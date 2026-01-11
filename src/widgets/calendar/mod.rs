@@ -1,4 +1,4 @@
-use chrono::{Duration, NaiveDate, NaiveDateTime};
+use chrono::{Duration, NaiveDate};
 use gtk::glib;
 
 use crate::messaging::{self, CalendarMessage};
@@ -43,10 +43,10 @@ pub struct CalendarWidget {
     event: EventWidget,
     upcoming: UpcomingWidget,
 
-    manager: Manager,
-    reset_dates: Option<glib::SourceId>,
-    next_day: Option<glib::SourceId>,
     dates: Dates,
+    manager: Manager,
+    reset_dates_timeout: Option<glib::SourceId>,
+    next_day_timeout: Option<glib::SourceId>,
 }
 
 impl CalendarWidget {
@@ -86,8 +86,8 @@ impl CalendarWidget {
             upcoming,
 
             manager: Manager::new(config.ical.clone()),
-            reset_dates: None,
-            next_day: None,
+            reset_dates_timeout: None,
+            next_day_timeout: None,
             dates,
         }
     }
@@ -135,13 +135,13 @@ impl CalendarWidget {
 
                 log::info!("Calendar: selected now {}", self.dates.now);
 
-                self.remove_reset_dates();
+                remove_source(self.reset_dates_timeout.take());
                 self.update_calendar();
-                self.add_next_day_timeout();
+                self.next_day_timeout();
             }
             CalendarMessage::SelectDate(date) => {
                 self.dates.selected = date;
-                self.add_reset_dates();
+                self.reset_dates_timeout();
 
                 self.update_calendar();
             }
@@ -178,36 +178,16 @@ impl CalendarWidget {
         log::info!("Calendar: updated for date {}", self.dates.selected);
     }
 
-    fn remove_reset_dates(&mut self) {
-        if let Some(id) = self.reset_dates.take()
-            && glib::MainContext::default()
-                .find_source_by_id(&id)
-                .is_some()
-        {
-            id.remove();
-        }
-    }
+    fn reset_dates_timeout(&mut self) {
+        remove_source(self.reset_dates_timeout.take());
 
-    fn add_reset_dates(&mut self) {
-        self.remove_reset_dates();
-
-        self.reset_dates = Some(glib::timeout_add_seconds_once(60, || {
+        self.reset_dates_timeout = Some(glib::timeout_add_seconds_once(60, || {
             messaging::send_message(CalendarMessage::SelectNow);
         }));
     }
 
-    fn remove_next_day_timeout(&mut self) {
-        if let Some(id) = self.next_day.take()
-            && glib::MainContext::default()
-                .find_source_by_id(&id)
-                .is_some()
-        {
-            id.remove();
-        }
-    }
-
-    fn add_next_day_timeout(&mut self) {
-        self.remove_next_day_timeout();
+    fn next_day_timeout(&mut self) {
+        remove_source(self.next_day_timeout.take());
 
         let now = self.dates.now.naive_local();
         let next_day = now
@@ -218,7 +198,7 @@ impl CalendarWidget {
 
         let seconds = (next_day - now).num_seconds() as u32 + 30;
 
-        self.next_day = Some(glib::timeout_add_seconds_once(seconds, move || {
+        self.next_day_timeout = Some(glib::timeout_add_seconds_once(seconds, move || {
             messaging::send_message(CalendarMessage::SelectNow);
         }));
     }

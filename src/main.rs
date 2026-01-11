@@ -77,3 +77,13 @@ fn main() {
     let exit_code = app.run_with_args(&args);
     std::process::exit(exit_code.into());
 }
+
+pub fn remove_source(id: Option<glib::SourceId>) {
+    if let Some(id) = id
+        && glib::MainContext::default()
+            .find_source_by_id(&id)
+            .is_some()
+    {
+        id.remove();
+    }
+}
