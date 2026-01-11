@@ -24,10 +24,9 @@ pub struct Video {
 
 impl Video {
     pub fn new(config: &Config) -> Self {
-        let video_player = clapper_gtk::Video::builder()
-            .visible(true)
-            .css_classes(["clapper"])
-            .build();
+        let video_player = clapper_gtk::Video::new();
+        video_player.set_visible(true);
+        video_player.add_css_class("clapper");
 
         let player = video_player.player().unwrap();
         player.set_audio_enabled(false);
@@ -44,51 +43,43 @@ impl Video {
             queue.add_item(&media_item);
         }
 
-        let button_wrapper = gtk::Box::builder()
-            .orientation(gtk::Orientation::Horizontal)
-            .spacing(8)
-            .css_classes(["buttons"])
-            .build();
+        let button_wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        button_wrapper.add_css_class("buttons");
 
         let mut spinners = Vec::with_capacity(config.videos.len());
         for (idx, video) in config.videos.iter().enumerate() {
-            let label = gtk::Label::builder()
-                .label(&video.name)
-                .hexpand(false)
-                .build();
+            let label = gtk::Label::new(Some(&video.name));
+            label.set_hexpand(false);
+            label.set_margin_vertical(2);
 
-            let spinner = gtk::Spinner::builder()
-                .visible(false)
-                .height_request(4)
-                .width_request(4)
-                .build();
+            let spinner = gtk::Spinner::new();
+            spinner.set_visible(false);
+            spinner.set_spinning(false);
 
-            let content = gtk::Box::builder()
-                .orientation(gtk::Orientation::Horizontal)
-                .halign(gtk::Align::Center)
-                .hexpand(true)
-                .spacing(4)
-                .build();
+            let spinner_wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            spinner_wrapper.set_expand(false);
+            spinner_wrapper.set_align(gtk::Align::Center);
+            spinner_wrapper.append(&spinner);
 
+            let content = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            content.set_halign(gtk::Align::Center);
+            content.set_hexpand(true);
+            content.append(&spinner_wrapper);
             content.append(&label);
-            content.append(&spinner);
 
-            let button = gtk::Button::builder().child(&content).hexpand(true).build();
-
-            button_wrapper.append(&button);
-
+            let button = gtk::Button::new();
+            button.set_hexpand(true);
+            button.set_child(Some(&content));
             button.connect_clicked(move |_| {
                 messaging::send_message(VideoMessage::VideoSelectIndex(Some(idx)));
             });
 
+            button_wrapper.append(&button);
             spinners.push(spinner);
         }
 
-        let wrapper = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .css_classes(["video-player"])
-            .build();
-
+        let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        wrapper.add_css_class("video-player");
         wrapper.append(&video_player);
         wrapper.append(&button_wrapper);
 
