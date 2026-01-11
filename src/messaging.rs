@@ -49,7 +49,7 @@ impl From<CalendarMessage> for AppMessage {
 
 #[derive(Debug)]
 pub enum VideoMessage {
-    CheckVideoState,
+    CheckVideoState(Option<clapper::PlayerState>),
     VideoSelectIndex(Option<usize>),
 }
 
