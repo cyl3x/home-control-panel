@@ -52,7 +52,7 @@ impl EventBuilder {
         let start = self.start.ok_or(EventBuilderError::NoStart)?;
         let start = date_perhaps_time_to_date_time(start).ok_or(EventBuilderError::InvalidStart)?;
         let end = self.end.ok_or(EventBuilderError::NoEnd)?;
-        let end = date_perhaps_time_to_date_time(end).ok_or(EventBuilderError::InvalidStart)?;
+        let end = date_perhaps_time_to_date_time(end).ok_or(EventBuilderError::InvalidEnd)?;
         let url_str = self.url.ok_or(EventBuilderError::NoUrl)?;
         let url =
             Url::parse(&url_str).map_err(|err| EventBuilderError::InvalidUrl(err.to_string()))?;

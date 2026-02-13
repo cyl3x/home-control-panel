@@ -43,7 +43,7 @@ impl EventWidget {
 
     pub fn update_calendar(&mut self, manager: &Manager, dates: &Dates) {
         let event = manager
-            .events_between(dates.now.naive_utc().date(), dates.now.naive_utc().date(), self.filter.as_ref())
+            .events_between(dates.today(), dates.today(), self.filter.as_ref())
             .next();
 
         if let Some((calendar, _, event)) = event {

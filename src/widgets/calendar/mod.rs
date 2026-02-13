@@ -22,6 +22,10 @@ pub struct Dates {
 }
 
 impl Dates {
+    pub fn today(&self) -> NaiveDate {
+        self.now.naive_local().date()
+    }
+
     pub fn is_today(&self, date: NaiveDate) -> bool {
         date == self.now.date_naive()
     }
