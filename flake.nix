@@ -13,6 +13,7 @@
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
     rust-flake.url = "github:juspay/rust-flake";
     rust-flake.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -47,7 +48,6 @@
               gst_all_1.gst-plugins-base
               gst_all_1.gst-plugins-good
               gst_all_1.gst-plugins-rs
-              gst_all_1.gst-vaapi
               gst_all_1.gstreamer
               libxkbcommon
               webkitgtk_6_0
