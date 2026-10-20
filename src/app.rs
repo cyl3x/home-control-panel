@@ -44,7 +44,11 @@ impl App {
 
         let view = gtk::Box::new(gtk::Orientation::Vertical, 0);
         view.set_expand(true);
-        view.append(&stack_switcher);
+        if config.grafana.panels.is_empty() {
+            view.add_css_class("no-stackswitcher");
+        } else {
+            view.append(&stack_switcher);
+        }
         view.append(&stack);
 
         let overlay = gtk::Overlay::new();
