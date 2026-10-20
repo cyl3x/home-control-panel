@@ -12,6 +12,8 @@ use crate::messaging;
 use crate::messaging::VideoMessage;
 use crate::prelude::*;
 
+const STALLED_CHECKS: u8 = 10;
+
 pub struct Video {
     wrapper: gtk::Box,
 
@@ -20,6 +22,8 @@ pub struct Video {
     spinners: Vec<gtk::Spinner>,
 
     reset_timeout: Option<glib::SourceId>,
+    last_position: f64,
+    stalled_checks: u8,
 }
 
 impl Video {
@@ -97,12 +101,54 @@ impl Video {
             messaging::send_message(VideoMessage::CheckVideoState(Some(player.state())))
         });
 
+        for (signal, level) in [("error", log::Level::Error), ("warning", log::Level::Warn)] {
+            player.connect_local(signal, false, move |values| {
+                let player = values[0].get::<Player>().ok()?;
+                let message = values[1]
+                    .get::<glib::Error>()
+                    .map(|err| err.to_string())
+                    .unwrap_or_default();
+                let debug = values[2]
+                    .get::<Option<String>>()
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default();
+
+                log::log!(
+                    level,
+                    "Video player: {signal} on \"{}\": {message} ({debug})",
+                    current_item_name(&player)
+                );
+
+                None
+            });
+        }
+
+        player.connect_missing_plugin(|player, name, _| {
+            log::error!(
+                "Video player: missing plugin \"{name}\" for \"{}\"",
+                current_item_name(player)
+            );
+        });
+
+        player.connect_current_video_decoder_notify(|player| {
+            if let Some(decoder) = player.current_video_decoder() {
+                log::info!(
+                    "Video player: decoding \"{}\" with {}",
+                    current_item_name(player),
+                    decoder.property::<String>("name")
+                );
+            }
+        });
+
         Self {
             wrapper,
             player,
             queue,
             spinners,
             reset_timeout: None,
+            last_position: 0.0,
+            stalled_checks: 0,
         }
     }
 
@@ -122,6 +168,17 @@ impl Video {
                             spinner.set_visible(false);
                         }
                     }
+
+                    // Live RTSP pipelines stay in PLAYING when the camera stops sending,
+                    // so the periodic poll (no state given) also checks that frames still arrive
+                    if state.is_none() && self.is_stalled() {
+                        log::warn!(
+                            "Video player: \"{}\" stalled, restarting",
+                            self.item_name(self.queue.current_index() as usize)
+                        );
+
+                        messaging::send_message(VideoMessage::VideoSelectIndex(None));
+                    }
                 }
                 PlayerState::Stopped | PlayerState::Paused => {
                     remove_source(self.reset_timeout.take());
@@ -134,6 +191,8 @@ impl Video {
             },
             VideoMessage::VideoSelectIndex(clicked_idx) => {
                 remove_source(self.reset_timeout.take());
+                self.last_position = 0.0;
+                self.stalled_checks = 0;
 
                 let clicked_idx = clicked_idx.unwrap_or_else(|| self.queue.current_index() as usize);
                 log::info!("Video player: selecting video \"{}\"", self.item_name(clicked_idx));
@@ -161,4 +220,25 @@ impl Video {
             .and_then(|item| item.property_value("name").get::<String>().ok())
             .unwrap_or_else(|| format!("index {}", idx))
     }
+
+    fn is_stalled(&mut self) -> bool {
+        let position = self.player.position();
+
+        if position == self.last_position {
+            self.stalled_checks = self.stalled_checks.saturating_add(1);
+        } else {
+            self.last_position = position;
+            self.stalled_checks = 0;
+        }
+
+        self.stalled_checks >= STALLED_CHECKS
+    }
+}
+
+fn current_item_name(player: &Player) -> String {
+    player
+        .queue()
+        .and_then(|queue| queue.current_item())
+        .and_then(|item| item.property_value("name").get::<String>().ok())
+        .unwrap_or_default()
 }
