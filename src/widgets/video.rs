@@ -37,6 +37,12 @@ impl Video {
         player.set_autoplay(false);
         player.set_subtitles_enabled(false);
 
+        player.connect_video_sink_notify(|player| {
+            if let Some(sink) = player.video_sink() {
+                sink.set_property("sync", false);
+            }
+        });
+
         let queue = player.queue().unwrap();
         for video in &config.videos {
             let media_item = MediaItem::builder()
