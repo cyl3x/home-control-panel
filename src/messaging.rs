@@ -29,6 +29,7 @@ pub enum AppMessage {
     Screensaver(ScreensaverMessage),
     Grafana(GrafanaMessage),
     Heating(HeatingMessage),
+    Switcher(SwitcherMessage),
 }
 
 #[derive(Debug)]
@@ -101,5 +102,24 @@ pub enum HeatingMessage {
 impl From<HeatingMessage> for AppMessage {
     fn from(val: HeatingMessage) -> Self {
         Self::Heating(val)
+    }
+}
+
+/// Pages of the stack that fetch data, their tabs show whether that works
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Page {
+    Calendar,
+    Heating,
+}
+
+#[derive(Debug)]
+pub enum SwitcherMessage {
+    /// Whether fetching the data of a page succeeded
+    Fetched(Page, bool),
+}
+
+impl From<SwitcherMessage> for AppMessage {
+    fn from(val: SwitcherMessage) -> Self {
+        Self::Switcher(val)
     }
 }

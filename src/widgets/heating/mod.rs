@@ -5,7 +5,7 @@ use chrono::TimeDelta;
 use gtk::glib;
 
 use crate::config;
-use crate::messaging::{self, HeatingMessage};
+use crate::messaging::{self, HeatingMessage, Page, SwitcherMessage};
 use crate::myvaillant::{Command, Error, HeatingSystem, Service, Setpoint};
 use crate::prelude::*;
 
@@ -177,6 +177,8 @@ impl HeatingWidget {
             HeatingMessage::Update(result) => {
                 self.fetching = false;
                 self.spinner.set_visible(false);
+
+                messaging::send_message(SwitcherMessage::Fetched(Page::Heating, result.is_ok()));
 
                 match *result {
                     Ok(systems) => {

@@ -5,7 +5,7 @@ use rrule::Unvalidated;
 use url::Url;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Event {
     pub etag: String,
     pub uid: Uuid,
@@ -14,6 +14,7 @@ pub struct Event {
     pub start: NaiveDateTime,
     pub end: NaiveDateTime,
     pub url: Url,
+    #[serde(with = "rrule_text")]
     pub rrule: Option<rrule::RRule<Unvalidated>>,
 }
 
@@ -96,6 +97,30 @@ fn dates_between(start: NaiveDateTime, end: NaiveDateTime) -> BTreeSet<NaiveDate
         .map(|date| date.and_time(start.time()))
         .take_while(|start| start < &end)
         .collect()
+}
+
+/// Persist recurrence rules in their iCalendar text form, which the rrule crate prints and parses.
+mod rrule_text {
+    use rrule::{RRule, Unvalidated};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S: Serializer>(
+        rrule: &Option<RRule<Unvalidated>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        rrule
+            .as_ref()
+            .map(ToString::to_string)
+            .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<RRule<Unvalidated>>, D::Error> {
+        Option::<String>::deserialize(deserializer)?
+            .map(|text| text.parse().map_err(serde::de::Error::custom))
+            .transpose()
+    }
 }
 
 fn format_date(date: &DateTime<Local>) -> String {

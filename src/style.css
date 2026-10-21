@@ -73,20 +73,32 @@ spinner.large {
     margin: 0 8px;
 }
 
-stackswitcher {
+.switcher {
     padding: 16px;
 }
 
-stackswitcher > * {
+.switcher > * {
     padding: 12px 8px;
 }
 
-stackswitcher > *:not(:first-child) {
+.switcher > *:not(:first-child) {
     margin-left: 16px;
 }
 
-stackswitcher > *:checked {
+.switcher > *:checked {
     box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.5);
+}
+
+/* tailwind green-600, red as for errors */
+.switcher__dot {
+    min-width: 10px;
+    min-height: 10px;
+    border-radius: 50%;
+    background-color: oklch(0.627 0.194 149.214);
+}
+
+.switcher__dot.failing {
+    background-color: oklch(0.577 0.245 27.325);
 }
 
 .no-stackswitcher {

@@ -14,6 +14,7 @@ use gtk::{Application, CssProvider, gdk::Display};
 use crate::prelude::*;
 
 mod app;
+pub mod cache;
 pub mod calendar;
 pub mod config;
 pub mod gtk_ext;

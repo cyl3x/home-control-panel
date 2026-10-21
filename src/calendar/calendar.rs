@@ -5,7 +5,7 @@ use crate::calendar::Color;
 
 use super::extract;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Calendar {
     pub uid: Uuid,
     pub url_str: String,

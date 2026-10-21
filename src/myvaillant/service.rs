@@ -68,11 +68,8 @@ pub struct Circuit {
 
 impl Service {
     pub fn new(config: &config::MyVaillant) -> Self {
-        let cache_path =
-            std::env::home_dir().map(|path| path.join(".cache/home-control-panel/myvaillant.json"));
-
         Self {
-            client: Client::new(config, cache_path),
+            client: Client::new(config, crate::cache::path("myvaillant.json")),
         }
     }
 

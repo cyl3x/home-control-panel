@@ -1,7 +1,7 @@
 use chrono::{Duration, NaiveDate};
 use gtk::glib;
 
-use crate::messaging::{self, CalendarMessage};
+use crate::messaging::{self, CalendarMessage, Page, SwitcherMessage};
 use crate::prelude::*;
 use crate::widgets::calendar::day::DayWidget;
 use crate::widgets::calendar::event::EventWidget;
@@ -112,7 +112,11 @@ impl CalendarWidget {
                 log::info!("Calendar: fetching calendar map");
 
                 gtk::gio::spawn_blocking(move || match client.get_map() {
-                    Err(err) => log::error!("Calendar: failed to fetch map: {err:?}"),
+                    Err(err) => {
+                        log::error!("Calendar: failed to fetch map: {err:?}");
+
+                        messaging::send_message(SwitcherMessage::Fetched(Page::Calendar, false));
+                    }
                     Ok(map) => {
                         log::info!(
                             "Calendar: fetched map: {} calendars, {} events",
@@ -120,6 +124,7 @@ impl CalendarWidget {
                             map.len_events()
                         );
 
+                        messaging::send_message(SwitcherMessage::Fetched(Page::Calendar, true));
                         messaging::send_message(CalendarMessage::UpdateMap(std::boxed::Box::new(
                             map,
                         )));

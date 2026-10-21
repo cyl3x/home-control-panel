@@ -1,11 +1,12 @@
 use crate::config::Config;
 use crate::messaging;
-use crate::messaging::AppMessage;
+use crate::messaging::{AppMessage, Page};
 use crate::prelude::*;
 use crate::widgets::calendar::CalendarWidget;
 use crate::widgets::grafana::GrafanaWidget;
 use crate::widgets::heating::HeatingWidget;
 use crate::widgets::screensaver::ScreensaverWidget;
+use crate::widgets::switcher::SwitcherWidget;
 use crate::widgets::video::Video;
 
 pub struct App {
@@ -16,6 +17,7 @@ pub struct App {
     screensaver: ScreensaverWidget,
     grafana: GrafanaWidget,
     heating: Option<HeatingWidget>,
+    switcher: SwitcherWidget,
 }
 
 impl App {
@@ -46,16 +48,17 @@ impl App {
             stack.add_titled(heating.widget(), Some("heating"), "Heizung");
         }
 
-        let stack_switcher = gtk::StackSwitcher::new();
-        stack_switcher.set_hexpand(true);
-        stack_switcher.set_stack(Some(&stack));
+        let switcher = SwitcherWidget::new(
+            &stack,
+            &[(Page::Calendar, "calendar"), (Page::Heating, "heating")],
+        );
 
         let view = gtk::Box::new(gtk::Orientation::Vertical, 0);
         view.set_expand(true);
         if stack.pages().n_items() <= 1 {
             view.add_css_class("no-stackswitcher");
         } else {
-            view.append(&stack_switcher);
+            view.append(switcher.widget());
         }
         view.append(&stack);
 
@@ -85,6 +88,7 @@ impl App {
             screensaver,
             grafana,
             heating,
+            switcher,
         }
     }
 
@@ -101,6 +105,7 @@ impl App {
                     heating.update(message);
                 }
             }
+            AppMessage::Switcher(message) => self.switcher.update(message),
         }
     }
 }

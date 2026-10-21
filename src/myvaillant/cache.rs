@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::io::Write;
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Local, Utc};
@@ -95,22 +93,9 @@ impl Cache {
             return;
         };
 
-        let result = (|| {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-
-            // Write to a temporary file first, so a crash never leaves a half written cache
-            let temporary = path.with_extension("json.tmp");
-            std::fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .mode(0o600)
-                .open(&temporary)?
-                .write_all(&serde_json::to_vec(self).map_err(std::io::Error::other)?)?;
-            std::fs::rename(&temporary, path)
-        })();
+        let result = serde_json::to_vec(self)
+            .map_err(std::io::Error::other)
+            .and_then(|contents| crate::cache::write(path, &contents));
 
         if let Err(err) = result {
             log::warn!(

@@ -1329,6 +1329,7 @@ dependencies = [
  "palette_derive",
  "palette_math",
  "phf 0.13.1",
+ "serde",
 ]
 
 [[package]]
