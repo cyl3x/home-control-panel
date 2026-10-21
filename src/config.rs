@@ -16,6 +16,7 @@ pub struct Config {
     pub screensaver: Screensaver,
     #[serde(default)]
     pub grafana: Grafana,
+    pub myvaillant: Option<MyVaillant>,
 }
 
 #[derive(Clone, serde::Deserialize)]
@@ -137,6 +138,37 @@ pub struct GrafanaPanel {
     pub developer_extras: bool,
 }
 
+#[derive(Clone, serde::Deserialize)]
+pub struct MyVaillant {
+    pub username: String,
+    #[serde(deserialize_with = "deserialize_from_file_opt")]
+    pub password: String,
+    /// One of `vaillant`, `sdbg`, `bulex`, `glow-worm` or `demirdokum`
+    #[serde(default = "default_myvaillant_brand")]
+    pub brand: String,
+    /// Required for `vaillant` and `sdbg`, e.g. `germany`
+    pub country: Option<String>,
+    /// Polling interval in seconds, the API has strict quotas
+    #[serde(default = "default_myvaillant_interval")]
+    pub interval: u32,
+    /// Show controls to change temperatures and modes
+    #[serde(default = "default_myvaillant_controls")]
+    pub controls: bool,
+}
+
+impl core::fmt::Debug for MyVaillant {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("MyVaillant")
+            .field("username", &self.username)
+            .field("password", &"<hidden>")
+            .field("brand", &self.brand)
+            .field("country", &self.country)
+            .field("interval", &self.interval)
+            .field("controls", &self.controls)
+            .finish()
+    }
+}
+
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct StartEndTimes {
     pub start: chrono::NaiveTime,
@@ -152,6 +184,18 @@ pub fn init(path: PathBuf) -> Result<Config, Box<dyn std::error::Error>> {
 
 const fn default_screensaver_timeout() -> u16 {
     600
+}
+
+fn default_myvaillant_brand() -> String {
+    "vaillant".to_string()
+}
+
+const fn default_myvaillant_interval() -> u32 {
+    900
+}
+
+const fn default_myvaillant_controls() -> bool {
+    true
 }
 
 fn deserialize_from_file_opt<'de, D>(deserializer: D) -> Result<String, D::Error>

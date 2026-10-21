@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 
 use crate::calendar::CalendarMap;
+use crate::myvaillant::{self, Command, HeatingSystem, Setpoint};
 
 pub type AppSender = async_channel::Sender<AppMessage>;
 pub type AppReceiver = async_channel::Receiver<AppMessage>;
@@ -27,6 +28,7 @@ pub enum AppMessage {
     Video(VideoMessage),
     Screensaver(ScreensaverMessage),
     Grafana(GrafanaMessage),
+    Heating(HeatingMessage),
 }
 
 #[derive(Debug)]
@@ -80,5 +82,24 @@ pub enum GrafanaMessage {
 impl From<GrafanaMessage> for AppMessage {
     fn from(val: GrafanaMessage) -> Self {
         Self::Grafana(val)
+    }
+}
+
+#[derive(Debug)]
+pub enum HeatingMessage {
+    Fetch,
+    /// Fetch requested by the user, which is throttled
+    Refresh,
+    Update(std::boxed::Box<Result<Vec<HeatingSystem>, myvaillant::Error>>),
+    /// Change a setpoint by steps, sent once the user stops tapping
+    Step(Setpoint, i32),
+    SendSetpoint(Setpoint),
+    Execute(std::boxed::Box<Command>),
+    Executed(std::boxed::Box<Result<(), myvaillant::Error>>),
+}
+
+impl From<HeatingMessage> for AppMessage {
+    fn from(val: HeatingMessage) -> Self {
+        Self::Heating(val)
     }
 }

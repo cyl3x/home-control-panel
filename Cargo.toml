@@ -34,10 +34,12 @@ gtk = { package = "gtk4", version = "0.11.5", features = ["v4_18"] }
 icalendar = "0.17.15"
 log = { version = "0.4.34", features = ["kv", "kv_std"]}
 palette = "0.7.7"
+ring = "0.17.14"
 rrule = "0.14"
 serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
 toml = "1.1.8"
-ureq = "3.4.2"
+ureq = { version = "3.4.2", features = ["cookies", "json"] }
 url = { version = "2.5.7", features = ["serde"] }
 uuid = { version = "1.28.0", features = ["v5", "serde"] }
 webkit6 = { version = "0.6.1", features = ["v2_50", "gtk_v4_18"] }

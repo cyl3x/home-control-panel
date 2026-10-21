@@ -4,6 +4,7 @@ use crate::messaging::AppMessage;
 use crate::prelude::*;
 use crate::widgets::calendar::CalendarWidget;
 use crate::widgets::grafana::GrafanaWidget;
+use crate::widgets::heating::HeatingWidget;
 use crate::widgets::screensaver::ScreensaverWidget;
 use crate::widgets::video::Video;
 
@@ -14,6 +15,7 @@ pub struct App {
     video: Video,
     screensaver: ScreensaverWidget,
     grafana: GrafanaWidget,
+    heating: Option<HeatingWidget>,
 }
 
 impl App {
@@ -22,6 +24,7 @@ impl App {
         let video = Video::new(config);
         let screensaver = ScreensaverWidget::new(config, calendar.upcoming());
         let grafana = GrafanaWidget::new(config);
+        let heating = config.myvaillant.as_ref().map(HeatingWidget::new);
 
         let paned = gtk::Paned::new(gtk::Orientation::Horizontal);
         paned.add_css_class("paned");
@@ -36,7 +39,12 @@ impl App {
         stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
         stack.set_transition_duration(300);
         stack.add_titled(&paned, Some("calendar"), "Kalender");
-        stack.add_titled(grafana.widget(), Some("grafana"), "Grafana");
+        if !config.grafana.panels.is_empty() {
+            stack.add_titled(grafana.widget(), Some("grafana"), "Grafana");
+        }
+        if let Some(heating) = &heating {
+            stack.add_titled(heating.widget(), Some("heating"), "Heizung");
+        }
 
         let stack_switcher = gtk::StackSwitcher::new();
         stack_switcher.set_hexpand(true);
@@ -44,7 +52,7 @@ impl App {
 
         let view = gtk::Box::new(gtk::Orientation::Vertical, 0);
         view.set_expand(true);
-        if config.grafana.panels.is_empty() {
+        if stack.pages().n_items() <= 1 {
             view.add_css_class("no-stackswitcher");
         } else {
             view.append(&stack_switcher);
@@ -76,6 +84,7 @@ impl App {
             video,
             screensaver,
             grafana,
+            heating,
         }
     }
 
@@ -87,6 +96,11 @@ impl App {
             AppMessage::Video(message) => self.video.update(message),
             AppMessage::Screensaver(message) => self.screensaver.update(message),
             AppMessage::Grafana(message) => self.grafana.update(message),
+            AppMessage::Heating(message) => {
+                if let Some(heating) = &mut self.heating {
+                    heating.update(message);
+                }
+            }
         }
     }
 }

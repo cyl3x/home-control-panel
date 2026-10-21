@@ -18,6 +18,7 @@ pub mod calendar;
 pub mod config;
 pub mod gtk_ext;
 pub mod messaging;
+pub mod myvaillant;
 pub mod prelude;
 pub mod widgets;
 
