@@ -282,9 +282,9 @@ spinner.large {
     opacity: 0.55;
 }
 
+/* No time column, so the strip starts where the times would have been */
 .calendar-day__item.allday {
     min-height: 52px;
-    box-shadow: none;
     padding-left: 20px;
 }
 

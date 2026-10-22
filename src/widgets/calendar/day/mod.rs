@@ -242,7 +242,8 @@ fn bind(event: &EventObject, item: &gtk::Box) {
         ),
     );
 
-    // The row steps back when the event is over and loses its times when it lasts whole days
+    // The row steps back when the event is over. Whole-day events drop the time column,
+    // but keep their calendar's colored strip like every other row.
     for (property, class) in [("past", "past"), ("whole-days", "allday")] {
         event.connect_notify_local(
             Some(property),
@@ -251,14 +252,11 @@ fn bind(event: &EventObject, item: &gtk::Box) {
                 item,
                 #[strong]
                 times,
-                #[strong]
-                indicator,
                 move |event: &EventObject, _| {
                     let active = event.property_value(property).get::<bool>().unwrap_or(false);
 
                     if class == "allday" {
                         times.set_visible(!active);
-                        indicator.set_visible(!active);
                     }
 
                     item.set_class_active(class, active);
