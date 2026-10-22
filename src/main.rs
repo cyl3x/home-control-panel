@@ -17,6 +17,7 @@ mod app;
 pub mod cache;
 pub mod calendar;
 pub mod config;
+pub mod enviiq;
 pub mod gtk_ext;
 pub mod messaging;
 pub mod myvaillant;

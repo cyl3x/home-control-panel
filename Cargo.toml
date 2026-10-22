@@ -33,6 +33,7 @@ glib-unix = "0.22.8"
 gtk = { package = "gtk4", version = "0.11.5", features = ["v4_18"] }
 icalendar = "0.17.15"
 log = { version = "0.4.34", features = ["kv", "kv_std"]}
+num-bigint = "0.5.1"
 palette = { version = "0.7.7", features = ["serializing"] }
 ring = "0.17.14"
 rrule = "0.14"

@@ -3,6 +3,7 @@ use crate::messaging;
 use crate::messaging::{AppMessage, Page};
 use crate::prelude::*;
 use crate::widgets::calendar::CalendarWidget;
+use crate::widgets::energy::EnergyWidget;
 use crate::widgets::grafana::GrafanaWidget;
 use crate::widgets::heating::HeatingWidget;
 use crate::widgets::screensaver::ScreensaverWidget;
@@ -17,6 +18,7 @@ pub struct App {
     screensaver: ScreensaverWidget,
     grafana: GrafanaWidget,
     heating: Option<HeatingWidget>,
+    energy: Option<EnergyWidget>,
     switcher: SwitcherWidget,
 }
 
@@ -27,6 +29,7 @@ impl App {
         let screensaver = ScreensaverWidget::new(config, calendar.upcoming());
         let grafana = GrafanaWidget::new(config);
         let heating = config.myvaillant.as_ref().map(HeatingWidget::new);
+        let energy = config.enviiq.as_ref().map(EnergyWidget::new);
 
         let paned = gtk::Paned::new(gtk::Orientation::Horizontal);
         paned.add_css_class("paned");
@@ -47,10 +50,17 @@ impl App {
         if let Some(heating) = &heating {
             stack.add_titled(heating.widget(), Some("heating"), "Heizung");
         }
+        if let Some(energy) = &energy {
+            stack.add_titled(energy.widget(), Some("energy"), "Energie");
+        }
 
         let switcher = SwitcherWidget::new(
             &stack,
-            &[(Page::Calendar, "calendar"), (Page::Heating, "heating")],
+            &[
+                (Page::Calendar, "calendar"),
+                (Page::Heating, "heating"),
+                (Page::Energy, "energy"),
+            ],
         );
 
         let view = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -88,6 +98,7 @@ impl App {
             screensaver,
             grafana,
             heating,
+            energy,
             switcher,
         }
     }
@@ -103,6 +114,11 @@ impl App {
             AppMessage::Heating(message) => {
                 if let Some(heating) = &mut self.heating {
                     heating.update(message);
+                }
+            }
+            AppMessage::Energy(message) => {
+                if let Some(energy) = &mut self.energy {
+                    energy.update(message);
                 }
             }
             AppMessage::Switcher(message) => self.switcher.update(message),

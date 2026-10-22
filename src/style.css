@@ -285,36 +285,45 @@ spinner.large {
     background-color: var(--background-elevated);
 }
 
-.heating.spinner-active > *:first-child {
+.heating.spinner-active > *:first-child,
+.energy.spinner-active > *:first-child {
     opacity: 0.5;
 }
 
-.heating__status {
+.heating__status,
+.energy__status {
     color: var(--color-disabled);
     font-size: 16px;
 }
 
-.heating__status.error {
+.heating__status.error,
+.energy__status.error {
     color: oklch(0.577 0.245 27.325);
 }
 
-.heating__systems {
+.heating__systems,
+.energy__content {
     margin: 16px;
 }
 
-.heating__system__title {
+.heating__system__title,
+.energy__title {
     font-size: 24px;
     font-weight: bold;
 }
 
-.heating__section__title {
+.heating__section__title,
+.energy__section__title {
     margin-top: 16px;
     font-size: 20px;
     font-weight: bold;
 }
 
 .heating__stat,
-.heating__card {
+.heating__card,
+.energy__card,
+.energy__node,
+.energy__stat {
     padding: 12px 16px;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
@@ -322,16 +331,20 @@ spinner.large {
 }
 
 .heating__stat__title,
-.heating__card__detail {
+.heating__card__detail,
+.energy__stat__title,
+.energy__detail {
     color: var(--color-disabled);
     font-size: 16px;
 }
 
-.heating__stat__value {
+.heating__stat__value,
+.energy__stat__value {
     font-size: 28px;
 }
 
-.heating__card__title {
+.heating__card__title,
+.energy__node__title {
     font-weight: bold;
 }
 
@@ -399,6 +412,62 @@ spinner.large {
 .heating__card__detail.state-cooling,
 .state-cooling .heating__stat__value {
     color: oklch(0.546 0.245 262.881);
+}
+
+.energy__node {
+    padding: 8px 14px;
+}
+
+.energy__node__value {
+    font-size: 28px;
+}
+
+/* A circle, half of the size set in the code */
+.energy__hub {
+    border-radius: 75px;
+    box-shadow: var(--box-shadow);
+    background-color: var(--background-elevated);
+}
+
+.energy__hub__icon,
+.energy__hub__value {
+    font-size: 28px;
+}
+
+/* Color of the lines between the parts and the house */
+.energy__flow {
+    color: var(--background-color-selected);
+}
+
+/* tailwind orange-600 and green-600 */
+.energy__detail.state-warn {
+    color: oklch(0.646 0.222 41.116);
+}
+
+.energy__detail.state-good {
+    color: oklch(0.627 0.194 149.214);
+}
+
+.energy__bar {
+    border-radius: 4px 4px 0 0;
+    background-color: var(--color-gray-400);
+}
+
+.energy__bar.past {
+    background-color: var(--color-gray-200);
+}
+
+.energy__bar.current {
+    background-color: var(--background-color-selected);
+}
+
+.energy__bar.cheapest {
+    background-color: oklch(0.627 0.194 149.214);
+}
+
+.energy__bar__label {
+    color: var(--color-disabled);
+    font-size: 14px;
 }
 
 /* Font Awesome, defined last to win over the font settings of the label classes */

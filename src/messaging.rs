@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 
 use crate::calendar::CalendarMap;
+use crate::enviiq::{self, Overview};
 use crate::myvaillant::{self, Command, HeatingSystem, Setpoint};
 
 pub type AppSender = async_channel::Sender<AppMessage>;
@@ -29,6 +30,7 @@ pub enum AppMessage {
     Screensaver(ScreensaverMessage),
     Grafana(GrafanaMessage),
     Heating(HeatingMessage),
+    Energy(EnergyMessage),
     Switcher(SwitcherMessage),
 }
 
@@ -105,11 +107,26 @@ impl From<HeatingMessage> for AppMessage {
     }
 }
 
+#[derive(Debug)]
+pub enum EnergyMessage {
+    Fetch,
+    /// Fetch requested by the user, which is throttled
+    Refresh,
+    Update(std::boxed::Box<Result<Overview, enviiq::Error>>),
+}
+
+impl From<EnergyMessage> for AppMessage {
+    fn from(val: EnergyMessage) -> Self {
+        Self::Energy(val)
+    }
+}
+
 /// Pages of the stack that fetch data, their tabs show whether that works
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Page {
     Calendar,
     Heating,
+    Energy,
 }
 
 #[derive(Debug)]

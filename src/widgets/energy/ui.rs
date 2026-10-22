@@ -1,0 +1,96 @@
+use crate::enviiq::Totals;
+use crate::prelude::*;
+
+/// The totals of today in a row, like the summary of the app.
+pub fn today(totals: &Totals) -> gtk::Box {
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+    row.set_homogeneous(true);
+    row.append(&stat("Erzeugt", &energy(totals.production)));
+    row.append(&stat("Verbraucht", &energy(totals.consumption)));
+    row.append(&stat(
+        "Solaranteil",
+        &totals
+            .share_of_total_power_consumption_in_percent
+            .map_or_else(|| "–".to_string(), |share| format!("{share:.0} %")),
+    ));
+    row.append(&stat("Netzbezug", &energy(totals.grid_consumption)));
+
+    let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
+    section.append(&label("Heute", "energy__section__title"));
+    section.append(&row);
+
+    section
+}
+
+pub fn label(text: &str, class: &str) -> gtk::Label {
+    gtk::Label::builder()
+        .label(text)
+        .halign(gtk::Align::Start)
+        .wrap(true)
+        .css_classes([class])
+        .build()
+}
+
+/// A label with an icon in front, which takes the size of the label's class.
+pub fn with_icon(icon: char, text: &str, class: &str) -> gtk::Box {
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+
+    let icon = label(&icon.to_string(), class);
+    icon.add_css_class("icon");
+    row.append(&icon);
+    row.append(&label(text, class));
+
+    row
+}
+
+/// A smaller, gray line of text, the class colors states worth noticing.
+pub fn detail(text: &str, class: Option<&str>) -> gtk::Label {
+    let detail = label(text, "energy__detail");
+
+    if let Some(class) = class {
+        detail.add_css_class(class);
+    }
+
+    detail
+}
+
+pub fn format_time(datetime: DateTime<Local>) -> String {
+    if datetime.date_naive() == Local::now().date_naive() {
+        datetime.format("%H:%M").to_string()
+    } else {
+        datetime.format("%d.%m. %H:%M").to_string()
+    }
+}
+
+pub fn power(watts: f64) -> String {
+    if watts.abs() < 1000.0 {
+        format!("{watts:.0} W")
+    } else {
+        format!("{:.2} kW", watts / 1000.0)
+    }
+}
+
+fn energy(kwh: Option<f64>) -> String {
+    kwh.map_or_else(|| "–".to_string(), |kwh| format!("{kwh:.1} kWh"))
+}
+
+fn stat(title: &str, value: &str) -> gtk::Box {
+    let stat = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    stat.add_css_class("energy__stat");
+    stat.append(&label(title, "energy__stat__title"));
+    stat.append(&label(value, "energy__stat__value"));
+
+    stat
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn formats_power() {
+        assert_eq!(power(500.0), "500 W");
+        assert_eq!(power(999.4), "999 W");
+        assert_eq!(power(2500.0), "2.50 kW");
+    }
+}

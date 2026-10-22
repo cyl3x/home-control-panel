@@ -17,6 +17,7 @@ pub struct Config {
     #[serde(default)]
     pub grafana: Grafana,
     pub myvaillant: Option<MyVaillant>,
+    pub enviiq: Option<EnviIq>,
 }
 
 #[derive(Clone, serde::Deserialize)]
@@ -169,6 +170,26 @@ impl core::fmt::Debug for MyVaillant {
     }
 }
 
+#[derive(Clone, serde::Deserialize)]
+pub struct EnviIq {
+    pub username: String,
+    #[serde(deserialize_with = "deserialize_from_file_opt")]
+    pub password: String,
+    /// Polling interval in seconds
+    #[serde(default = "default_enviiq_interval")]
+    pub interval: u32,
+}
+
+impl core::fmt::Debug for EnviIq {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("EnviIq")
+            .field("username", &self.username)
+            .field("password", &"<hidden>")
+            .field("interval", &self.interval)
+            .finish()
+    }
+}
+
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct StartEndTimes {
     pub start: chrono::NaiveTime,
@@ -196,6 +217,10 @@ const fn default_myvaillant_interval() -> u32 {
 
 const fn default_myvaillant_controls() -> bool {
     true
+}
+
+const fn default_enviiq_interval() -> u32 {
+    60
 }
 
 fn deserialize_from_file_opt<'de, D>(deserializer: D) -> Result<String, D::Error>
