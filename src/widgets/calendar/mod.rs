@@ -3,6 +3,7 @@ use gtk::glib;
 
 use crate::messaging::{self, CalendarMessage, Page, SwitcherMessage};
 use crate::prelude::*;
+use crate::widgets::calendar::birthday::{BirthdayLine, BirthdayWidget};
 use crate::widgets::calendar::day::DayWidget;
 use crate::widgets::calendar::event::EventWidget;
 use crate::widgets::calendar::month::start_grid_date;
@@ -10,6 +11,7 @@ use crate::widgets::calendar::selection::SelectionWidget;
 use crate::widgets::calendar::upcoming::UpcomingWidget;
 use crate::{calendar::Manager, config::Config, widgets::calendar::month::MonthWidget};
 
+pub mod birthday;
 pub mod day;
 pub mod event;
 pub mod month;
@@ -46,6 +48,8 @@ pub struct CalendarWidget {
     selection: SelectionWidget,
     event: EventWidget,
     upcoming: UpcomingWidget,
+    birthday: BirthdayWidget,
+    birthday_line: BirthdayLine,
 
     dates: Dates,
     manager: Manager,
@@ -65,10 +69,14 @@ impl CalendarWidget {
         let selection = SelectionWidget::new(config);
         let event = EventWidget::new(config);
         let upcoming = UpcomingWidget::new(config);
+        let birthday = BirthdayWidget::new(config);
+        let birthday_line = BirthdayLine::new(config);
 
-        let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 16);
+        // The day list gets the whole height that is left below the filters
+        let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 12);
         wrapper.append(month.widget());
         wrapper.append(selection.widget());
+        wrapper.append(birthday.widget());
         wrapper.append(day.widget());
         wrapper.append(event.widget());
 
@@ -88,6 +96,8 @@ impl CalendarWidget {
             selection,
             event,
             upcoming,
+            birthday,
+            birthday_line,
 
             manager: Manager::new(config.ical.clone()),
             reset_dates_timeout: None,
@@ -102,6 +112,10 @@ impl CalendarWidget {
 
     pub const fn upcoming(&self) -> &UpcomingWidget {
         &self.upcoming
+    }
+
+    pub const fn birthday_line(&self) -> &BirthdayLine {
+        &self.birthday_line
     }
 
     pub fn update(&mut self, message: CalendarMessage) {
@@ -183,6 +197,9 @@ impl CalendarWidget {
         self.selection.update_calendar(&self.manager);
         self.event.update_calendar(&self.manager, &self.dates);
         self.upcoming.update_calendar(&self.manager, &self.dates);
+        self.birthday.update_calendar(&self.manager, &self.dates);
+        self.birthday_line
+            .update_calendar(&self.manager, &self.dates);
 
         log::info!("Calendar: updated for date {}", self.dates.selected);
     }

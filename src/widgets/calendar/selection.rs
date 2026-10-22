@@ -12,7 +12,9 @@ pub struct SelectionWidget {
 
 impl SelectionWidget {
     pub fn new(config: &Config) -> Self {
-        let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        // Always one row: the names are shortened rather than wrapping, so the filters
+        // keep a fixed height whatever the column is doing
+        let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         wrapper.add_css_class("calendar-selection");
 
         Self {

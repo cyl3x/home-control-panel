@@ -20,6 +20,8 @@ pub struct Video {
     player: Player,
     queue: Queue,
     spinners: Vec<gtk::Spinner>,
+    /// Marks which camera is showing, the buttons sit on the video
+    buttons: Vec<gtk::Button>,
 
     reset_timeout: Option<glib::SourceId>,
     last_position: f64,
@@ -55,8 +57,11 @@ impl Video {
 
         let button_wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         button_wrapper.add_css_class("buttons");
+        button_wrapper.set_halign(gtk::Align::Start);
+        button_wrapper.set_valign(gtk::Align::End);
 
         let mut spinners = Vec::with_capacity(config.videos.len());
+        let mut buttons = Vec::with_capacity(config.videos.len());
         for (idx, video) in config.videos.iter().enumerate() {
             let label = gtk::Label::new(Some(&video.name));
             label.set_hexpand(false);
@@ -78,7 +83,7 @@ impl Video {
             content.append(&label);
 
             let button = gtk::Button::new();
-            button.set_hexpand(true);
+            button.set_hexpand(false);
             button.set_child(Some(&content));
             button.connect_clicked(move |_| {
                 messaging::send_message(VideoMessage::VideoSelectIndex(Some(idx)));
@@ -86,12 +91,18 @@ impl Video {
 
             button_wrapper.append(&button);
             spinners.push(spinner);
+            buttons.push(button);
         }
+
+        // The buttons sit on the video instead of below it, which leaves the height
+        // under the camera to the summary rows
+        let overlay = gtk::Overlay::new();
+        overlay.set_child(Some(&video_player));
+        overlay.add_overlay(&button_wrapper);
 
         let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 0);
         wrapper.add_css_class("video-player");
-        wrapper.append(&video_player);
-        wrapper.append(&button_wrapper);
+        wrapper.append(&overlay);
 
         if !config.videos.is_empty() {
             messaging::send_message(VideoMessage::VideoSelectIndex(Some(0)));
@@ -152,6 +163,7 @@ impl Video {
             player,
             queue,
             spinners,
+            buttons,
             reset_timeout: None,
             last_position: 0.0,
             stalled_checks: 0,
@@ -211,6 +223,10 @@ impl Video {
                         spinner.stop();
                         spinner.set_visible(false);
                     }
+                }
+
+                for (idx, button) in self.buttons.iter().enumerate() {
+                    button.set_class_active("active", idx == clicked_idx);
                 }
 
                 self.queue.select_item(None);

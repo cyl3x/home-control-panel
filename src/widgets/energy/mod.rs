@@ -38,6 +38,7 @@ impl EnergyWidget {
             .build();
 
         let refresh_button = gtk::Button::from_icon_name("view-refresh-symbolic");
+        refresh_button.add_css_class("refresh");
         refresh_button.set_valign(gtk::Align::Center);
         refresh_button.connect_clicked(|_| {
             messaging::send_message(EnergyMessage::Refresh);
@@ -52,9 +53,12 @@ impl EnergyWidget {
         header.append(&refresh_button);
 
         let body = gtk::Box::new(gtk::Orientation::Vertical, 16);
+        body.set_vexpand(true);
 
+        // The content fills the page, so the price chart takes the height below the diagram
         let content = gtk::Box::new(gtk::Orientation::Vertical, 16);
         content.add_css_class("energy__content");
+        content.set_vexpand(true);
         content.append(&header);
         content.append(&body);
 
@@ -197,13 +201,24 @@ impl EnergyWidget {
             self.body.remove(&child);
         }
 
-        self.body.append(&flow::diagram(overview));
+        // The diagram and the totals of today share the upper half, so the price chart
+        // gets the height that used to be empty below the content at 1080p
+        let top = gtk::Box::new(gtk::Orientation::Horizontal, 24);
+        top.set_vexpand(false);
+
+        // The diagram absorbs the width that is left over, Heute keeps its natural size
+        let diagram = flow::diagram(overview);
+        diagram.set_hexpand(true);
+        top.append(&diagram);
 
         if let Some(totals) = &overview.totals {
-            self.body.append(&ui::today(totals));
+            top.append(&ui::today(totals));
         }
 
+        self.body.append(&top);
+
         if let Some(prices) = prices::section(&overview.prices, now) {
+            prices.set_vexpand(true);
             self.body.append(&prices);
         }
     }

@@ -1,3 +1,5 @@
+use gtk::glib;
+
 use crate::config::Config;
 use crate::messaging;
 use crate::messaging::{AppMessage, EnergyMessage, HeatingMessage, Page};
@@ -9,6 +11,9 @@ use crate::widgets::screensaver::ScreensaverWidget;
 use crate::widgets::summary::SummaryWidget;
 use crate::widgets::switcher::SwitcherWidget;
 use crate::widgets::video::Video;
+
+/// Share of the width the calendar column starts with, the camera and summary take the rest
+const CALENDAR_SHARE: i32 = 40;
 
 pub struct App {
     #[allow(unused)]
@@ -26,7 +31,8 @@ impl App {
     pub fn new(app: &gtk::Application, config: &Config) -> Self {
         let calendar = CalendarWidget::new(config);
         let video = Video::new(config);
-        let screensaver = ScreensaverWidget::new(config, calendar.upcoming());
+        let screensaver =
+            ScreensaverWidget::new(config, calendar.upcoming(), calendar.birthday_line());
         let heating = config.myvaillant.as_ref().map(HeatingWidget::new);
         let energy = config.enviiq.as_ref().map(EnergyWidget::new);
 
@@ -56,7 +62,7 @@ impl App {
         paned.set_end_child(Some(&side));
 
         calendar.widget().set_width_request(100);
-        side.set_width_request(800);
+        side.set_width_request(400);
 
         let stack = gtk::Stack::new();
         stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
@@ -105,6 +111,24 @@ impl App {
         window.set_child(Some(&overlay));
         window.add_controller(controller);
         window.present();
+
+        // The split is a share of the width, not a pixel position, so it is the same on
+        // any screen. Set once the paned knows its width, after that it stays draggable.
+        window.add_tick_callback(glib::clone!(
+            #[strong]
+            paned,
+            move |_, _| {
+                let width = paned.width();
+
+                if width <= 0 {
+                    return glib::ControlFlow::Continue;
+                }
+
+                paned.set_position(width * CALENDAR_SHARE / 100);
+
+                glib::ControlFlow::Break
+            }
+        ));
 
         Self {
             window,

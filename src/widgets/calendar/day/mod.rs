@@ -1,4 +1,5 @@
 use gtk::gio;
+use gtk::glib;
 
 use crate::calendar::Manager;
 use crate::config::{Config, UuidFilter};
@@ -8,9 +9,15 @@ use crate::widgets::calendar::day::event_object::EventObject;
 
 mod event_object;
 
+/// The events of the selected day, with a header that names the day and counts them.
+///
+/// The list takes the whole height below the filters, so three or more events fit without
+/// scrolling.
 pub struct DayWidget {
     filter: Option<UuidFilter>,
-    wrapper: gtk::ScrolledWindow,
+    wrapper: gtk::Box,
+    title: gtk::Label,
+    count: gtk::Label,
     list: gtk::ListView,
 }
 
@@ -39,65 +46,58 @@ impl DayWidget {
             let item = list_item
                 .child()
                 .and_downcast::<gtk::Box>()
-                .expect("The child has to be a Label");
+                .expect("The child has to be a Box");
 
-            let indicator = item.first_child().expect("Needs to have the indicator");
-
-            let label_wrapper = item
-                .last_child()
-                .and_downcast::<gtk::Box>()
-                .expect("The last child has to be a Box");
-
-            let summary = label_wrapper
-                .first_child()
-                .and_downcast::<gtk::Label>()
-                .expect("The first child has to be a Label");
-
-            let description = label_wrapper
-                .last_child()
-                .and_downcast::<gtk::Label>()
-                .expect("The last child has to be a Label");
-
-            event
-                .bind_property("summary", &summary, "label")
-                .sync_create()
-                .build();
-
-            event
-                .bind_property("description", &description, "label")
-                .sync_create()
-                .build();
-
-            event.connect_notify_local(Some("color"), move |event, _| {
-                let color = event.property_value("color").get::<String>().unwrap();
-                indicator.inline_css(&format!("background-color: {color}"));
-            });
-
-            event.set_property("color", event.property_value("color"));
+            bind(&event, &item);
         });
 
         let list = gtk::ListView::new(Some(gtk::NoSelection::new(Some(store))), Some(factory));
         list.set_expand(true);
 
-        let wrapper = gtk::ScrolledWindow::new();
+        let scrolled = gtk::ScrolledWindow::new();
+        scrolled.set_expand(true);
+        scrolled.set_child(Some(&list));
+        scrolled.add_css_class("calendar-day");
+
+        let title = gtk::Label::builder()
+            .halign(gtk::Align::Start)
+            .hexpand(true)
+            .ellipsize(gtk::pango::EllipsizeMode::End)
+            .css_classes(["calendar-day__header__title"])
+            .build();
+
+        let count = gtk::Label::builder()
+            .halign(gtk::Align::End)
+            .valign(gtk::Align::Baseline)
+            .css_classes(["calendar-day__header__count"])
+            .build();
+
+        let header = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+        header.add_css_class("calendar-day__header");
+        header.append(&title);
+        header.append(&count);
+
+        let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 0);
         wrapper.set_expand(true);
-        wrapper.set_child(Some(&list));
-        wrapper.add_css_class("calendar-day");
+        wrapper.append(&header);
+        wrapper.append(&scrolled);
 
         Self {
             filter: config.calendar.day.clone(),
             wrapper,
+            title,
+            count,
             list,
         }
     }
 
-    pub const fn widget(&self) -> &gtk::ScrolledWindow {
+    pub const fn widget(&self) -> &gtk::Box {
         &self.wrapper
     }
 
     pub fn update_calendar(&mut self, manager: &Manager, dates: &Dates) {
         let mut len = 0;
-        for (idx, (calendar, _, event)) in manager
+        for (idx, (calendar, occurrence, event)) in manager
             .events_between(dates.selected, dates.selected, self.filter.as_ref())
             .enumerate()
         {
@@ -108,10 +108,11 @@ impl DayWidget {
                     let item = item
                         .downcast::<EventObject>()
                         .expect("The item has to be an EventObject");
-                    item.update(calendar, event);
+                    item.update(calendar, event, *occurrence);
                 }
                 None => {
-                    self.store().append(&EventObject::new(calendar, event));
+                    self.store()
+                        .append(&EventObject::new(calendar, event, *occurrence));
                 }
             }
         }
@@ -127,6 +128,13 @@ impl DayWidget {
             }
             _ => (),
         }
+
+        self.title.set_label(&day_title(dates));
+        self.count.set_label(&match len {
+            0 => "Keine Termine".to_string(),
+            1 => "1 Termin".to_string(),
+            len => format!("{len} Termine"),
+        });
     }
 
     fn model(&self) -> gtk::NoSelection {
@@ -146,11 +154,147 @@ impl DayWidget {
     }
 }
 
+/// "Heute, Do 22. Oktober", so the list says which day it belongs to.
+fn day_title(dates: &Dates) -> String {
+    let date = dates
+        .selected
+        .format_localized("%a %-d. %B", chrono::Locale::de_DE);
+
+    if dates.is_today(dates.selected) {
+        format!("Heute, {date}")
+    } else {
+        date.to_string()
+    }
+}
+
+fn bind(event: &EventObject, item: &gtk::Box) {
+    let times = item
+        .first_child()
+        .and_downcast::<gtk::Box>()
+        .expect("The first child has to be the times");
+
+    let start = times
+        .first_child()
+        .and_downcast::<gtk::Label>()
+        .expect("The first time has to be a Label");
+
+    let end = times
+        .last_child()
+        .and_downcast::<gtk::Label>()
+        .expect("The last time has to be a Label");
+
+    let indicator = times.next_sibling().expect("Needs to have the indicator");
+
+    let labels = indicator
+        .next_sibling()
+        .and_downcast::<gtk::Box>()
+        .expect("The labels have to be a Box");
+
+    let summary = labels
+        .first_child()
+        .and_downcast::<gtk::Label>()
+        .expect("The first child has to be a Label");
+
+    let description = labels
+        .last_child()
+        .and_downcast::<gtk::Label>()
+        .expect("The last child has to be a Label");
+
+    let chip = item
+        .last_child()
+        .and_downcast::<gtk::Label>()
+        .expect("The last child has to be the chip");
+
+    for (property, label) in [
+        ("summary", &summary),
+        ("description", &description),
+        ("start", &start),
+        ("end", &end),
+    ] {
+        event
+            .bind_property(property, label, "label")
+            .sync_create()
+            .build();
+    }
+
+    // Times are hidden rather than left empty, which keeps the rows of whole-day events tight
+    for (property, label) in [("start", &start), ("end", &end)] {
+        event
+            .bind_property(property, label, "visible")
+            .transform_to(|_, text: String| Some(!text.is_empty()))
+            .sync_create()
+            .build();
+    }
+
+    event
+        .bind_property("running", &chip, "visible")
+        .sync_create()
+        .build();
+
+    event.connect_notify_local(
+        Some("color"),
+        glib::clone!(
+            #[strong]
+            indicator,
+            move |event, _| {
+                indicator.inline_css(&format!("background-color: {}", event.color()));
+            }
+        ),
+    );
+
+    // The row steps back when the event is over and loses its times when it lasts whole days
+    for (property, class) in [("past", "past"), ("whole-days", "allday")] {
+        event.connect_notify_local(
+            Some(property),
+            glib::clone!(
+                #[strong]
+                item,
+                #[strong]
+                times,
+                #[strong]
+                indicator,
+                move |event: &EventObject, _| {
+                    let active = event.property_value(property).get::<bool>().unwrap_or(false);
+
+                    if class == "allday" {
+                        times.set_visible(!active);
+                        indicator.set_visible(!active);
+                    }
+
+                    item.set_class_active(class, active);
+                }
+            ),
+        );
+    }
+
+    // Notifies are what carry the state onto the widgets, so replay them for a recycled row
+    for property in ["color", "past", "whole-days"] {
+        event.notify(property);
+    }
+}
+
 fn create_day_event() -> gtk::Box {
+    let start = gtk::Label::new(None);
+    start.add_css_class("calendar-day__item__time");
+    start.set_halign(gtk::Align::End);
+
+    let end = gtk::Label::new(None);
+    end.add_css_class("calendar-day__item__time__end");
+    end.set_halign(gtk::Align::End);
+
+    let times = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    times.set_width_request(64);
+    times.set_valign(gtk::Align::Center);
+    times.set_margin_start(20);
+    times.append(&start);
+    times.append(&end);
+
     let indicator = gtk::Box::new(gtk::Orientation::Vertical, 0);
     indicator.add_css_class("calendar-day__item__indicator");
     indicator.set_hexpand(false);
     indicator.set_vexpand(true);
+    indicator.set_margin_vertical(12);
+    indicator.set_margin_start(16);
 
     let summary = gtk::Label::new(None);
     summary.add_css_class("calendar-day__item__labels__summary");
@@ -164,16 +308,24 @@ fn create_day_event() -> gtk::Box {
     description.set_halign(gtk::Align::Start);
     description.set_ellipsize(gtk::pango::EllipsizeMode::End);
 
-    let label_wrapper = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    let label_wrapper = gtk::Box::new(gtk::Orientation::Vertical, 2);
     label_wrapper.add_css_class("calendar-day__item__labels");
     label_wrapper.set_hexpand(true);
+    label_wrapper.set_valign(gtk::Align::Center);
     label_wrapper.append(&summary);
     label_wrapper.append(&description);
 
+    let chip = gtk::Label::new(Some("läuft"));
+    chip.add_css_class("calendar-day__item__chip");
+    chip.set_valign(gtk::Align::Center);
+    chip.set_visible(false);
+
     let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     wrapper.add_css_class("calendar-day__item");
+    wrapper.append(&times);
     wrapper.append(&indicator);
     wrapper.append(&label_wrapper);
+    wrapper.append(&chip);
 
     wrapper
 }

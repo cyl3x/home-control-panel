@@ -8,23 +8,38 @@ pub const ICON_HOUSE: char = '\u{f015}'; // house
 pub const ICON_HOUSEHOLD: char = '\u{f0eb}'; // lightbulb
 pub const ICON_HEAT_PUMP: char = '\u{f863}'; // fan
 
-/// The totals of today in a row, like the summary of the app.
+/// The totals of today, as a block of four that sits beside the flow diagram.
 pub fn today(totals: &Totals) -> gtk::Box {
-    let row = gtk::Box::new(gtk::Orientation::Horizontal, 16);
-    row.set_homogeneous(true);
-    row.append(&stat("Erzeugt", &energy(totals.production)));
-    row.append(&stat("Verbraucht", &energy(totals.consumption)));
-    row.append(&stat(
-        "Solaranteil",
-        &totals
-            .share_of_total_power_consumption_in_percent
-            .map_or_else(|| "–".to_string(), |share| format!("{share:.0} %")),
-    ));
-    row.append(&stat("Netzbezug", &energy(totals.grid_consumption)));
+    let stats = [
+        stat("Erzeugt", &energy(totals.production)),
+        stat("Verbraucht", &energy(totals.consumption)),
+        stat(
+            "Solaranteil",
+            &totals
+                .share_of_total_power_consumption_in_percent
+                .map_or_else(|| "–".to_string(), |share| format!("{share:.0} %")),
+        ),
+        stat("Netzbezug", &energy(totals.grid_consumption)),
+    ];
 
-    let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
+    let grid = gtk::Grid::builder()
+        .row_spacing(16)
+        .column_spacing(16)
+        .row_homogeneous(true)
+        .column_homogeneous(true)
+        .vexpand(true)
+        .hexpand(true)
+        .build();
+
+    for (index, stat) in stats.into_iter().enumerate() {
+        grid.attach(&stat, (index % 2) as i32, (index / 2) as i32, 1, 1);
+    }
+
+    let section = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    section.set_hexpand(false);
+    section.set_width_request(360);
     section.append(&label("Heute", "energy__section__title"));
-    section.append(&row);
+    section.append(&grid);
 
     section
 }
@@ -134,9 +149,14 @@ pub fn energy(kwh: Option<f64>) -> String {
 }
 
 fn stat(title: &str, value: &str) -> gtk::Box {
+    // The title sits at the top and the value at the bottom, so the values line up
+    let grow = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    grow.set_vexpand(true);
+
     let stat = gtk::Box::new(gtk::Orientation::Vertical, 4);
     stat.add_css_class("energy__stat");
     stat.append(&label(title, "energy__stat__title"));
+    stat.append(&grow);
     stat.append(&label(value, "energy__stat__value"));
 
     stat

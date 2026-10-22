@@ -52,6 +52,9 @@ impl EventWidget {
                 .inline_css(&format!("background-color: {}", calendar.css_color()));
         }
 
-        self.wrapper.set_visible(event.is_some());
+        // While today is selected the day list already shows this event, so the bar would
+        // only repeat it. It stays for other days, where it is the only hint about today.
+        self.wrapper
+            .set_visible(event.is_some() && !dates.is_today(dates.selected));
     }
 }

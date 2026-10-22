@@ -12,8 +12,7 @@ use crate::prelude::*;
 /// Values of older fetches are grayed out, the dots of the tabs show that fetching fails
 const STALE_AFTER: TimeDelta = TimeDelta::minutes(30);
 
-/// Rows the corner below the camera is divided into, also with fewer pages
-const ROWS: usize = 2;
+const ICON_CHEVRON: char = '\u{f054}'; // chevron-right
 
 pub struct SummaryWidget {
     wrapper: gtk::Box,
@@ -23,25 +22,22 @@ pub struct SummaryWidget {
 impl SummaryWidget {
     /// Rows for the pages in the given order, only pages with a configured integration belong here.
     ///
-    /// Rows always have the height of a full corner, so the cards look the same with fewer pages.
-    /// Missing rows leave space at the top, which keeps the cards next to the calendar's bottom.
+    /// The rows keep their own height instead of filling whatever the camera leaves over, so
+    /// they look the same however the split is dragged. They sit at the bottom, which keeps
+    /// them next to the calendar's bottom and leaves any free space above them.
     pub fn new(pages: &[Page]) -> Self {
-        let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 16);
+        let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 12);
         wrapper.add_css_class("summary");
-        wrapper.set_homogeneous(true);
         wrapper.set_vexpand(true);
+        wrapper.set_valign(gtk::Align::End);
         wrapper.set_visible(!pages.is_empty());
-
-        for _ in pages.len()..ROWS {
-            wrapper.append(&gtk::Box::new(gtk::Orientation::Horizontal, 0));
-        }
 
         let mut rows = HashMap::new();
 
         for page in pages.iter().copied() {
-            let row = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+            // One card per row, divided by thin lines, so a row reads as one tappable unit
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             row.add_css_class("summary__row");
-            row.set_homogeneous(true);
 
             let click = gtk::GestureClick::new();
             click.connect_released(move |_, _, _, _| {
@@ -72,9 +68,33 @@ impl SummaryWidget {
             row.remove(&child);
         }
 
+        // Equal columns, so the dividers line up between the rows. Letting the cards
+        // expand from their own natural widths puts them a few pixels apart.
+        let columns = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        columns.set_homogeneous(true);
+        columns.set_hexpand(true);
+
         for card in cards {
-            row.append(card);
+            columns.append(card);
         }
+
+        if !cards.is_empty() {
+            row.append(&columns);
+        }
+
+        // The chevron hints that the row opens its page
+        if !cards.is_empty() {
+            let chevron = gtk::Label::builder()
+                .label(ICON_CHEVRON.to_string())
+                .valign(gtk::Align::Center)
+                .css_classes(["summary__go", "icon"])
+                .build();
+
+            row.append(&chevron);
+        }
+
+        // An empty row keeps its space, but without the card behind it
+        row.set_class_active("empty", cards.is_empty());
 
         row.set_class_active(
             "stale",

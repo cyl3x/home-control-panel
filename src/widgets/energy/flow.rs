@@ -13,11 +13,12 @@ use super::ui::{
 use crate::enviiq::{Measurement, Overview};
 use crate::prelude::*;
 
-const NODE_WIDTH: i32 = 280;
+/// Smallest width of a part, they grow with the diagram
+const NODE_WIDTH: i32 = 300;
 /// Diameter of the house in the middle, the border radius in the CSS matches it
-const HUB_SIZE: i32 = 220;
-/// Horizontal length of the lines between the parts and the house
-const LINE_SPACE: i32 = 240;
+const HUB_SIZE: i32 = 260;
+/// Shortest the lines between the parts and the house get, they stretch with the width
+const LINE_SPACE: i32 = 80;
 /// Distance between the lines where they meet the house
 const LINE_SPREAD: f64 = 24.0;
 const ARROW_SIZE: f64 = 9.0;
@@ -71,9 +72,10 @@ pub fn diagram(overview: &Overview) -> gtk::Overlay {
 
     let hub = hub(overview);
 
-    // Centered, stretching it to the edges of a full HD screen would leave the parts far apart
+    // The lines take whatever width is left, so the diagram fits narrow screens and
+    // spreads out on wide ones instead of being cut off
     let layout = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    layout.set_halign(gtk::Align::Center);
+    layout.set_hexpand(true);
     layout.append(&sources);
     layout.append(&spacer());
     layout.append(&hub);
@@ -126,6 +128,7 @@ fn column<const N: usize>(
 fn spacer() -> gtk::Box {
     let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     spacer.set_width_request(LINE_SPACE);
+    spacer.set_hexpand(true);
 
     spacer
 }

@@ -48,6 +48,7 @@ impl HeatingWidget {
             .build();
 
         let refresh_button = gtk::Button::from_icon_name("view-refresh-symbolic");
+        refresh_button.add_css_class("refresh");
         refresh_button.set_valign(gtk::Align::Center);
         refresh_button.connect_clicked(|_| {
             messaging::send_message(HeatingMessage::Refresh);
@@ -61,6 +62,8 @@ impl HeatingWidget {
 
         let systems_box = gtk::Box::new(gtk::Orientation::Vertical, 32);
         systems_box.add_css_class("heating__systems");
+        // Lets the cards take the height instead of leaving it empty below them
+        systems_box.set_vexpand(true);
 
         let scrolled = gtk::ScrolledWindow::builder()
             .hscrollbar_policy(gtk::PolicyType::Never)

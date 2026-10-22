@@ -11,9 +11,11 @@ const ICON_VENTILATION: char = '\u{f72e}'; // wind
 const ICON_AWAY: char = '\u{f5c1}'; // suitcase-rolling
 
 /// A system with its name, overview and cards, the status bar is shown next to the name.
+///
+/// The overview stats sit in the header row, which leaves the whole height below to the cards.
 pub fn system(system: &HeatingSystem, controls: bool, status_bar: Option<&gtk::Box>) -> gtk::Box {
-    let overview = gtk::Box::new(gtk::Orientation::Horizontal, 16);
-    overview.set_homogeneous(true);
+    let overview = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+    overview.set_valign(gtk::Align::Center);
     overview.append(&stat(
         "Außen",
         &temperature(system.outdoor_temperature),
@@ -21,9 +23,10 @@ pub fn system(system: &HeatingSystem, controls: bool, status_bar: Option<&gtk::B
     ));
     overview.append(&stat(
         "Wasserdruck",
-        &system
-            .water_pressure
-            .map_or_else(|| "–".to_string(), |pressure| format!("{pressure:.1} bar")),
+        &system.water_pressure.map_or_else(
+            || "–".to_string(),
+            |pressure| format!("{pressure:.1} bar"),
+        ),
         None,
     ));
     let state = system.energy_manager_state.as_deref();
@@ -49,6 +52,8 @@ pub fn system(system: &HeatingSystem, controls: bool, status_bar: Option<&gtk::B
         .max_children_per_line(u32::try_from(count).unwrap_or(4).clamp(1, 4))
         .row_spacing(16)
         .column_spacing(16)
+        // The cards keep their own height. Stretching them to the page only blows up the
+        // gap between the reading and the controls.
         .valign(gtk::Align::Start)
         .build();
 
@@ -67,20 +72,24 @@ pub fn system(system: &HeatingSystem, controls: bool, status_bar: Option<&gtk::B
     let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
     section.add_css_class("heating__system");
     let title = label(&system.name, "heating__system__title");
-    title.set_hexpand(true);
+    title.set_valign(gtk::Align::Center);
 
-    let header = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 32);
+    header.add_css_class("heating__header");
     header.append(&title);
+    header.append(&overview);
 
     if let Some(status_bar) = status_bar {
         header.append(status_bar);
     }
 
     section.append(&header);
-    section.append(&overview);
     section.append(&cards);
 
     if controls {
+        // Pinned to the bottom, so the height left over sits between the groups rather
+        // than inside the cards
+        section.append(&grow());
         section.append(&label("Schnellzugriff", "heating__section__title"));
         section.append(&quick_actions(system));
     }
@@ -146,29 +155,12 @@ fn quick_actions(system: &HeatingSystem) -> gtk::Box {
 
 fn zone_card(system: &HeatingSystem, zone: &Zone, controls: bool) -> gtk::Box {
     // Systems without a room sensor only know the setpoint
-    let (value, setpoint) = zone.current_temperature.map_or_else(
-        || {
-            (
-                temperature(zone.desired_temperature),
-                "Solltemperatur".to_string(),
-            )
-        },
-        |current| {
-            (
-                temperature(Some(current)),
-                format!("Soll {}", temperature(zone.desired_temperature)),
-            )
-        },
+    let (value, setpoint_title) = zone.current_temperature.map_or_else(
+        || (zone.desired_temperature, "Solltemperatur"),
+        |current| (Some(current), "Soll"),
     );
 
-    let card = card(ICON_ZONE, &zone.name, &value);
-    card.append(&setpoint_row(
-        &setpoint,
-        controls.then(|| Setpoint::Zone {
-            system_id: system.id.clone(),
-            zone: zone.index,
-        }),
-    ));
+    let card = card(ICON_ZONE, &zone.name, value, "°C");
 
     let mut texts = Vec::new();
     texts.extend(
@@ -186,6 +178,16 @@ fn zone_card(system: &HeatingSystem, zone: &Zone, controls: bool) -> gtk::Box {
     if let Some(details) = details(&texts, zone.heating_state.as_deref()) {
         card.append(&details);
     }
+
+    card.append(&grow());
+    card.append(&setpoint_row(
+        setpoint_title,
+        &temperature(zone.desired_temperature),
+        controls.then(|| Setpoint::Zone {
+            system_id: system.id.clone(),
+            zone: zone.index,
+        }),
+    ));
 
     if controls {
         card.append(&mode_buttons(
@@ -225,10 +227,14 @@ fn hot_water_card(system: &HeatingSystem, hot_water: &HotWater, controls: bool) 
     let card = card(
         ICON_HOT_WATER,
         "Warmwasser",
-        &temperature(hot_water.current_temperature),
+        hot_water.current_temperature,
+        "°C",
     );
+
+    card.append(&grow());
     card.append(&setpoint_row(
-        &format!("Soll {}", temperature(hot_water.setpoint)),
+        "Soll",
+        &temperature(hot_water.setpoint),
         controls.then(|| Setpoint::HotWater {
             system_id: system.id.clone(),
             index: hot_water.index,
@@ -262,32 +268,59 @@ fn circuit_card(circuit: &Circuit) -> gtk::Box {
     let card = card(
         ICON_CIRCUIT,
         &format!("Heizkreis {}", circuit.index + 1),
-        &temperature(circuit.flow_temperature),
+        circuit.flow_temperature,
+        "°C",
     );
 
-    // The setpoint is 0 while the circuit is in standby
-    let flow = circuit
-        .flow_setpoint
-        .filter(|setpoint| *setpoint > 0.0)
-        .map_or_else(
-            || "Vorlauf".to_string(),
-            |setpoint| format!("Vorlauf-Soll {}", temperature(Some(setpoint))),
-        );
-
-    if let Some(details) = details(&[flow], circuit.state.as_deref()) {
+    if let Some(details) = details(&["Vorlauf".to_string()], circuit.state.as_deref()) {
         card.append(&details);
+    }
+
+    card.append(&grow());
+
+    // The setpoint is 0 while the circuit is in standby, then there is nothing to aim for
+    if let Some(setpoint) = circuit.flow_setpoint.filter(|setpoint| *setpoint > 0.0) {
+        card.append(&readonly(
+            "Vorlauf-Soll",
+            &temperature(Some(setpoint)),
+        ));
     }
 
     card
 }
 
-fn card(icon: char, title: &str, value: &str) -> gtk::Box {
-    let card = gtk::Box::new(gtk::Orientation::Vertical, 4);
+/// A card with its title and the big value, the unit stays smaller next to the number.
+fn card(icon: char, title: &str, value: Option<f64>, unit: &str) -> gtk::Box {
+    let big = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    big.set_margin_top(8);
+
+    match value {
+        Some(value) => {
+            big.append(&label(&format!("{value:.1}"), "heating__card__value"));
+
+            let unit = label(&format!(" {unit}"), "heating__card__value__unit");
+            unit.set_valign(gtk::Align::Baseline);
+            big.append(&unit);
+        }
+        // Without a reading the dash stands alone, a unit would claim there is one
+        None => big.append(&label("–", "heating__card__value")),
+    }
+
+    let card = gtk::Box::new(gtk::Orientation::Vertical, 12);
     card.add_css_class("heating__card");
     card.append(&with_icon(Some(icon), title, "heating__card__title"));
-    card.append(&label(value, "heating__card__value"));
+    card.append(&big);
 
     card
+}
+
+/// Pushes what follows it to the bottom of the card.
+fn grow() -> gtk::Box {
+    let grow = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    grow.set_vexpand(true);
+    grow.set_height_request(8);
+
+    grow
 }
 
 fn stat(title: &str, value: &str, icon: Option<char>) -> gtk::Box {
@@ -314,23 +347,41 @@ fn with_icon(icon: Option<char>, text: &str, class: &str) -> gtk::Box {
     row
 }
 
-/// The setpoint, with − and + if it can be changed.
-fn setpoint_row(text: &str, setpoint: Option<Setpoint>) -> gtk::Widget {
+/// The setpoint in a recessed row, with − and + if it can be changed.
+fn setpoint_row(title: &str, value: &str, setpoint: Option<Setpoint>) -> gtk::Widget {
     let Some(setpoint) = setpoint else {
-        return label(text, "heating__card__detail").upcast();
+        return readonly(title, value).upcast();
     };
 
-    let value = label(text, "heating__setpoint__value");
-    value.set_hexpand(true);
+    let title = label(title, "heating__setpoint__title");
+    title.set_halign(gtk::Align::Center);
+
+    let value = label(value, "heating__setpoint__value");
     value.set_halign(gtk::Align::Center);
 
-    let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let labels = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    labels.set_hexpand(true);
+    labels.set_valign(gtk::Align::Center);
+    labels.append(&title);
+    labels.append(&value);
+
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 16);
     row.add_css_class("heating__setpoint");
     row.append(&step_button("−", setpoint.clone(), -1));
-    row.append(&value);
+    row.append(&labels);
     row.append(&step_button("+", setpoint, 1));
 
     row.upcast()
+}
+
+/// A setpoint that cannot be changed here, which reads as a value rather than a control.
+fn readonly(title: &str, value: &str) -> gtk::Box {
+    let row = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    row.add_css_class("heating__readonly");
+    row.append(&label(title, "heating__readonly__title"));
+    row.append(&label(value, "heating__readonly__value"));
+
+    row
 }
 
 fn step_button(text: &str, setpoint: Setpoint, steps: i32) -> gtk::Button {
@@ -371,6 +422,16 @@ fn mode_buttons(
 fn action_button(icon: char, text: &str, active: bool, command: Command) -> gtk::Button {
     let content = with_icon(Some(icon), text, "heating__action__label");
     content.set_halign(gtk::Align::Center);
+
+    // These names are short enough to fit, breaking them at the hyphen only looks cramped
+    let mut child = content.first_child();
+    while let Some(label) = child {
+        if let Some(label) = label.downcast_ref::<gtk::Label>() {
+            label.set_wrap(false);
+        }
+
+        child = label.next_sibling();
+    }
 
     let button = gtk::Button::new();
     button.set_child(Some(&content));

@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::messaging;
 use crate::messaging::ScreensaverMessage;
 use crate::prelude::*;
+use crate::widgets::calendar::birthday::BirthdayLine;
 use crate::widgets::calendar::upcoming::UpcomingWidget;
 
 pub struct ScreensaverWidget {
@@ -20,11 +21,13 @@ pub struct ScreensaverWidget {
     center_wrapper: gtk::Box,
     date: gtk::Label,
     time: gtk::Label,
+    seconds: gtk::Label,
 }
 
 impl ScreensaverWidget {
-    pub fn new(config: &Config, upcoming: &UpcomingWidget) -> Self {
+    pub fn new(config: &Config, upcoming: &UpcomingWidget, birthday: &BirthdayLine) -> Self {
         let date = gtk::Label::builder()
+            .halign(gtk::Align::Start)
             .css_classes(["screensaver__date"])
             .build();
 
@@ -32,18 +35,44 @@ impl ScreensaverWidget {
             .css_classes(["screensaver__time"])
             .build();
 
+        // The seconds are smaller and dimmer, so the minute stays the thing you read
+        let seconds = gtk::Label::builder()
+            .valign(gtk::Align::Baseline)
+            .css_classes(["screensaver__seconds"])
+            .build();
+
+        let time_row = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(0)
+            .halign(gtk::Align::Start)
+            .build();
+
+        time_row.append(&time);
+        time_row.append(&seconds);
+
         let clock = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
-            .spacing(8)
-            .halign(gtk::Align::Center)
+            .spacing(16)
+            .halign(gtk::Align::Start)
             .valign(gtk::Align::Center)
             .build();
 
+        clock.append(&time_row);
         clock.append(&date);
-        clock.append(&time);
+        clock.append(birthday.widget());
 
-        let center_wrapper = gtk::Box::builder()
+        let rule = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
+            .valign(gtk::Align::Center)
+            .css_classes(["screensaver__rule"])
+            .build();
+
+        rule.set_size_request(1, 280);
+
+        // Time and agenda side by side, which keeps the whole thing compact and centered
+        let center_wrapper = gtk::Box::builder()
+            .orientation(gtk::Orientation::Horizontal)
+            .spacing(64)
             .hexpand(false)
             .vexpand(true)
             .halign(gtk::Align::Center)
@@ -52,6 +81,7 @@ impl ScreensaverWidget {
             .build();
 
         center_wrapper.append(&clock);
+        center_wrapper.append(&rule);
         center_wrapper.append(upcoming.widget());
 
         let controller = gtk::GestureClick::new();
@@ -86,6 +116,7 @@ impl ScreensaverWidget {
             center_wrapper,
             date,
             time,
+            seconds,
         }
     }
 
@@ -128,12 +159,12 @@ impl ScreensaverWidget {
 
                 self.wrapper.set_visible(activate);
 
-                self.time
-                    .set_label(&self.now.format("%H:%M:%S").to_string());
+                self.time.set_label(&self.now.format("%H:%M").to_string());
+                self.seconds.set_label(&self.now.format(":%S").to_string());
                 self.date.set_label(
                     &self
                         .now
-                        .format_localized("%d. %B", chrono::Locale::de_DE)
+                        .format_localized("%A, %-d. %B", chrono::Locale::de_DE)
                         .to_string(),
                 );
             }

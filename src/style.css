@@ -20,23 +20,35 @@ window {
     --color-gray-950: oklch(0.129 0.042 264.695);
 
     --color: oklch(0.129 0.042 264.695);
-    --color-disabled: oklch(0.704 0.04 256.788);
+    /* Secondary text sits at gray-500 for contrast, it used to be gray-400 */
+    --color-disabled: oklch(0.554 0.046 257.417);
 
-    --background-color-selected: oklch(70.7% 0.165 254.624);
+    --background-color-selected: oklch(0.78 0.1 245);
     --background-color-hover: oklch(0.929 0.013 255.508);
-    --background-color-active: oklch(88.2% 0.059 254.128);
+    --background-color-active: oklch(0.92 0.035 245);
 
     --background-color: oklch(0.968 0.007 247.896);
     --background-elevated: #fff;
     --background-color-disabled: oklch(0.869 0.022 252.894);
 
-    /* tailwind --shadow-md */
-    --box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+    /* Indicators share lightness and chroma, only the hue varies, so they read
+       equally strong and all reach 4.5:1 on white */
+    --color-good: oklch(0.56 0.12 160);
+    --color-warn: oklch(0.56 0.12 60);
+    --color-error: oklch(0.56 0.14 25);
+    --color-cool: oklch(0.56 0.12 250);
+
+    /* A hairline ring plus a short drop, which stays calm with many cards on screen */
+    --box-shadow: 0 0 0 1px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.1);
+    --box-shadow-pressed: inset 0 2px 4px rgb(0 0 0 / 0.25);
     --border-radius: 8px;
+    /* Grouped controls, like the tab track and the setpoint row */
+    --border-radius-group: 12px;
 }
 
 button {
-    padding: 8px 8px;
+    padding: 8px 16px;
+    min-height: 48px;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     background-color: var(--background-elevated);
@@ -64,7 +76,7 @@ spinner.large {
 }
 
 .paned {
-    margin: 0 8px 8px 8px;
+    margin: 0 16px 16px 16px;
 }
 
 .paned separator {
@@ -73,36 +85,63 @@ spinner.large {
     margin: 0 8px;
 }
 
+/* Tab bar: pills in a recessed track, the clock sits at its end.
+   A slim strip above the pages, it should not take height from them. */
 .switcher {
-    padding: 16px;
+    padding: 6px 16px 8px 16px;
 }
 
-.switcher > * {
-    padding: 12px 8px;
+.switcher__track {
+    padding: 3px;
+    border-radius: 10px;
+    background-color: var(--color-gray-200);
 }
 
-.switcher > *:not(:first-child) {
-    margin-left: 16px;
+/* Short, but still wide enough to be an easy touch target */
+.switcher__track > * {
+    padding: 2px 16px;
+    min-width: 160px;
+    min-height: 34px;
+    box-shadow: none;
+    background-color: transparent;
+    color: var(--color-gray-600);
 }
 
-.switcher > *:checked {
-    box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.5);
+.switcher__track > *:hover {
+    background-color: transparent;
 }
 
-/* tailwind green-600, red as for errors */
+.switcher__track > *:checked {
+    background-color: var(--background-elevated);
+    box-shadow: var(--box-shadow);
+    color: var(--color);
+    font-weight: bold;
+}
+
 .switcher__dot {
-    min-width: 10px;
-    min-height: 10px;
+    min-width: 8px;
+    min-height: 8px;
     border-radius: 50%;
-    background-color: oklch(0.627 0.194 149.214);
+    background-color: var(--color-good);
 }
 
 .switcher__dot.failing {
-    background-color: oklch(0.577 0.245 27.325);
+    background-color: var(--color-error);
+}
+
+.clock {
+    color: var(--color-gray-600);
+    font-size: 16px;
+}
+
+/* Kept under the pill height so the clock never sets the height of the bar */
+.clock__time {
+    font-size: 20px;
+    color: var(--color);
 }
 
 .no-stackswitcher {
-    padding-top: 8px;
+    padding-top: 16px;
 }
 
 .video-player {
@@ -110,14 +149,39 @@ spinner.large {
 }
 
 .video-player .clapper {
+    border-radius: var(--border-radius);
 }
 
 .video-player .osd {
     color: var(--background-color);
 }
 
+/* The camera buttons sit on the video, which leaves the height below it to the summary.
+   Slim, so they cover as little of the picture as possible. */
 .video-player .buttons {
-    margin: 8px;
+    margin: 12px;
+    padding: 3px;
+    border-radius: 10px;
+    background-color: rgb(2 6 24 / 0.55);
+}
+
+.video-player .buttons button {
+    padding: 2px 14px;
+    min-height: 34px;
+    border-radius: 7px;
+    background-color: transparent;
+    box-shadow: none;
+    color: #f0f0f0;
+    font-size: 16px;
+}
+
+.video-player .buttons button:hover {
+    background-color: rgb(255 255 255 / 0.15);
+}
+
+.video-player .buttons button.active {
+    background-color: #fff;
+    color: var(--color);
 }
 
 .calendar-month {
@@ -125,13 +189,22 @@ spinner.large {
 }
 
 .calendar-month__control {
-    font-size: 28px;
-    margin-bottom: 16px;
-    min-width: 32px;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    margin-bottom: 12px;
+    font-size: 18px;
+}
+
+.calendar-month__label {
+    font-size: 22px;
+    margin-bottom: 12px;
 }
 
 .calendar-month__weekday-label {
     font-weight: bold;
+    font-size: 16px;
+    color: var(--color-gray-600);
 }
 
 .calendar-month__grid {
@@ -143,21 +216,26 @@ spinner.large {
     background-color: var(--background-elevated);
     border-radius: 4px;
     box-shadow: var(--box-shadow);
-    padding: 8px;
+    padding: 4px;
     min-width: 48px;
-    min-height: 48px;
+    min-height: 56px;
 }
 
 .calendar-month__grid-day.today {
     background-color: var(--background-color-active);
+    font-weight: bold;
 }
 
 .calendar-month__grid-day.selected {
     background-color: var(--background-color-selected);
+    box-shadow: var(--box-shadow-pressed);
+    font-weight: bold;
 }
 
 .calendar-month__grid-day.not-month {
-    color: var(--color-disabled);
+    background-color: transparent;
+    box-shadow: none;
+    color: var(--color-gray-400);
 }
 
 .calendar-month__grid-day__label {
@@ -171,24 +249,59 @@ spinner.large {
 
 .calendar-month__grid-day__indicator {
     border-radius: 50%;
-    box-shadow: var(--box-shadow);
 }
 
+/* The day list takes the whole height below the filters */
 .calendar-day {
+}
+
+.calendar-day__header {
+    margin: 6px 0 4px 0;
+}
+
+.calendar-day__header__title {
+    font-size: 20px;
+}
+
+.calendar-day__header__count {
+    color: var(--color-disabled);
+    font-size: 16px;
 }
 
 .calendar-day__item {
     border-radius: var(--border-radius);
     background-color: var(--background-elevated);
     box-shadow: var(--box-shadow);
-    margin-bottom: 16px;
+    margin-bottom: 10px;
+    min-height: 68px;
+    padding-right: 20px;
+}
+
+/* Events that are over stay readable but step back */
+.calendar-day__item.past {
+    opacity: 0.55;
+}
+
+.calendar-day__item.allday {
+    min-height: 52px;
+    box-shadow: none;
+    padding-left: 20px;
+}
+
+.calendar-day__item__time {
+    font-size: 18px;
+}
+
+.calendar-day__item__time__end {
+    color: var(--color-disabled);
+    font-size: 16px;
 }
 
 .calendar-day__item__indicator,
 .calendar-event__indicator,
 .calendar-upcoming__item__indicator {
-    border-radius: var(--border-radius);
-    min-width: 12px;
+    border-radius: 4px;
+    min-width: 6px;
     transition: filter 150ms ease-in-out;
 }
 
@@ -205,14 +318,59 @@ spinner.large {
     font-size: 16px;
 }
 
+/* Marks the event that is running right now */
+.calendar-day__item__chip {
+    padding: 4px 10px;
+    border-radius: 4px;
+    background-color: var(--background-color-active);
+    color: var(--color-cool);
+    font-size: 16px;
+}
+
+/* The next birthday, above the day list */
+.calendar-birthday {
+    padding: 14px 20px;
+    border-radius: var(--border-radius);
+    background-color: oklch(0.95 0.025 354);
+    box-shadow: inset 0 0 0 1px oklch(0.88 0.06 354);
+    margin-bottom: 10px;
+}
+
+.calendar-birthday__icon {
+    font-size: 26px;
+    color: oklch(0.656 0.241 354.308);
+    min-width: 32px;
+}
+
+.calendar-birthday__name {
+    font-size: 22px;
+}
+
+.calendar-birthday__date {
+    color: var(--color-gray-600);
+    font-size: 16px;
+}
+
+.calendar-birthday__countdown {
+    color: oklch(0.5 0.16 354);
+    font-size: 16px;
+    font-weight: bold;
+}
+
 .calendar-selection {
 }
 
 .calendar-selection__button {
+    padding: 8px 10px;
+    min-height: 48px;
     border-radius: var(--border-radius);
-    border-width: 4px 0;
-    border-style: solid;
+    box-shadow: var(--box-shadow);
+    border-bottom: 4px solid;
     transition: filter 150ms ease-in-out;
+}
+
+.calendar-selection__button__label {
+    font-size: 16px;
 }
 
 .calendar-selection__button.disabled {
@@ -231,13 +389,24 @@ spinner.large {
     font-weight: bold;
 }
 
+/* Screensaver agenda, also reused on the main screen's bottom */
 .calendar-upcoming {
-    font-size: 24px;
-    margin-top: 48px;
+    font-size: 20px;
+    margin-top: 0;
+}
+
+.calendar-upcoming__group {
+    color: #8a8a8a;
+    font-size: 16px;
 }
 
 .calendar-upcoming__item {
-    margin-bottom: 12px;
+    margin-bottom: 4px;
+}
+
+.calendar-upcoming__item__time {
+    color: #9a9a9a;
+    min-width: 80px;
 }
 
 .calendar-upcoming__item__label {
@@ -249,7 +418,7 @@ spinner.large {
 }
 
 .screensaver__center {
-    color: #f0f0f0;
+    color: #e6e6e6;
 }
 
 .screensaver__center.dim {
@@ -257,16 +426,49 @@ spinner.large {
 }
 
 .screensaver__date {
-    font-size: 90px;
+    font-size: 28px;
+    color: #bdbdbd;
 }
 
 .screensaver__time {
-    font-size: 60px;
+    font-size: 96px;
+    color: #f0f0f0;
+}
+
+.screensaver__seconds {
+    font-size: 36px;
+    color: #7a7a7a;
+}
+
+.screensaver__rule {
+    background-color: #2a2a2a;
+    min-width: 1px;
+}
+
+.screensaver__birthday {
+    font-size: 22px;
+    color: #f0f0f0;
+}
+
+.screensaver__birthday__icon {
+    color: oklch(0.656 0.241 354.308);
+}
+
+.screensaver__birthday__countdown {
+    color: #8a8a8a;
+    font-size: 18px;
 }
 
 .heating.spinner-active > *:first-child,
 .energy.spinner-active > *:first-child {
     opacity: 0.5;
+}
+
+/* Icon only, so it is square instead of following the padding of a text button */
+.refresh {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
 }
 
 .heating__status,
@@ -277,7 +479,7 @@ spinner.large {
 
 .heating__status.error,
 .energy__status.error {
-    color: oklch(0.577 0.245 27.325);
+    color: var(--color-error);
 }
 
 .heating__systems,
@@ -293,7 +495,7 @@ spinner.large {
 
 .heating__section__title,
 .energy__section__title {
-    margin-top: 16px;
+    margin-top: 0;
     font-size: 20px;
     font-weight: bold;
 }
@@ -310,6 +512,24 @@ spinner.large {
     background-color: var(--background-elevated);
 }
 
+/* The overview stats moved into the header row, so they are compact */
+.heating__stat {
+    padding: 10px 18px;
+}
+
+/* The Heute block beside the flow diagram has room to breathe */
+.energy__stat {
+    padding: 24px;
+}
+
+.energy__node {
+    padding: 20px 24px;
+}
+
+.heating__card {
+    padding: 24px;
+}
+
 .heating__stat__title,
 .heating__card__detail,
 .energy__stat__title,
@@ -320,9 +540,12 @@ spinner.large {
     font-size: 16px;
 }
 
-.heating__stat__value,
+.heating__stat__value {
+    font-size: 22px;
+}
+
 .energy__stat__value {
-    font-size: 28px;
+    font-size: 36px;
 }
 
 .heating__card__title,
@@ -330,15 +553,32 @@ spinner.large {
     font-weight: bold;
 }
 
+.heating__card__title {
+    font-size: 20px;
+}
+
+.energy__node__title {
+    font-size: 16px;
+    font-weight: normal;
+    color: var(--color);
+}
+
 .heating__card__value {
-    font-size: 48px;
+    font-size: 72px;
+}
+
+.heating__card__value__unit {
+    font-size: 32px;
+    color: var(--color-gray-600);
 }
 
 .heating__card__highlight {
     margin-top: 4px;
-    padding: 2px 8px;
+    padding: 4px 10px;
     border-radius: 4px;
     background-color: var(--background-color-active);
+    color: var(--color-cool);
+    font-size: 16px;
 }
 
 .heating__empty {
@@ -347,25 +587,46 @@ spinner.large {
 
 .heating__action {
     padding: 12px 16px;
+    min-height: 72px;
 }
 
 .heating__action.active,
 .heating__modes button.active {
     background-color: var(--background-color-selected);
-    box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.3);
+    box-shadow: var(--box-shadow-pressed);
 }
 
-.heating__setpoint {
+/* The setpoint and the read-only value sit in a recessed row inside the card */
+.heating__setpoint,
+.heating__readonly {
     margin: 4px 0;
+    padding: 10px;
+    border-radius: var(--border-radius-group);
+    background-color: var(--color-gray-100);
 }
 
-.heating__setpoint__value {
-    font-size: 20px;
+.heating__setpoint__title {
+    color: var(--color-disabled);
+    font-size: 16px;
+}
+
+.heating__setpoint__value,
+.heating__readonly__value {
+    font-size: 24px;
+}
+
+.heating__readonly {
+    padding: 16px;
+}
+
+.heating__readonly__title {
+    color: var(--color-disabled);
+    font-size: 16px;
 }
 
 .heating__step {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 56px;
+    min-height: 56px;
     padding: 0;
     font-size: 24px;
 }
@@ -376,40 +637,44 @@ spinner.large {
 
 .heating__modes button {
     padding: 8px 4px;
+    min-height: 48px;
     font-size: 16px;
 }
 
 .heating__cancel {
     margin-top: 4px;
-    padding: 2px 8px;
+    padding: 4px 10px;
+    min-height: 0;
     font-size: 16px;
 }
 
-/* tailwind orange-600 and blue-600 */
 .heating__card__detail.state-heating,
 .state-heating .heating__stat__value {
-    color: oklch(0.646 0.222 41.116);
+    color: var(--color-warn);
 }
 
 .heating__card__detail.state-cooling,
 .state-cooling .heating__stat__value {
-    color: oklch(0.546 0.245 262.881);
+    color: var(--color-cool);
 }
 
 .energy__node__value {
-    font-size: 40px;
+    font-size: 36px;
 }
 
 /* A circle, half of the size set in the code */
 .energy__hub {
-    border-radius: 110px;
+    border-radius: 130px;
     box-shadow: var(--box-shadow);
     background-color: var(--background-elevated);
 }
 
-.energy__hub__icon,
+.energy__hub__icon {
+    font-size: 30px;
+}
+
 .energy__hub__value {
-    font-size: 36px;
+    font-size: 32px;
 }
 
 /* Color of the lines between the parts and the house */
@@ -417,13 +682,12 @@ spinner.large {
     color: var(--background-color-selected);
 }
 
-/* tailwind orange-600 and green-600 */
 .energy__detail.state-warn {
-    color: oklch(0.646 0.222 41.116);
+    color: var(--color-warn);
 }
 
 .energy__detail.state-good {
-    color: oklch(0.627 0.194 149.214);
+    color: var(--color-good);
 }
 
 .energy__bar {
@@ -440,34 +704,85 @@ spinner.large {
 }
 
 .energy__bar.cheapest {
-    background-color: oklch(0.627 0.194 149.214);
+    background-color: var(--color-good);
 }
 
 .energy__bar__label {
     color: var(--color-disabled);
-    font-size: 14px;
+    font-size: 16px;
+}
+
+/* The price of the current hour, above its bar */
+.energy__bar__value {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* The ct scale behind the bars */
+.energy__price__scale {
+    color: var(--color-disabled);
+    font-size: 16px;
+}
+
+.energy__price__baseline {
+    background-color: var(--color-gray-300);
+    min-height: 1px;
+}
+
+.energy__price__gridline {
+    border-top: 1px dashed var(--color-gray-200);
 }
 
 .summary {
-    margin: 8px 8px 0 8px;
+    margin: 12px 0 0 0;
+}
+
+/* A row is one card, divided by thin lines, and reads as one tappable unit */
+.summary__row {
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    background-color: var(--background-elevated);
+}
+
+/* Before the first fetch a row keeps its space, but shows no card */
+.summary__row.empty {
+    background-color: transparent;
+    box-shadow: none;
+}
+
+.summary__card {
+    padding: 14px 20px;
+    border-radius: 0;
+    box-shadow: none;
+    background-color: transparent;
+}
+
+.summary__card:not(:first-child) {
+    border-left: 1px solid var(--color-gray-200);
 }
 
 .summary__value {
-    font-size: 40px;
+    font-size: 34px;
 }
 
-/* tailwind orange-600, green-600 and blue-600 */
+/* The chevron at the end of a row, which hints that it opens its page */
+.summary__go {
+    color: var(--color-gray-400);
+    font-size: 20px;
+    min-width: 40px;
+}
+
 .summary__detail.state-warn,
 .summary__card.state-heating .summary__value {
-    color: oklch(0.646 0.222 41.116);
+    color: var(--color-warn);
 }
 
 .summary__detail.state-good {
-    color: oklch(0.627 0.194 149.214);
+    color: var(--color-good);
 }
 
 .summary__card.state-cooling .summary__value {
-    color: oklch(0.546 0.245 262.881);
+    color: var(--color-cool);
 }
 
 /* Outdated values, defined after the states to win over their colors */

@@ -52,6 +52,9 @@ pub struct Calendars {
     pub week: Option<UuidFilter>,
     pub upcomming: Option<UpcomingFilter>,
     pub selection: Option<UuidFilter>,
+    /// Calendars that hold birthdays, which get their own banner and screensaver line.
+    /// Without this the banner never shows, the calendars are not guessed by name.
+    pub birthday: Option<UuidFilter>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]

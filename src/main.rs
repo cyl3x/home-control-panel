@@ -90,3 +90,38 @@ pub fn remove_source(id: Option<glib::SourceId>) {
         id.remove();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    /// The stylesheet is the whole look of the panel, and GTK only complains about broken
+    /// rules at runtime, where a warning on the kiosk is easy to miss.
+    #[test]
+    fn stylesheet_parses() {
+        // CI has no display, there the stylesheet is checked by the build on the device
+        if gtk::init().is_err() {
+            eprintln!("skipping: no display");
+            return;
+        }
+
+        let errors = Rc::new(RefCell::new(Vec::new()));
+        let provider = gtk::CssProvider::new();
+
+        provider.connect_parsing_error({
+            let errors = errors.clone();
+
+            move |_, section, error| {
+                errors
+                    .borrow_mut()
+                    .push(format!("{}: {error}", section.to_str()));
+            }
+        });
+
+        provider.load_from_string(include_str!("style.css"));
+
+        let errors = errors.borrow();
+        assert!(errors.is_empty(), "stylesheet has errors:\n{}", errors.join("\n"));
+    }
+}
