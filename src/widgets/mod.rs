@@ -3,5 +3,6 @@ pub mod energy;
 pub mod grafana;
 pub mod heating;
 pub mod screensaver;
+pub mod summary;
 pub mod switcher;
 pub mod video;

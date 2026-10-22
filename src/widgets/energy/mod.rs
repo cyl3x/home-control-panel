@@ -10,6 +10,7 @@ use crate::prelude::*;
 
 mod flow;
 mod prices;
+mod summary;
 mod ui;
 
 /// Refreshes within this time of the last fetch are skipped, the box reports about every minute
@@ -23,6 +24,8 @@ pub struct EnergyWidget {
     spinner: gtk::Spinner,
 
     service: Arc<Mutex<Service>>,
+    /// The last fetched overview, also shown on the main screen
+    overview: Option<Overview>,
     fetching: bool,
     last_fetch: Option<DateTime<Local>>,
     last_success: Option<DateTime<Local>>,
@@ -104,6 +107,7 @@ impl EnergyWidget {
             spinner,
 
             service: Arc::new(Mutex::new(Service::new(config))),
+            overview: None,
             fetching: false,
             last_fetch: None,
             last_success: None,
@@ -112,6 +116,18 @@ impl EnergyWidget {
 
     pub const fn widget(&self) -> &gtk::Overlay {
         &self.wrapper
+    }
+
+    /// Cards for the main screen, made of the last fetched overview.
+    pub fn summary(&self) -> Vec<gtk::Box> {
+        self.overview
+            .as_ref()
+            .map(summary::cards)
+            .unwrap_or_default()
+    }
+
+    pub const fn last_success(&self) -> Option<DateTime<Local>> {
+        self.last_success
     }
 
     pub fn update(&mut self, message: EnergyMessage) {
@@ -142,6 +158,7 @@ impl EnergyWidget {
                             .set_text(&format!("Aktualisiert {}", ui::format_time(now)));
                         self.status.remove_css_class("error");
                         self.render(&overview, now);
+                        self.overview = Some(overview);
                     }
                     Err(err) => {
                         log::error!("Energy: failed to fetch overview: {err}");

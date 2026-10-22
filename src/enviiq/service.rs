@@ -28,6 +28,18 @@ pub struct Overview {
     pub prices: Vec<Price>,
 }
 
+impl Overview {
+    /// Power used by the house and the heat pump in watts, missing if none of them is online.
+    pub fn consumption(&self) -> Option<f64> {
+        [&self.house, &self.heat_pump]
+            .into_iter()
+            .flatten()
+            .filter(|consumer| consumer.is_online)
+            .map(Measurement::consumption)
+            .reduce(|a, b| a + b)
+    }
+}
+
 impl Service {
     pub fn new(config: &config::EnviIq) -> Self {
         Self {

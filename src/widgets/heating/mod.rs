@@ -10,6 +10,7 @@ use crate::myvaillant::{Command, Error, HeatingSystem, Service, Setpoint};
 use crate::prelude::*;
 
 mod cards;
+mod summary;
 
 /// Refreshes within this time of the last fetch are skipped to protect the API quota
 const MIN_REFRESH_INTERVAL: TimeDelta = TimeDelta::seconds(60);
@@ -158,6 +159,15 @@ impl HeatingWidget {
 
     pub const fn widget(&self) -> &gtk::Overlay {
         &self.wrapper
+    }
+
+    /// Cards for the main screen, made of the last fetched systems.
+    pub fn summary(&self) -> Vec<gtk::Box> {
+        summary::cards(&self.systems)
+    }
+
+    pub const fn last_success(&self) -> Option<DateTime<Local>> {
+        self.last_success
     }
 
     pub fn update(&mut self, message: HeatingMessage) {

@@ -7,25 +7,20 @@ use std::f64::consts::PI;
 
 use gtk::cairo;
 
-use super::ui::{self, detail, power};
+use super::ui::{
+    self, ICON_GRID, ICON_HEAT_PUMP, ICON_HOUSE, ICON_HOUSEHOLD, ICON_PHOTOVOLTAIC, detail, power,
+};
 use crate::enviiq::{Measurement, Overview};
 use crate::prelude::*;
 
-// Font Awesome glyphs, used sparingly where they help finding things at a glance
-const ICON_PHOTOVOLTAIC: char = '\u{f5ba}'; // solar-panel
-const ICON_GRID: char = '\u{f1e6}'; // plug
-const ICON_HOUSE: char = '\u{f015}'; // house
-const ICON_HOUSEHOLD: char = '\u{f0eb}'; // lightbulb
-const ICON_HEAT_PUMP: char = '\u{f863}'; // fan
-
-const NODE_WIDTH: i32 = 200;
+const NODE_WIDTH: i32 = 280;
 /// Diameter of the house in the middle, the border radius in the CSS matches it
-const HUB_SIZE: i32 = 150;
-/// Minimal length of the lines between the parts and the house
-const LINE_SPACE: i32 = 48;
+const HUB_SIZE: i32 = 220;
+/// Horizontal length of the lines between the parts and the house
+const LINE_SPACE: i32 = 240;
 /// Distance between the lines where they meet the house
-const LINE_SPREAD: f64 = 16.0;
-const ARROW_SIZE: f64 = 7.0;
+const LINE_SPREAD: f64 = 24.0;
+const ARROW_SIZE: f64 = 9.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Flow {
@@ -76,7 +71,9 @@ pub fn diagram(overview: &Overview) -> gtk::Overlay {
 
     let hub = hub(overview);
 
+    // Centered, stretching it to the edges of a full HD screen would leave the parts far apart
     let layout = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    layout.set_halign(gtk::Align::Center);
     layout.append(&sources);
     layout.append(&spacer());
     layout.append(&hub);
@@ -109,7 +106,7 @@ fn column<const N: usize>(
     let nodes = nodes.into_iter().flatten().collect::<Vec<_>>();
     let count = nodes.len();
 
-    let column = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    let column = gtk::Box::new(gtk::Orientation::Vertical, 24);
     column.set_homogeneous(true);
 
     for (index, (node, flow)) in nodes.into_iter().enumerate() {
@@ -128,7 +125,6 @@ fn column<const N: usize>(
 
 fn spacer() -> gtk::Box {
     let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    spacer.set_hexpand(true);
     spacer.set_width_request(LINE_SPACE);
 
     spacer
@@ -136,18 +132,13 @@ fn spacer() -> gtk::Box {
 
 /// The house with the power used by all consumers.
 fn hub(overview: &Overview) -> gtk::Box {
-    let total = [&overview.house, &overview.heat_pump]
-        .into_iter()
-        .flatten()
-        .filter(|consumer| consumer.is_online)
-        .map(Measurement::consumption)
-        .reduce(|a, b| a + b);
-
     let icon = ui::label(&ICON_HOUSE.to_string(), "energy__hub__icon");
     icon.add_css_class("icon");
 
     let value = ui::label(
-        &total.map_or_else(|| "–".to_string(), power),
+        &overview
+            .consumption()
+            .map_or_else(|| "–".to_string(), power),
         "energy__hub__value",
     );
 
@@ -176,12 +167,6 @@ fn photovoltaic(photovoltaic: &Measurement) -> (gtk::Box, Flow) {
         return offline(ICON_PHOTOVOLTAIC, "Photovoltaik");
     }
 
-    let flow = if photovoltaic.is_producing {
-        Flow::ToHouse
-    } else {
-        Flow::Idle
-    };
-
     (
         node(
             ICON_PHOTOVOLTAIC,
@@ -189,44 +174,28 @@ fn photovoltaic(photovoltaic: &Measurement) -> (gtk::Box, Flow) {
             &power(photovoltaic.production()),
             None,
         ),
-        flow,
+        direction(photovoltaic),
     )
 }
 
 fn battery(battery: &Measurement) -> (gtk::Box, Flow) {
     let level = battery.battery_level_in_percent;
-    let icon = battery_icon(level);
+    let icon = ui::battery_icon(level);
 
     if !battery.is_online {
         return offline(icon, "Batterie");
     }
 
-    // The battery consumes while charging
-    let (state, flow) = if battery.is_consuming {
-        (
-            detail(
-                &format!("Lädt {}", power(battery.consumption())),
-                Some("state-good"),
-            ),
-            Flow::FromHouse,
-        )
-    } else if battery.is_producing {
-        (
-            detail(&format!("Entlädt {}", power(battery.production())), None),
-            Flow::ToHouse,
-        )
-    } else {
-        (detail("Ruht", None), Flow::Idle)
-    };
+    let (state, class) = ui::battery_state(battery);
 
     (
         node(
             icon,
             "Batterie",
-            &level.map_or_else(|| "–".to_string(), |level| format!("{level:.0} %")),
-            Some(state),
+            &ui::battery_level(level),
+            Some(detail(&state, class)),
         ),
-        flow,
+        direction(battery),
     )
 }
 
@@ -235,29 +204,17 @@ fn grid(grid: &Measurement) -> (gtk::Box, Flow) {
         return offline(ICON_GRID, "Netz");
     }
 
-    // The grid produces while power is bought
-    let (watts, state, flow) = if grid.is_producing {
-        (
-            grid.production(),
-            detail("Bezug", Some("state-warn")),
-            Flow::ToHouse,
-        )
-    } else if grid.is_consuming {
-        (
-            grid.consumption(),
-            detail("Einspeisung", Some("state-good")),
-            Flow::FromHouse,
-        )
-    } else {
-        (0.0, detail("Ausgeglichen", None), Flow::Idle)
-    };
+    let (watts, state, class) = ui::grid_state(grid);
 
-    (node(ICON_GRID, "Netz", &power(watts), Some(state)), flow)
+    (
+        node(ICON_GRID, "Netz", &power(watts), Some(detail(state, class))),
+        direction(grid),
+    )
 }
 
 fn heat_pump(heat_pump: &Measurement) -> (gtk::Box, Flow) {
     let state = heat_pump.command.as_deref().map(|command| {
-        let (text, class) = sg_ready_state(command);
+        let (text, class) = ui::sg_ready_state(command);
         detail(text, class)
     });
 
@@ -274,16 +231,21 @@ fn consumer(
         return offline(icon, title);
     }
 
-    let flow = if consumer.is_consuming {
+    (
+        node(icon, title, &power(consumer.consumption()), state),
+        direction(consumer),
+    )
+}
+
+/// Production flows into the house and consumption out of it, as the API sees it.
+fn direction(measurement: &Measurement) -> Flow {
+    if measurement.is_producing() {
+        Flow::ToHouse
+    } else if measurement.is_consuming() {
         Flow::FromHouse
     } else {
         Flow::Idle
-    };
-
-    (
-        node(icon, title, &power(consumer.consumption()), state),
-        flow,
-    )
+    }
 }
 
 fn offline(icon: char, title: &str) -> (gtk::Box, Flow) {
@@ -415,39 +377,4 @@ fn curve(
     cr.close_path();
     cr.fill()?;
     cr.restore()
-}
-
-/// SG Ready states of the heat pump, named like the app does.
-fn sg_ready_state(command: &str) -> (&str, Option<&'static str>) {
-    match command {
-        "normal" => ("Freier Betrieb", None),
-        "blocked" => ("Zwangsabschaltung", Some("state-warn")),
-        "recommended-on" => ("Empfohlen ein", Some("state-good")),
-        "forced-on" => ("Erzwungen ein", Some("state-good")),
-        command => (command, None),
-    }
-}
-
-/// Battery glyph filled like the battery, from full (f240) to empty (f244).
-fn battery_icon(level: Option<f64>) -> char {
-    match level.unwrap_or_default() {
-        level if level >= 88.0 => '\u{f240}',
-        level if level >= 63.0 => '\u{f241}',
-        level if level >= 38.0 => '\u{f242}',
-        level if level >= 13.0 => '\u{f243}',
-        _ => '\u{f244}',
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn picks_battery_icon() {
-        assert_eq!(battery_icon(Some(100.0)), '\u{f240}');
-        assert_eq!(battery_icon(Some(70.0)), '\u{f241}');
-        assert_eq!(battery_icon(Some(5.0)), '\u{f244}');
-        assert_eq!(battery_icon(None), '\u{f244}');
-    }
 }

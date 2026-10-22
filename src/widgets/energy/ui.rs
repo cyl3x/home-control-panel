@@ -1,5 +1,12 @@
-use crate::enviiq::Totals;
+use crate::enviiq::{Measurement, Totals};
 use crate::prelude::*;
+
+// Font Awesome glyphs, used sparingly where they help finding things at a glance
+pub const ICON_PHOTOVOLTAIC: char = '\u{f5ba}'; // solar-panel
+pub const ICON_GRID: char = '\u{f1e6}'; // plug
+pub const ICON_HOUSE: char = '\u{f015}'; // house
+pub const ICON_HOUSEHOLD: char = '\u{f0eb}'; // lightbulb
+pub const ICON_HEAT_PUMP: char = '\u{f863}'; // fan
 
 /// The totals of today in a row, like the summary of the app.
 pub fn today(totals: &Totals) -> gtk::Box {
@@ -62,6 +69,58 @@ pub fn format_time(datetime: DateTime<Local>) -> String {
     }
 }
 
+/// What the battery does and the class to color it, the battery consumes while charging.
+pub fn battery_state(battery: &Measurement) -> (String, Option<&'static str>) {
+    if battery.is_producing() {
+        (format!("Entlädt {}", power(battery.production())), None)
+    } else if battery.is_consuming() {
+        (
+            format!("Lädt {}", power(battery.consumption())),
+            Some("state-good"),
+        )
+    } else {
+        ("Ruht".to_string(), None)
+    }
+}
+
+/// The power at the grid, what happens there and the class to color it, the grid produces
+/// while power is bought.
+pub fn grid_state(grid: &Measurement) -> (f64, &'static str, Option<&'static str>) {
+    if grid.is_producing() {
+        (grid.production(), "Bezug", Some("state-warn"))
+    } else if grid.is_consuming() {
+        (grid.consumption(), "Einspeisung", Some("state-good"))
+    } else {
+        (0.0, "Ausgeglichen", None)
+    }
+}
+
+/// SG Ready states of the heat pump and the class to color them, named like the app does.
+pub fn sg_ready_state(command: &str) -> (&str, Option<&'static str>) {
+    match command {
+        "normal" => ("Freier Betrieb", None),
+        "blocked" => ("Zwangsabschaltung", Some("state-warn")),
+        "recommended-on" => ("Empfohlen ein", Some("state-good")),
+        "forced-on" => ("Erzwungen ein", Some("state-good")),
+        command => (command, None),
+    }
+}
+
+pub fn battery_level(level: Option<f64>) -> String {
+    level.map_or_else(|| "–".to_string(), |level| format!("{level:.0} %"))
+}
+
+/// Battery glyph filled like the battery, from full (f240) to empty (f244).
+pub fn battery_icon(level: Option<f64>) -> char {
+    match level.unwrap_or_default() {
+        level if level >= 88.0 => '\u{f240}',
+        level if level >= 63.0 => '\u{f241}',
+        level if level >= 38.0 => '\u{f242}',
+        level if level >= 13.0 => '\u{f243}',
+        _ => '\u{f244}',
+    }
+}
+
 pub fn power(watts: f64) -> String {
     if watts.abs() < 1000.0 {
         format!("{watts:.0} W")
@@ -70,7 +129,7 @@ pub fn power(watts: f64) -> String {
     }
 }
 
-fn energy(kwh: Option<f64>) -> String {
+pub fn energy(kwh: Option<f64>) -> String {
     kwh.map_or_else(|| "–".to_string(), |kwh| format!("{kwh:.1} kWh"))
 }
 
@@ -92,5 +151,13 @@ mod tests {
         assert_eq!(power(500.0), "500 W");
         assert_eq!(power(999.4), "999 W");
         assert_eq!(power(2500.0), "2.50 kW");
+    }
+
+    #[test]
+    fn picks_battery_icon() {
+        assert_eq!(battery_icon(Some(100.0)), '\u{f240}');
+        assert_eq!(battery_icon(Some(70.0)), '\u{f241}');
+        assert_eq!(battery_icon(Some(5.0)), '\u{f244}');
+        assert_eq!(battery_icon(None), '\u{f244}');
     }
 }

@@ -3,7 +3,7 @@ use crate::enviiq::Price;
 use crate::prelude::*;
 
 /// Height of the highest bar of the chart
-const CHART_HEIGHT: i32 = 96;
+const CHART_HEIGHT: i32 = 160;
 
 /// The exchange prices of the day as bars, with the current and the cheapest remaining slot marked.
 pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {

@@ -1,6 +1,9 @@
 use chrono::{DateTime, Local};
 use serde::Deserialize;
 
+/// Less power is rounded to 0 W, the API's own `isProducing` and `isConsuming` are set at 0 W too
+const MIN_POWER: f64 = 1.0;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Device {
     pub id: String,
@@ -39,10 +42,6 @@ pub struct Measurement {
     pub kind: String,
     #[serde(default)]
     pub is_online: bool,
-    #[serde(default)]
-    pub is_producing: bool,
-    #[serde(default)]
-    pub is_consuming: bool,
     pub current_power_production_in_watt: Option<f64>,
     pub current_power_consumption_in_watt: Option<f64>,
     /// In kWh, despite the name
@@ -63,6 +62,14 @@ impl Measurement {
     /// Power taken from the house in watts.
     pub fn consumption(&self) -> f64 {
         self.current_power_consumption_in_watt.unwrap_or_default()
+    }
+
+    pub fn is_producing(&self) -> bool {
+        self.production() >= MIN_POWER
+    }
+
+    pub fn is_consuming(&self) -> bool {
+        self.consumption() >= MIN_POWER
     }
 }
 
@@ -89,11 +96,23 @@ mod tests {
         .unwrap();
 
         assert_eq!(measurements[0].kind, "BATTERY");
-        assert!(measurements[0].is_producing);
+        assert!(measurements[0].is_producing());
+        assert!(!measurements[0].is_consuming());
         assert!((measurements[0].production() - 500.0).abs() < f64::EPSILON);
         assert_eq!(measurements[0].battery_level_in_percent, Some(50.5));
         assert_eq!(measurements[1].command.as_deref(), Some("normal"));
         assert!((measurements[1].production()).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn ignores_flags_without_power() {
+        let measurement: Measurement = serde_json::from_str(
+            r#"{"isConsuming":true,"currentPowerConsumptionInWatt":0,"isProducing":true,"currentPowerProductionInWatt":0.4,"isOnline":true,"type":"ENERGY_GRID"}"#,
+        )
+        .unwrap();
+
+        assert!(!measurement.is_producing());
+        assert!(!measurement.is_consuming());
     }
 
     #[test]

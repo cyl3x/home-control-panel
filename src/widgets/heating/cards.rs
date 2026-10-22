@@ -402,7 +402,7 @@ fn execute(command: &Command) {
     )));
 }
 
-fn temperature(value: Option<f64>) -> String {
+pub(super) fn temperature(value: Option<f64>) -> String {
     value.map_or_else(|| "–".to_string(), |value| format!("{value:.1} °C"))
 }
 
@@ -443,7 +443,7 @@ fn details(texts: &[String], state: Option<&str>) -> Option<gtk::Box> {
 }
 
 /// Color class of states worth noticing
-fn state_class(state: &str) -> Option<&'static str> {
+pub(super) fn state_class(state: &str) -> Option<&'static str> {
     match state {
         "HEATING" | "HEATING_UP" => Some("state-heating"),
         "COOLING" | "COOLING_DOWN" => Some("state-cooling"),
@@ -452,7 +452,7 @@ fn state_class(state: &str) -> Option<&'static str> {
 }
 
 /// Icon of the energy manager's state
-fn state_icon(state: &str) -> Option<char> {
+pub(super) fn state_icon(state: &str) -> Option<char> {
     match state {
         "HEATING" => Some('\u{f06d}'), // fire
         "COOLING" => Some('\u{f2dc}'), // snowflake
@@ -473,7 +473,7 @@ fn mode_label(mode: &str) -> &str {
 }
 
 /// Translate the API's states, modes and special functions.
-fn describe(value: &str) -> &str {
+pub(super) fn describe(value: &str) -> &str {
     match value {
         "TIME_CONTROLLED" | "AUTO" => "Zeitprogramm",
         "MANUAL" => "Manuell",

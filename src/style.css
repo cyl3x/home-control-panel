@@ -323,7 +323,8 @@ spinner.large {
 .heating__card,
 .energy__card,
 .energy__node,
-.energy__stat {
+.energy__stat,
+.summary__card {
     padding: 12px 16px;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
@@ -333,7 +334,9 @@ spinner.large {
 .heating__stat__title,
 .heating__card__detail,
 .energy__stat__title,
-.energy__detail {
+.energy__detail,
+.summary__title,
+.summary__detail {
     color: var(--color-disabled);
     font-size: 16px;
 }
@@ -414,24 +417,20 @@ spinner.large {
     color: oklch(0.546 0.245 262.881);
 }
 
-.energy__node {
-    padding: 8px 14px;
-}
-
 .energy__node__value {
-    font-size: 28px;
+    font-size: 40px;
 }
 
 /* A circle, half of the size set in the code */
 .energy__hub {
-    border-radius: 75px;
+    border-radius: 110px;
     box-shadow: var(--box-shadow);
     background-color: var(--background-elevated);
 }
 
 .energy__hub__icon,
 .energy__hub__value {
-    font-size: 28px;
+    font-size: 36px;
 }
 
 /* Color of the lines between the parts and the house */
@@ -468,6 +467,33 @@ spinner.large {
 .energy__bar__label {
     color: var(--color-disabled);
     font-size: 14px;
+}
+
+.summary {
+    margin: 8px 8px 0 8px;
+}
+
+.summary__value {
+    font-size: 40px;
+}
+
+/* tailwind orange-600, green-600 and blue-600 */
+.summary__detail.state-warn,
+.summary__card.state-heating .summary__value {
+    color: oklch(0.646 0.222 41.116);
+}
+
+.summary__detail.state-good {
+    color: oklch(0.627 0.194 149.214);
+}
+
+.summary__card.state-cooling .summary__value {
+    color: oklch(0.546 0.245 262.881);
+}
+
+/* Outdated values, defined after the states to win over their colors */
+.summary__row.stale .summary__value {
+    color: var(--color-disabled);
 }
 
 /* Font Awesome, defined last to win over the font settings of the label classes */

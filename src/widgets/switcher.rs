@@ -13,6 +13,7 @@ const FAILURES_UNTIL_MARKED: u32 = 3;
 pub struct SwitcherWidget {
     wrapper: gtk::Box,
     dots: HashMap<Page, gtk::Box>,
+    buttons: HashMap<Page, gtk::ToggleButton>,
     failures: HashMap<Page, u32>,
 }
 
@@ -25,6 +26,7 @@ impl SwitcherWidget {
         wrapper.add_css_class("switcher");
 
         let mut dots = HashMap::new();
+        let mut buttons = HashMap::new();
         let mut group: Option<gtk::ToggleButton> = None;
 
         for stack_page in stack.pages().iter::<gtk::StackPage>().flatten() {
@@ -34,12 +36,17 @@ impl SwitcherWidget {
             let content = gtk::Box::new(gtk::Orientation::Horizontal, 8);
             content.set_halign(gtk::Align::Center);
 
-            if let Some((page, _)) = pages.iter().find(|(_, page_name)| *page_name == name) {
+            let page = pages
+                .iter()
+                .find(|(_, page_name)| *page_name == name)
+                .map(|(page, _)| *page);
+
+            if let Some(page) = page {
                 let dot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
                 dot.set_valign(gtk::Align::Center);
                 dot.add_css_class("switcher__dot");
                 content.append(&dot);
-                dots.insert(*page, dot);
+                dots.insert(page, dot);
             }
 
             content.append(&gtk::Label::new(Some(&title)));
@@ -59,12 +66,18 @@ impl SwitcherWidget {
             ));
 
             wrapper.append(&button);
+
+            if let Some(page) = page {
+                buttons.insert(page, button.clone());
+            }
+
             group.get_or_insert(button);
         }
 
         Self {
             wrapper,
             dots,
+            buttons,
             failures: HashMap::new(),
         }
     }
@@ -87,6 +100,11 @@ impl SwitcherWidget {
 
                 if let Some(dot) = self.dots.get(&page) {
                     dot.set_class_active("failing", failing);
+                }
+            }
+            SwitcherMessage::Show(page) => {
+                if let Some(button) = self.buttons.get(&page) {
+                    button.set_active(true);
                 }
             }
         }

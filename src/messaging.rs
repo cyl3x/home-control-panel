@@ -133,6 +133,8 @@ pub enum Page {
 pub enum SwitcherMessage {
     /// Whether fetching the data of a page succeeded
     Fetched(Page, bool),
+    /// Switch to the page, e.g. when its summary on the main screen is tapped
+    Show(Page),
 }
 
 impl From<SwitcherMessage> for AppMessage {
