@@ -4,7 +4,6 @@ use crate::messaging::{AppMessage, EnergyMessage, HeatingMessage, Page};
 use crate::prelude::*;
 use crate::widgets::calendar::CalendarWidget;
 use crate::widgets::energy::EnergyWidget;
-use crate::widgets::grafana::GrafanaWidget;
 use crate::widgets::heating::HeatingWidget;
 use crate::widgets::screensaver::ScreensaverWidget;
 use crate::widgets::summary::SummaryWidget;
@@ -17,7 +16,6 @@ pub struct App {
     calendar: CalendarWidget,
     video: Video,
     screensaver: ScreensaverWidget,
-    grafana: GrafanaWidget,
     heating: Option<HeatingWidget>,
     energy: Option<EnergyWidget>,
     summary: SummaryWidget,
@@ -29,7 +27,6 @@ impl App {
         let calendar = CalendarWidget::new(config);
         let video = Video::new(config);
         let screensaver = ScreensaverWidget::new(config, calendar.upcoming());
-        let grafana = GrafanaWidget::new(config);
         let heating = config.myvaillant.as_ref().map(HeatingWidget::new);
         let energy = config.enviiq.as_ref().map(EnergyWidget::new);
 
@@ -65,9 +62,6 @@ impl App {
         stack.set_transition_type(gtk::StackTransitionType::SlideLeftRight);
         stack.set_transition_duration(300);
         stack.add_titled(&paned, Some("calendar"), "Kalender");
-        if !config.grafana.panels.is_empty() {
-            stack.add_titled(grafana.widget(), Some("grafana"), "Grafana");
-        }
         if let Some(heating) = &heating {
             stack.add_titled(heating.widget(), Some("heating"), "Heizung");
         }
@@ -117,7 +111,6 @@ impl App {
             calendar,
             video,
             screensaver,
-            grafana,
             heating,
             energy,
             summary,
@@ -132,7 +125,6 @@ impl App {
             AppMessage::Calendar(message) => self.calendar.update(message),
             AppMessage::Video(message) => self.video.update(message),
             AppMessage::Screensaver(message) => self.screensaver.update(message),
-            AppMessage::Grafana(message) => self.grafana.update(message),
             AppMessage::Heating(message) => {
                 if let Some(heating) = &mut self.heating {
                     let fetched = matches!(message, HeatingMessage::Update(_));

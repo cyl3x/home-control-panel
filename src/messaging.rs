@@ -28,7 +28,6 @@ pub enum AppMessage {
     Calendar(CalendarMessage),
     Video(VideoMessage),
     Screensaver(ScreensaverMessage),
-    Grafana(GrafanaMessage),
     Heating(HeatingMessage),
     Energy(EnergyMessage),
     Switcher(SwitcherMessage),
@@ -73,18 +72,6 @@ pub enum ScreensaverMessage {
 impl From<ScreensaverMessage> for AppMessage {
     fn from(val: ScreensaverMessage) -> Self {
         Self::Screensaver(val)
-    }
-}
-
-#[derive(Debug)]
-pub enum GrafanaMessage {
-    Setup,
-    RefreshPanels,
-}
-
-impl From<GrafanaMessage> for AppMessage {
-    fn from(val: GrafanaMessage) -> Self {
-        Self::Grafana(val)
     }
 }
 

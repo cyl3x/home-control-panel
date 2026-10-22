@@ -264,27 +264,6 @@ spinner.large {
     font-size: 60px;
 }
 
-.grafana.spinner-active > *:first-child {
-    opacity: 0.5;
-}
-
-.grafana__toolbar {
-    margin: 0 16px;
-}
-
-.grafana__login__webview {
-}
-
-.grafana__panels {
-    margin: 16px;
-}
-
-.grafana__panel__webview {
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    background-color: var(--background-elevated);
-}
-
 .heating.spinner-active > *:first-child,
 .energy.spinner-active > *:first-child {
     opacity: 0.5;

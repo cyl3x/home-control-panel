@@ -43,5 +43,4 @@ toml = "1.1.8"
 ureq = { version = "3.4.2", features = ["cookies", "json"] }
 url = { version = "2.5.7", features = ["serde"] }
 uuid = { version = "1.28.0", features = ["v5", "serde"] }
-webkit6 = { version = "0.6.1", features = ["v2_50", "gtk_v4_18"] }
 xmltree = "0.12.0"

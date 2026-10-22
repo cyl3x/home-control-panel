@@ -43,14 +43,13 @@
               clapper-unwrapped
               gtk4
               glib
-              glib-networking # webkit https-support
+              glib-networking # https support of GIO, e.g. for camera streams over https
               gst_all_1.gst-plugins-bad
               gst_all_1.gst-plugins-base
               gst_all_1.gst-plugins-good
               gst_all_1.gst-plugins-rs
               gst_all_1.gstreamer
               libxkbcommon
-              webkitgtk_6_0
               wayland
             ];
 

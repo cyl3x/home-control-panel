@@ -14,8 +14,6 @@ pub struct Config {
     pub calendar: Calendars,
     #[serde(default)]
     pub screensaver: Screensaver,
-    #[serde(default)]
-    pub grafana: Grafana,
     pub myvaillant: Option<MyVaillant>,
     pub enviiq: Option<EnviIq>,
 }
@@ -107,36 +105,6 @@ impl Default for Screensaver {
             dim: Vec::default(),
         }
     }
-}
-
-#[derive(Clone, Debug, serde::Deserialize, Default)]
-pub struct Grafana {
-    pub panels: Vec<GrafanaPanel>,
-    pub login: Option<GrafanaLogin>,
-}
-
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct GrafanaLogin {
-    pub url: Url,
-    pub username: String,
-    #[serde(deserialize_with = "deserialize_from_file_opt")]
-    pub password: String,
-    #[serde(deserialize_with = "deserialize_from_file_opt")]
-    pub js_script: String,
-    #[serde(default)]
-    pub developer_extras: bool,
-}
-
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct GrafanaPanel {
-    pub name: String,
-    pub url: Url,
-    pub column: u16,
-    pub row: u16,
-    pub width: u16,
-    pub height: u16,
-    #[serde(default)]
-    pub developer_extras: bool,
 }
 
 #[derive(Clone, serde::Deserialize)]
