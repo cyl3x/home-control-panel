@@ -132,6 +132,9 @@ mod tests {
             // Grid fees, the app adds them and the taxes to the exchange price
             if let Some(provider_id) = device["energyProviderId"].as_str() {
                 dump(format!("/energy-providers/{provider_id}/fees/{today}"));
+                dump(format!(
+                    "/energy-prices/{today}?withTaxes=true&energyProviderId={provider_id}"
+                ));
             }
 
             dump(format!("/devices/{device_id}/measurements"));

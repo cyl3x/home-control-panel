@@ -5,8 +5,11 @@ use serde::Deserialize;
 const MIN_POWER: f64 = 1.0;
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Device {
     pub id: String,
+    /// Grid operator whose dynamic grid fees are added to the prices
+    pub energy_provider_id: Option<String>,
     #[serde(default)]
     pub modules: Vec<Module>,
 }
@@ -73,12 +76,25 @@ impl Measurement {
     }
 }
 
-/// Exchange price of a time slot in cents per kWh.
+/// Price of a time slot in cents per kWh, split into its parts.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Price {
     pub from: DateTime<Local>,
     pub to: DateTime<Local>,
+    /// Exchange price
     pub price: f64,
+    /// Levies and the VAT on the whole price, only sent `withTaxes`
+    pub taxes: Option<f64>,
+    /// Grid fee of the time of day, only sent with an `energyProviderId`
+    pub dynamic_grid_fee: Option<f64>,
+}
+
+impl Price {
+    /// What is paid for a kWh from the grid, the app shows this as "Strompreis".
+    pub fn total(&self) -> f64 {
+        self.price + self.taxes.unwrap_or_default() + self.dynamic_grid_fee.unwrap_or_default()
+    }
 }
 
 #[cfg(test)]
@@ -142,5 +158,36 @@ mod tests {
             DateTime::parse_from_rfc3339("2025-12-31T23:00:00Z").unwrap()
         );
         assert!((prices[0].price - 10.5).abs() < f64::EPSILON);
+        assert!((prices[0].total() - 10.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn adds_taxes_and_grid_fees() {
+        let prices: Vec<Price> = serde_json::from_str(
+            r#"[
+                {"dynamicGridFee":2.5,"from":"2026-01-01T00:00:00+01:00","to":"2026-01-01T01:00:00+01:00","price":-1.25,"taxes":8.5},
+                {"from":"2026-01-01T01:00:00+01:00","to":"2026-01-01T02:00:00+01:00","price":3,"taxes":9}
+            ]"#,
+        )
+        .unwrap();
+
+        assert!((prices[0].total() - 9.75).abs() < 1e-9);
+        assert!((prices[1].total() - 12.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn parses_devices() {
+        let devices: Vec<Device> = serde_json::from_str(
+            r#"[
+                {"id":"device-1","energyProviderId":"provider-1","modules":[{"id":"module-1","type":"INVERTER"}]},
+                {"id":"device-2"}
+            ]"#,
+        )
+        .unwrap();
+
+        assert_eq!(devices[0].energy_provider_id.as_deref(), Some("provider-1"));
+        assert_eq!(devices[0].modules[0].kind, "INVERTER");
+        assert_eq!(devices[1].energy_provider_id, None);
+        assert!(devices[1].modules.is_empty());
     }
 }

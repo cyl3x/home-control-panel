@@ -61,7 +61,7 @@ impl Service {
 
         let mut overview = Overview {
             totals: self.totals(&device),
-            prices: self.prices(),
+            prices: self.prices(&device),
             ..Overview::default()
         };
 
@@ -122,7 +122,9 @@ impl Service {
     }
 
     /// Prices are only fetched again on the next day, failing to fetch them is not fatal.
-    fn prices(&mut self) -> Vec<Price> {
+    ///
+    /// Like the app, they come with taxes and the dynamic grid fees of the device's provider.
+    fn prices(&mut self, device: &Device) -> Vec<Price> {
         let today = Local::now().date_naive();
 
         if self
@@ -133,7 +135,17 @@ impl Service {
             return self.prices.clone();
         }
 
-        match self.client.get(&format!("/energy-prices/{today}")) {
+        // Without a provider the prices lack the grid fees
+        let provider = device
+            .energy_provider_id
+            .as_ref()
+            .map(|provider_id| format!("&energyProviderId={provider_id}"))
+            .unwrap_or_default();
+
+        match self
+            .client
+            .get(&format!("/energy-prices/{today}?withTaxes=true{provider}"))
+        {
             Ok(prices) => self.prices = prices,
             Err(err) => {
                 log::warn!("EnviIq: failed to fetch prices: {err}");

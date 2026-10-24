@@ -17,10 +17,10 @@ const SCALE_WIDTH: i32 = 64;
 
 const BAR_SPACING: i32 = 6;
 
-/// The exchange prices of the day as bars, with the current and the cheapest remaining slot marked.
+/// The prices of the day as bars, with the current and the cheapest remaining slot marked.
 pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
-    let min = prices.iter().map(|price| price.price).reduce(f64::min)?;
-    let max = prices.iter().map(|price| price.price).reduce(f64::max)?;
+    let min = prices.iter().map(|price| price.total()).reduce(f64::min)?;
+    let max = prices.iter().map(|price| price.total()).reduce(f64::max)?;
 
     let current = prices
         .iter()
@@ -31,11 +31,11 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
         prices[current..]
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.price.total_cmp(&b.price))
+            .min_by(|(_, a), (_, b)| a.total().total_cmp(&b.total()))
             .map(|(offset, _)| current + offset)
     });
 
-    let title = label("Börsenpreis heute", "energy__section__title");
+    let title = label("Strompreis heute", "energy__section__title");
     title.set_hexpand(true);
     title.set_valign(gtk::Align::Start);
 
@@ -47,18 +47,22 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
             header.append(&key(
                 Some("current"),
                 "Jetzt am günstigsten",
-                &cent(prices[current].price),
+                &cent(prices[current].total()),
             ));
         }
         (Some(current), Some(cheapest)) => {
-            header.append(&key(Some("current"), "Jetzt", &cent(prices[current].price)));
+            header.append(&key(
+                Some("current"),
+                "Jetzt",
+                &cent(prices[current].total()),
+            ));
             header.append(&key(
                 Some("cheapest"),
                 "Am günstigsten",
                 &format!(
                     "{} · {}",
                     prices[cheapest].from.format("%H:%M"),
-                    cent(prices[cheapest].price)
+                    cent(prices[cheapest].total())
                 ),
             ));
         }
@@ -93,8 +97,8 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
     hours.set_homogeneous(true);
 
     for (index, price) in prices.iter().enumerate() {
-        let negative = price.price < 0.0;
-        let height = ((price.price.abs() / step * f64::from(SEGMENT_ROWS)).round() as i32).max(1);
+        let negative = price.total() < 0.0;
+        let height = ((price.total().abs() / step * f64::from(SEGMENT_ROWS)).round() as i32).max(1);
 
         let (row, height, free) = if negative {
             let height = height.min(rows - zero);
@@ -122,7 +126,7 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
 
         // The price of the current hour, in the free rows above its bar
         if Some(index) == current && free >= 2 {
-            let value = label(&decimal(price.price, 1), "energy__bar__value");
+            let value = label(&decimal(price.total(), 1), "energy__bar__value");
             value.set_halign(gtk::Align::Center);
             value.set_valign(gtk::Align::End);
             value.set_wrap(false);
