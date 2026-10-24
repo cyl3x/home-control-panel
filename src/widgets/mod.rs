@@ -1,6 +1,8 @@
 pub mod calendar;
 pub mod energy;
+pub mod format;
 pub mod heating;
+pub mod refresh;
 pub mod screensaver;
 pub mod summary;
 pub mod switcher;

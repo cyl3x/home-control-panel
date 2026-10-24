@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+
+use super::{Note, Target};
 use crate::messaging::{self, HeatingMessage};
 use crate::myvaillant::{Action, Circuit, Command, HeatingSystem, HotWater, Setpoint, Zone};
 use crate::prelude::*;
+use crate::widgets::format::decimal;
 
 // Font Awesome glyphs, used sparingly where they help finding things at a glance
 const ICON_ZONE: char = '\u{f015}'; // house
@@ -9,11 +13,17 @@ const ICON_CIRCUIT: char = '\u{f2c9}'; // temperature-half
 const ICON_BOOST: char = '\u{f0e7}'; // bolt
 const ICON_VENTILATION: char = '\u{f72e}'; // wind
 const ICON_AWAY: char = '\u{f5c1}'; // suitcase-rolling
+const ICON_CHECK: char = '\u{f00c}'; // check
 
 /// A system with its name, overview and cards, the status bar is shown next to the name.
 ///
 /// The overview stats sit in the header row, which leaves the whole height below to the cards.
-pub fn system(system: &HeatingSystem, controls: bool, status_bar: Option<&gtk::Box>) -> gtk::Box {
+pub fn system(
+    system: &HeatingSystem,
+    controls: bool,
+    status_bar: Option<&gtk::Box>,
+    notes: &HashMap<Target, Note>,
+) -> gtk::Box {
     let overview = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     overview.set_valign(gtk::Align::Center);
     overview.append(&stat(
@@ -25,7 +35,7 @@ pub fn system(system: &HeatingSystem, controls: bool, status_bar: Option<&gtk::B
         "Wasserdruck",
         &system.water_pressure.map_or_else(
             || "–".to_string(),
-            |pressure| format!("{pressure:.1} bar"),
+            |pressure| format!("{} bar", decimal(pressure, 1)),
         ),
         None,
     ));
@@ -53,20 +63,24 @@ pub fn system(system: &HeatingSystem, controls: bool, status_bar: Option<&gtk::B
         .row_spacing(16)
         .column_spacing(16)
         // The cards keep their own height. Stretching them to the page only blows up the
-        // gap between the reading and the controls.
+        // gap between the reading and the controls, and their spacers must not make the
+        // flow box take the page's height.
         .valign(gtk::Align::Start)
+        .vexpand(false)
         .build();
 
     for zone in &system.zones {
-        cards.append(&zone_card(system, zone, controls));
+        let note = notes.get(&Target::Zone(system.id.clone(), zone.index));
+        cards.append(&zone_card(system, zone, controls, note));
     }
 
     for hot_water in &system.hot_water {
-        cards.append(&hot_water_card(system, hot_water, controls));
+        let note = notes.get(&Target::HotWater(system.id.clone(), hot_water.index));
+        cards.append(&hot_water_card(system, hot_water, controls, note));
     }
 
     for circuit in &system.circuits {
-        cards.append(&circuit_card(circuit));
+        cards.append(&circuit_card(system, circuit));
     }
 
     let section = gtk::Box::new(gtk::Orientation::Vertical, 16);
@@ -87,14 +101,36 @@ pub fn system(system: &HeatingSystem, controls: bool, status_bar: Option<&gtk::B
     section.append(&cards);
 
     if controls {
-        // Pinned to the bottom, so the height left over sits between the groups rather
-        // than inside the cards
-        section.append(&grow());
-        section.append(&label("Schnellzugriff", "heating__section__title"));
+        let title = label("Schnellzugriff", "heating__section__title");
+        title.set_valign(gtk::Align::Baseline);
+
+        let header = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+        header.add_css_class("heating__section__header");
+        header.append(&title);
+
+        if let Some(note) = notes.get(&Target::System(system.id.clone())) {
+            header.append(&note_label(*note, "heating__note"));
+        }
+
+        section.append(&header);
         section.append(&quick_actions(system));
     }
 
     section
+}
+
+fn note_label(note: Note, class: &str) -> gtk::Label {
+    let (text, state) = match note {
+        Note::Sending | Note::Sent => ("Wird übernommen …", "sending"),
+        Note::Failed(_) => ("Nicht übernommen", "failed"),
+    };
+
+    let label = label(text, class);
+    label.set_wrap(false);
+    label.set_valign(gtk::Align::Baseline);
+    label.add_css_class(state);
+
+    label
 }
 
 pub fn label(text: &str, class: &str) -> gtk::Label {
@@ -153,7 +189,7 @@ fn quick_actions(system: &HeatingSystem) -> gtk::Box {
     actions
 }
 
-fn zone_card(system: &HeatingSystem, zone: &Zone, controls: bool) -> gtk::Box {
+fn zone_card(system: &HeatingSystem, zone: &Zone, controls: bool, note: Option<&Note>) -> gtk::Box {
     // Systems without a room sensor only know the setpoint
     let (value, setpoint_title) = zone.current_temperature.map_or_else(
         || (zone.desired_temperature, "Solltemperatur"),
@@ -175,7 +211,7 @@ fn zone_card(system: &HeatingSystem, zone: &Zone, controls: bool) -> gtk::Box {
             .map(|mode| describe(mode).to_string()),
     );
 
-    if let Some(details) = details(&texts, zone.heating_state.as_deref()) {
+    if let Some(details) = details(&texts, own_state(system, zone.heating_state.as_deref())) {
         card.append(&details);
     }
 
@@ -187,6 +223,7 @@ fn zone_card(system: &HeatingSystem, zone: &Zone, controls: bool) -> gtk::Box {
             system_id: system.id.clone(),
             zone: zone.index,
         }),
+        note,
     ));
 
     if controls {
@@ -223,7 +260,12 @@ fn zone_card(system: &HeatingSystem, zone: &Zone, controls: bool) -> gtk::Box {
     card
 }
 
-fn hot_water_card(system: &HeatingSystem, hot_water: &HotWater, controls: bool) -> gtk::Box {
+fn hot_water_card(
+    system: &HeatingSystem,
+    hot_water: &HotWater,
+    controls: bool,
+    note: Option<&Note>,
+) -> gtk::Box {
     let card = card(
         ICON_HOT_WATER,
         "Warmwasser",
@@ -239,6 +281,7 @@ fn hot_water_card(system: &HeatingSystem, hot_water: &HotWater, controls: bool) 
             system_id: system.id.clone(),
             index: hot_water.index,
         }),
+        note,
     ));
 
     if controls {
@@ -264,7 +307,7 @@ fn hot_water_card(system: &HeatingSystem, hot_water: &HotWater, controls: bool) 
     card
 }
 
-fn circuit_card(circuit: &Circuit) -> gtk::Box {
+fn circuit_card(system: &HeatingSystem, circuit: &Circuit) -> gtk::Box {
     let card = card(
         ICON_CIRCUIT,
         &format!("Heizkreis {}", circuit.index + 1),
@@ -272,7 +315,10 @@ fn circuit_card(circuit: &Circuit) -> gtk::Box {
         "°C",
     );
 
-    if let Some(details) = details(&["Vorlauf".to_string()], circuit.state.as_deref()) {
+    if let Some(details) = details(
+        &["Vorlauf".to_string()],
+        own_state(system, circuit.state.as_deref()),
+    ) {
         card.append(&details);
     }
 
@@ -296,7 +342,7 @@ fn card(icon: char, title: &str, value: Option<f64>, unit: &str) -> gtk::Box {
 
     match value {
         Some(value) => {
-            big.append(&label(&format!("{value:.1}"), "heating__card__value"));
+            big.append(&label(&decimal(value, 1), "heating__card__value"));
 
             let unit = label(&format!(" {unit}"), "heating__card__value__unit");
             unit.set_valign(gtk::Align::Baseline);
@@ -348,16 +394,25 @@ fn with_icon(icon: Option<char>, text: &str, class: &str) -> gtk::Box {
 }
 
 /// The setpoint in a recessed row, with − and + if it can be changed.
-fn setpoint_row(title: &str, value: &str, setpoint: Option<Setpoint>) -> gtk::Widget {
+fn setpoint_row(
+    title: &str,
+    value: &str,
+    setpoint: Option<Setpoint>,
+    note: Option<&Note>,
+) -> gtk::Widget {
     let Some(setpoint) = setpoint else {
         return readonly(title, value).upcast();
     };
 
-    let title = label(title, "heating__setpoint__title");
+    let title = note.map_or_else(
+        || label(title, "heating__setpoint__title"),
+        |note| note_label(*note, "heating__setpoint__title"),
+    );
     title.set_halign(gtk::Align::Center);
 
     let value = label(value, "heating__setpoint__value");
     value.set_halign(gtk::Align::Center);
+    value.set_class_active("pending", matches!(note, Some(Note::Sending | Note::Sent)));
 
     let labels = gtk::Box::new(gtk::Orientation::Vertical, 0);
     labels.set_hexpand(true);
@@ -399,12 +454,12 @@ fn mode_buttons(
     modes: &[&str],
     command: impl Fn(&str) -> Command,
 ) -> gtk::Box {
-    let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 4);
     buttons.set_homogeneous(true);
     buttons.add_css_class("heating__modes");
 
     for mode in modes {
-        let button = gtk::Button::with_label(mode_label(mode));
+        let button = gtk::Button::with_label(describe(mode));
 
         if current == Some(*mode) {
             button.add_css_class("active");
@@ -422,6 +477,12 @@ fn mode_buttons(
 fn action_button(icon: char, text: &str, active: bool, command: Command) -> gtk::Button {
     let content = with_icon(Some(icon), text, "heating__action__label");
     content.set_halign(gtk::Align::Center);
+
+    if active {
+        let check = label(&ICON_CHECK.to_string(), "heating__action__check");
+        check.add_css_class("icon");
+        content.append(&check);
+    }
 
     // These names are short enough to fit, breaking them at the hyphen only looks cramped
     let mut child = content.first_child();
@@ -444,8 +505,12 @@ fn action_button(icon: char, text: &str, active: bool, command: Command) -> gtk:
 
 /// An active special function, optionally with a button to end it.
 fn highlight(text: &str, cancel: Option<Command>) -> gtk::Box {
+    let chip = label(text, "heating__card__highlight");
+    chip.set_valign(gtk::Align::Center);
+
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    row.append(&label(text, "heating__card__highlight"));
+    row.add_css_class("heating__highlight");
+    row.append(&chip);
 
     if let Some(command) = cancel {
         let button = gtk::Button::with_label("Beenden");
@@ -464,7 +529,17 @@ fn execute(command: &Command) {
 }
 
 pub(super) fn temperature(value: Option<f64>) -> String {
-    value.map_or_else(|| "–".to_string(), |value| format!("{value:.1} °C"))
+    value.map_or_else(
+        || "–".to_string(),
+        |value| format!("{} °C", decimal(value, 1)),
+    )
+}
+
+/// The state, unless it repeats the system's state from the header.
+fn own_state<'a>(system: &HeatingSystem, state: Option<&'a str>) -> Option<&'a str> {
+    let system_state = system.energy_manager_state.as_deref().map(describe);
+
+    state.filter(|state| Some(describe(state)) != system_state)
 }
 
 /// Details in one line, e.g. "Luftfeuchte 70 % · Heizt", with the state colored.
@@ -523,23 +598,13 @@ pub(super) fn state_icon(state: &str) -> Option<char> {
     }
 }
 
-/// Short names of operation modes, which have to fit side by side into a card.
-fn mode_label(mode: &str) -> &str {
-    match mode {
-        "TIME_CONTROLLED" | "AUTO" => "Zeitplan",
-        "DAY" => "Tag",
-        "SET_BACK" => "Absenkung",
-        mode => describe(mode),
-    }
-}
-
 /// Translate the API's states, modes and special functions.
 pub(super) fn describe(value: &str) -> &str {
     match value {
-        "TIME_CONTROLLED" | "AUTO" => "Zeitprogramm",
+        "TIME_CONTROLLED" | "AUTO" => "Zeitplan",
         "MANUAL" => "Manuell",
         "DAY" => "Tagbetrieb",
-        "SET_BACK" => "Absenkbetrieb",
+        "SET_BACK" => "Absenkung",
         "OFF" => "Aus",
         "IDLE" | "STANDBY" => "Standby",
         "HEATING" | "HEATING_UP" => "Heizt",

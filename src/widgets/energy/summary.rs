@@ -82,7 +82,7 @@ fn online(
             icon,
             title,
             "–",
-            Some(detail("Offline", Some("state-warn"))),
+            Some(detail("Offline", Some("state-error"))),
         );
     }
 

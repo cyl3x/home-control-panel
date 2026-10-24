@@ -19,31 +19,90 @@ window {
     --color-gray-900: oklch(0.208 0.042 265.755);
     --color-gray-950: oklch(0.129 0.042 264.695);
 
-    --color: oklch(0.129 0.042 264.695);
-    /* Secondary text sits at gray-500 for contrast, it used to be gray-400 */
-    --color-disabled: oklch(0.554 0.046 257.417);
+    /* Text: primary, secondary, labels and details, all at least 4.5:1 */
+    --color: var(--color-gray-950);
+    --color-secondary: var(--color-gray-600);
+    --color-disabled: oklch(0.52 0.046 257.417);
+
+    /* Surfaces */
+    --background-color: var(--color-gray-100);
+    --background-elevated: #fff;
+    --background-button: #fff;
+    --background-recessed: var(--color-gray-100);
+    --background-track: var(--color-gray-200);
+    --background-pill: #fff;
+    --background-pressed: var(--color-gray-200);
+    --color-line: var(--color-gray-200);
+    --color-line-strong: var(--color-gray-300);
 
     --background-color-selected: oklch(0.78 0.1 245);
-    --background-color-hover: oklch(0.929 0.013 255.508);
     --background-color-active: oklch(0.92 0.035 245);
+    --color-highlight: oklch(0.48 0.12 250);
 
-    --background-color: oklch(0.968 0.007 247.896);
-    --background-elevated: #fff;
-    --background-color-disabled: oklch(0.869 0.022 252.894);
+    /* Indicators share lightness and chroma. Warn is for attention, error for faults. */
+    --color-good: oklch(0.53 0.12 160);
+    --color-warn: oklch(0.53 0.12 60);
+    --color-error: oklch(0.53 0.14 25);
+    --color-cool: oklch(0.53 0.12 250);
 
-    /* Indicators share lightness and chroma, only the hue varies, so they read
-       equally strong and all reach 4.5:1 on white */
-    --color-good: oklch(0.56 0.12 160);
-    --color-warn: oklch(0.56 0.12 60);
-    --color-error: oklch(0.56 0.14 25);
-    --color-cool: oklch(0.56 0.12 250);
+    /* Data */
+    --color-flow: oklch(0.6 0.13 245);
+    --color-bar: var(--color-gray-400);
+    --color-bar-past: var(--color-gray-200);
+    --color-now: var(--background-color-selected);
 
-    /* A hairline ring plus a short drop, which stays calm with many cards on screen */
+    --birthday-background: oklch(0.95 0.025 354);
+    --birthday-ring: oklch(0.88 0.06 354);
+    --birthday-accent: oklch(0.656 0.241 354.308);
+    --birthday-color: oklch(0.5 0.16 354);
+
+    /* Raised for what can be tapped, a hairline for containers */
     --box-shadow: 0 0 0 1px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.1);
+    --box-shadow-flat: 0 0 0 1px rgb(15 23 42 / 0.08);
     --box-shadow-pressed: inset 0 2px 4px rgb(0 0 0 / 0.25);
     --border-radius: 8px;
     /* Grouped controls, like the tab track and the setpoint row */
     --border-radius-group: 12px;
+}
+
+/* Dark appearance during the screensaver's dim times */
+window.night {
+    --color: var(--color-gray-100);
+    --color-secondary: var(--color-gray-300);
+    --color-disabled: var(--color-gray-400);
+
+    --background-color: var(--color-gray-950);
+    --background-elevated: var(--color-gray-900);
+    --background-button: var(--color-gray-800);
+    --background-recessed: oklch(0.17 0.042 265);
+    --background-track: var(--color-gray-800);
+    --background-pill: var(--color-gray-700);
+    --background-pressed: var(--color-gray-700);
+    --color-line: var(--color-gray-800);
+    --color-line-strong: var(--color-gray-700);
+
+    --background-color-selected: oklch(0.48 0.1 250);
+    --background-color-active: oklch(0.32 0.06 250);
+    --color-highlight: oklch(0.84 0.08 245);
+
+    --color-good: oklch(0.74 0.12 160);
+    --color-warn: oklch(0.74 0.12 60);
+    --color-error: oklch(0.74 0.13 25);
+    --color-cool: oklch(0.74 0.11 250);
+
+    --color-flow: oklch(0.72 0.11 245);
+    --color-bar: var(--color-gray-500);
+    --color-bar-past: var(--color-gray-700);
+    --color-now: oklch(0.72 0.12 245);
+
+    --birthday-background: oklch(0.28 0.05 354);
+    --birthday-ring: oklch(0.38 0.08 354);
+    --birthday-accent: oklch(0.72 0.17 354);
+    --birthday-color: oklch(0.84 0.09 354);
+
+    --box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 1px 3px rgb(0 0 0 / 0.5);
+    --box-shadow-flat: 0 0 0 1px rgb(255 255 255 / 0.07);
+    --box-shadow-pressed: inset 0 2px 4px rgb(0 0 0 / 0.5);
 }
 
 button {
@@ -51,16 +110,17 @@ button {
     min-height: 48px;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
-    background-color: var(--background-elevated);
-    transition: background-color 150ms ease-in-out;
+    background-color: var(--background-button);
+    transition: background-color 100ms ease-out, box-shadow 100ms ease-out;
 }
 
-button:hover {
-    background-color: var(--background-color-hover);
+button:active {
+    background-color: var(--background-pressed);
+    box-shadow: var(--box-shadow-pressed);
 }
 
 spinner {
-    border: 3px solid var(--background-color-disabled);
+    border: 3px solid var(--color-line-strong);
     border-bottom-color: var(--background-color-selected);
     border-radius: 50%;
 }
@@ -80,13 +140,12 @@ spinner.large {
 }
 
 .paned separator {
-    border: 2px solid oklch(0.869 0.022 252.894);
+    border: 2px solid var(--color-line-strong);
     border-radius: var(--border-radius);
     margin: 0 8px;
 }
 
-/* Tab bar: pills in a recessed track, the clock sits at its end.
-   A slim strip above the pages, it should not take height from them. */
+/* Tab bar: pills in a recessed track, the clock sits at its end */
 .switcher {
     padding: 6px 16px 8px 16px;
 }
@@ -94,58 +153,49 @@ spinner.large {
 .switcher__track {
     padding: 3px;
     border-radius: 10px;
-    background-color: var(--color-gray-200);
+    background-color: var(--background-track);
 }
 
-/* Short, but still wide enough to be an easy touch target */
 .switcher__track > * {
-    padding: 2px 16px;
+    padding: 0 16px;
     min-width: 160px;
-    min-height: 34px;
+    min-height: 44px;
     box-shadow: none;
     background-color: transparent;
-    color: var(--color-gray-600);
+    color: var(--color-secondary);
 }
 
-.switcher__track > *:hover {
-    background-color: transparent;
+.switcher__track > *:active {
+    background-color: var(--color-line-strong);
+    box-shadow: none;
 }
 
 .switcher__track > *:checked {
-    background-color: var(--background-elevated);
+    background-color: var(--background-pill);
     box-shadow: var(--box-shadow);
     color: var(--color);
     font-weight: bold;
 }
 
-.switcher__dot {
-    min-width: 8px;
-    min-height: 8px;
-    border-radius: 50%;
-    background-color: var(--color-good);
-}
-
-.switcher__dot.failing {
-    background-color: var(--color-error);
+.switcher__alert {
+    color: var(--color-error);
+    font-size: 16px;
 }
 
 .clock {
-    color: var(--color-gray-600);
-    font-size: 16px;
+    color: var(--color-secondary);
+    font-size: 18px;
 }
 
 /* Kept under the pill height so the clock never sets the height of the bar */
 .clock__time {
-    font-size: 20px;
+    font-size: 26px;
+    font-weight: bold;
     color: var(--color);
 }
 
 .no-stackswitcher {
     padding-top: 16px;
-}
-
-.video-player {
-
 }
 
 .video-player .clapper {
@@ -156,18 +206,17 @@ spinner.large {
     color: var(--background-color);
 }
 
-/* The camera buttons sit on the video, which leaves the height below it to the summary.
-   Slim, so they cover as little of the picture as possible. */
+/* The camera buttons sit on the video, which leaves the height below it to the summary */
 .video-player .buttons {
     margin: 12px;
     padding: 3px;
     border-radius: 10px;
-    background-color: rgb(2 6 24 / 0.55);
+    background-color: rgb(2 6 24 / 0.6);
 }
 
 .video-player .buttons button {
-    padding: 2px 14px;
-    min-height: 34px;
+    padding: 0 16px;
+    min-height: 44px;
     border-radius: 7px;
     background-color: transparent;
     box-shadow: none;
@@ -175,17 +224,17 @@ spinner.large {
     font-size: 16px;
 }
 
-.video-player .buttons button:hover {
-    background-color: rgb(255 255 255 / 0.15);
+.video-player .buttons button:active {
+    background-color: rgb(255 255 255 / 0.2);
 }
 
 .video-player .buttons button.active {
     background-color: #fff;
-    color: var(--color);
+    color: #020618;
 }
 
-.calendar-month {
-
+window.night .video-player .buttons button.active {
+    background-color: var(--color-gray-300);
 }
 
 .calendar-month__control {
@@ -196,6 +245,12 @@ spinner.large {
     font-size: 18px;
 }
 
+.calendar-month__today {
+    padding: 0 16px;
+    margin-bottom: 12px;
+    font-size: 16px;
+}
+
 .calendar-month__label {
     font-size: 22px;
     margin-bottom: 12px;
@@ -204,7 +259,7 @@ spinner.large {
 .calendar-month__weekday-label {
     font-weight: bold;
     font-size: 16px;
-    color: var(--color-gray-600);
+    color: var(--color-secondary);
 }
 
 .calendar-month__grid {
@@ -213,7 +268,7 @@ spinner.large {
 }
 
 .calendar-month__grid-day {
-    background-color: var(--background-elevated);
+    background-color: var(--background-button);
     border-radius: 4px;
     box-shadow: var(--box-shadow);
     padding: 4px;
@@ -235,24 +290,15 @@ spinner.large {
 .calendar-month__grid-day.not-month {
     background-color: transparent;
     box-shadow: none;
-    color: var(--color-gray-400);
-}
-
-.calendar-month__grid-day__label {
-
-}
-
-.calendar-month__grid-day__indicators {
-    margin-top: 4px;
-
+    color: var(--color-disabled);
 }
 
 .calendar-month__grid-day__indicator {
     border-radius: 50%;
 }
 
-/* The day list takes the whole height below the filters */
-.calendar-day {
+.calendar-month__grid-day__indicators {
+    margin-top: 4px;
 }
 
 .calendar-day__header {
@@ -271,21 +317,32 @@ spinner.large {
 .calendar-day__item {
     border-radius: var(--border-radius);
     background-color: var(--background-elevated);
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--box-shadow-flat);
     margin-bottom: 10px;
     min-height: 68px;
     padding-right: 20px;
 }
 
-/* Events that are over stay readable but step back */
 .calendar-day__item.past {
-    opacity: 0.55;
+    min-height: 48px;
 }
 
-/* No time column, so the strip starts where the times would have been */
+.calendar-day__item.past .calendar-day__item__labels__summary,
+.calendar-day__item.past .calendar-day__item__time {
+    color: var(--color-disabled);
+}
+
+.calendar-day__item.past .calendar-day__item__indicator {
+    opacity: 0.5;
+}
+
 .calendar-day__item.allday {
     min-height: 52px;
-    padding-left: 20px;
+}
+
+.calendar-day__item.allday .calendar-day__item__time {
+    color: var(--color-disabled);
+    font-size: 16px;
 }
 
 .calendar-day__item__time {
@@ -302,15 +359,10 @@ spinner.large {
 .calendar-upcoming__item__indicator {
     border-radius: 4px;
     min-width: 6px;
-    transition: filter 150ms ease-in-out;
 }
 
 .calendar-day__item__labels {
     margin: 8px 8px 8px 12px;
-}
-
-.calendar-day__item__labels__summary {
-
 }
 
 .calendar-day__item__labels__description {
@@ -323,7 +375,7 @@ spinner.large {
     padding: 4px 10px;
     border-radius: 4px;
     background-color: var(--background-color-active);
-    color: var(--color-cool);
+    color: var(--color-highlight);
     font-size: 16px;
 }
 
@@ -331,14 +383,14 @@ spinner.large {
 .calendar-birthday {
     padding: 14px 20px;
     border-radius: var(--border-radius);
-    background-color: oklch(0.95 0.025 354);
-    box-shadow: inset 0 0 0 1px oklch(0.88 0.06 354);
+    background-color: var(--birthday-background);
+    box-shadow: inset 0 0 0 1px var(--birthday-ring);
     margin-bottom: 10px;
 }
 
 .calendar-birthday__icon {
     font-size: 26px;
-    color: oklch(0.656 0.241 354.308);
+    color: var(--birthday-accent);
     min-width: 32px;
 }
 
@@ -347,39 +399,68 @@ spinner.large {
 }
 
 .calendar-birthday__date {
-    color: var(--color-gray-600);
+    color: var(--color-secondary);
     font-size: 16px;
 }
 
 .calendar-birthday__countdown {
-    color: oklch(0.5 0.16 354);
+    color: var(--birthday-color);
     font-size: 16px;
     font-weight: bold;
 }
 
-.calendar-selection {
+.calendar-birthday.compact {
+    padding: 10px 20px;
+    background-color: var(--background-elevated);
+    box-shadow: var(--box-shadow-flat);
+}
+
+.calendar-birthday.compact .calendar-birthday__icon {
+    font-size: 20px;
+    min-width: 24px;
+}
+
+.calendar-birthday.compact .calendar-birthday__name {
+    font-size: 18px;
+}
+
+.calendar-birthday.compact .calendar-birthday__date {
+    color: var(--color-disabled);
+}
+
+.calendar-birthday.compact .calendar-birthday__countdown {
+    color: var(--color-disabled);
+    font-weight: normal;
 }
 
 .calendar-selection__button {
-    padding: 8px 10px;
-    min-height: 48px;
+    padding: 6px 10px;
+    min-height: 32px;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     border-bottom: 4px solid;
-    transition: filter 150ms ease-in-out;
 }
 
 .calendar-selection__button__label {
     font-size: 16px;
 }
 
-.calendar-selection__button.disabled {
-    filter: opacity(50%);
+.calendar-selection__button.off {
+    border-bottom-style: dashed;
+}
+
+.calendar-selection__button.off .calendar-selection__button__label,
+.calendar-selection__button__hidden {
+    color: var(--color-disabled);
+}
+
+.calendar-selection__button__hidden {
+    font-size: 14px;
 }
 
 .calendar-event {
     background: var(--background-elevated);
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--box-shadow-flat);
     border-radius: var(--border-radius);
 }
 
@@ -389,24 +470,25 @@ spinner.large {
     font-weight: bold;
 }
 
-/* Screensaver agenda, also reused on the main screen's bottom */
+/* Screensaver agenda */
 .calendar-upcoming {
-    font-size: 20px;
+    font-size: 24px;
     margin-top: 0;
 }
 
 .calendar-upcoming__group {
     color: #8a8a8a;
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: bold;
 }
 
 .calendar-upcoming__item {
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .calendar-upcoming__item__time {
     color: #9a9a9a;
-    min-width: 80px;
+    min-width: 96px;
 }
 
 .calendar-upcoming__item__label {
@@ -421,22 +503,18 @@ spinner.large {
     color: #e6e6e6;
 }
 
-.screensaver__center.dim {
-    opacity: 0.5;
-}
-
 .screensaver__date {
-    font-size: 28px;
+    font-size: 36px;
     color: #bdbdbd;
 }
 
 .screensaver__time {
-    font-size: 96px;
+    font-size: 144px;
     color: #f0f0f0;
 }
 
 .screensaver__seconds {
-    font-size: 36px;
+    font-size: 48px;
     color: #7a7a7a;
 }
 
@@ -446,7 +524,7 @@ spinner.large {
 }
 
 .screensaver__birthday {
-    font-size: 22px;
+    font-size: 26px;
     color: #f0f0f0;
 }
 
@@ -456,7 +534,27 @@ spinner.large {
 
 .screensaver__birthday__countdown {
     color: #8a8a8a;
-    font-size: 18px;
+    font-size: 20px;
+}
+
+/* Dimmed by darker text instead of opacity, which keeps 4.5:1 */
+.screensaver__center.dim,
+.screensaver__center.dim .screensaver__time,
+.screensaver__center.dim .screensaver__birthday {
+    color: #8c8c8c;
+}
+
+.screensaver__center.dim .screensaver__date,
+.screensaver__center.dim .screensaver__seconds,
+.screensaver__center.dim .screensaver__birthday__countdown,
+.screensaver__center.dim .calendar-upcoming__group,
+.screensaver__center.dim .calendar-upcoming__item__time {
+    color: #767676;
+}
+
+.screensaver__center.dim .calendar-upcoming__item__indicator,
+.screensaver__center.dim .screensaver__birthday__icon {
+    opacity: 0.6;
 }
 
 .heating.spinner-active > *:first-child,
@@ -469,6 +567,11 @@ spinner.large {
     min-width: 48px;
     min-height: 48px;
     padding: 0;
+}
+
+.refresh__spinner {
+    min-width: 20px;
+    min-height: 20px;
 }
 
 .heating__status,
@@ -500,19 +603,22 @@ spinner.large {
     font-weight: bold;
 }
 
+.heating__section__header {
+    margin-top: 16px;
+}
+
 .heating__stat,
 .heating__card,
 .energy__card,
 .energy__node,
-.energy__stat,
-.summary__card {
+.energy__stat {
     padding: 12px 16px;
     border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--box-shadow-flat);
     background-color: var(--background-elevated);
 }
 
-/* The overview stats moved into the header row, so they are compact */
+/* The overview stats sit in the header row, so they are compact */
 .heating__stat {
     padding: 10px 18px;
 }
@@ -534,6 +640,7 @@ spinner.large {
 .heating__card__detail,
 .energy__stat__title,
 .energy__detail,
+.energy__key__title,
 .summary__title,
 .summary__detail {
     color: var(--color-disabled);
@@ -548,18 +655,13 @@ spinner.large {
     font-size: 36px;
 }
 
-.heating__card__title,
-.energy__node__title {
-    font-weight: bold;
-}
-
 .heating__card__title {
     font-size: 20px;
+    font-weight: bold;
 }
 
 .energy__node__title {
     font-size: 16px;
-    font-weight: normal;
     color: var(--color);
 }
 
@@ -569,15 +671,19 @@ spinner.large {
 
 .heating__card__value__unit {
     font-size: 32px;
-    color: var(--color-gray-600);
+    color: var(--color-secondary);
+}
+
+.heating__highlight {
+    margin-top: 4px;
+    min-height: 44px;
 }
 
 .heating__card__highlight {
-    margin-top: 4px;
     padding: 4px 10px;
     border-radius: 4px;
     background-color: var(--background-color-active);
-    color: var(--color-cool);
+    color: var(--color-highlight);
     font-size: 16px;
 }
 
@@ -587,13 +693,16 @@ spinner.large {
 
 .heating__action {
     padding: 12px 16px;
-    min-height: 72px;
+    min-height: 48px;
 }
 
-.heating__action.active,
-.heating__modes button.active {
+.heating__action.active {
     background-color: var(--background-color-selected);
     box-shadow: var(--box-shadow-pressed);
+}
+
+.heating__action__check {
+    margin-left: 4px;
 }
 
 /* The setpoint and the read-only value sit in a recessed row inside the card */
@@ -602,7 +711,7 @@ spinner.large {
     margin: 4px 0;
     padding: 10px;
     border-radius: var(--border-radius-group);
-    background-color: var(--color-gray-100);
+    background-color: var(--background-recessed);
 }
 
 .heating__setpoint__title {
@@ -615,6 +724,10 @@ spinner.large {
     font-size: 24px;
 }
 
+.heating__setpoint__value.pending {
+    color: var(--color-disabled);
+}
+
 .heating__readonly {
     padding: 16px;
 }
@@ -622,6 +735,20 @@ spinner.large {
 .heating__readonly__title {
     color: var(--color-disabled);
     font-size: 16px;
+}
+
+.heating__note {
+    font-size: 16px;
+}
+
+.heating__note.sending,
+.heating__setpoint__title.sending {
+    color: var(--color-disabled);
+}
+
+.heating__note.failed,
+.heating__setpoint__title.failed {
+    color: var(--color-error);
 }
 
 .heating__step {
@@ -633,18 +760,35 @@ spinner.large {
 
 .heating__modes {
     margin-top: 8px;
+    padding: 3px;
+    border-radius: 10px;
+    background-color: var(--background-track);
 }
 
 .heating__modes button {
-    padding: 8px 4px;
-    min-height: 48px;
+    padding: 0 4px;
+    min-height: 44px;
     font-size: 16px;
+    background-color: transparent;
+    box-shadow: none;
+    color: var(--color-secondary);
+}
+
+.heating__modes button:active {
+    background-color: var(--color-line-strong);
+    box-shadow: none;
+}
+
+.heating__modes button.active {
+    background-color: var(--background-pill);
+    box-shadow: var(--box-shadow);
+    color: var(--color);
+    font-weight: bold;
 }
 
 .heating__cancel {
-    margin-top: 4px;
-    padding: 4px 10px;
-    min-height: 0;
+    padding: 0 16px;
+    min-height: 44px;
     font-size: 16px;
 }
 
@@ -665,7 +809,7 @@ spinner.large {
 /* A circle, half of the size set in the code */
 .energy__hub {
     border-radius: 130px;
-    box-shadow: var(--box-shadow);
+    box-shadow: var(--box-shadow-flat);
     background-color: var(--background-elevated);
 }
 
@@ -679,7 +823,7 @@ spinner.large {
 
 /* Color of the lines between the parts and the house */
 .energy__flow {
-    color: var(--background-color-selected);
+    color: var(--color-flow);
 }
 
 .energy__detail.state-warn {
@@ -690,21 +834,41 @@ spinner.large {
     color: var(--color-good);
 }
 
+.energy__detail.state-error {
+    color: var(--color-error);
+}
+
+.energy__key__value {
+    font-size: 22px;
+}
+
+.energy__swatch {
+    min-width: 12px;
+    min-height: 12px;
+    border-radius: 3px;
+}
+
 .energy__bar {
     border-radius: 4px 4px 0 0;
-    background-color: var(--color-gray-400);
+    background-color: var(--color-bar);
 }
 
 .energy__bar.past {
-    background-color: var(--color-gray-200);
+    background-color: var(--color-bar-past);
 }
 
-.energy__bar.current {
-    background-color: var(--background-color-selected);
+.energy__bar.current,
+.energy__swatch.current {
+    background-color: var(--color-now);
 }
 
-.energy__bar.cheapest {
+.energy__bar.cheapest,
+.energy__swatch.cheapest {
     background-color: var(--color-good);
+}
+
+.energy__bar.negative {
+    border-radius: 0 0 4px 4px;
 }
 
 .energy__bar__label {
@@ -718,19 +882,22 @@ spinner.large {
     font-weight: bold;
 }
 
-/* The ct scale behind the bars */
 .energy__price__scale {
     color: var(--color-disabled);
     font-size: 16px;
 }
 
 .energy__price__baseline {
-    background-color: var(--color-gray-300);
+    background-color: var(--color-line-strong);
     min-height: 1px;
 }
 
 .energy__price__gridline {
-    border-top: 1px dashed var(--color-gray-200);
+    border-top: 1px dashed var(--color-line);
+}
+
+.energy__price__gridline.zero {
+    border-top: 1px solid var(--color-line-strong);
 }
 
 .summary {
@@ -742,6 +909,12 @@ spinner.large {
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     background-color: var(--background-elevated);
+    transition: background-color 100ms ease-out, box-shadow 100ms ease-out;
+}
+
+.summary__row.pressed {
+    background-color: var(--background-pressed);
+    box-shadow: var(--box-shadow-pressed);
 }
 
 /* Before the first fetch a row keeps its space, but shows no card */
@@ -752,13 +925,10 @@ spinner.large {
 
 .summary__card {
     padding: 14px 20px;
-    border-radius: 0;
-    box-shadow: none;
-    background-color: transparent;
 }
 
 .summary__card:not(:first-child) {
-    border-left: 1px solid var(--color-gray-200);
+    border-left: 1px solid var(--color-line);
 }
 
 .summary__value {
@@ -767,9 +937,17 @@ spinner.large {
 
 /* The chevron at the end of a row, which hints that it opens its page */
 .summary__go {
-    color: var(--color-gray-400);
+    color: var(--color-disabled);
     font-size: 20px;
-    min-width: 40px;
+}
+
+.summary__end {
+    margin: 14px 0;
+}
+
+.summary__stale {
+    color: var(--color-disabled);
+    font-size: 16px;
 }
 
 .summary__detail.state-warn,
@@ -779,6 +957,10 @@ spinner.large {
 
 .summary__detail.state-good {
     color: var(--color-good);
+}
+
+.summary__detail.state-error {
+    color: var(--color-error);
 }
 
 .summary__card.state-cooling .summary__value {

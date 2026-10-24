@@ -1,5 +1,6 @@
 use crate::enviiq::{Measurement, Totals};
 use crate::prelude::*;
+use crate::widgets::format::decimal;
 
 // Font Awesome glyphs, used sparingly where they help finding things at a glance
 pub const ICON_PHOTOVOLTAIC: char = '\u{f5ba}'; // solar-panel
@@ -138,14 +139,18 @@ pub fn battery_icon(level: Option<f64>) -> char {
 
 pub fn power(watts: f64) -> String {
     if watts.abs() < 1000.0 {
-        format!("{watts:.0} W")
+        format!("{} W", decimal(watts, 0))
     } else {
-        format!("{:.2} kW", watts / 1000.0)
+        format!("{} kW", decimal(watts / 1000.0, 2))
     }
 }
 
 pub fn energy(kwh: Option<f64>) -> String {
-    kwh.map_or_else(|| "–".to_string(), |kwh| format!("{kwh:.1} kWh"))
+    kwh.map_or_else(|| "–".to_string(), |kwh| format!("{} kWh", decimal(kwh, 1)))
+}
+
+pub fn cent(price: f64) -> String {
+    format!("{} ct", decimal(price, 1))
 }
 
 fn stat(title: &str, value: &str) -> gtk::Box {
@@ -153,11 +158,18 @@ fn stat(title: &str, value: &str) -> gtk::Box {
     let grow = gtk::Box::new(gtk::Orientation::Vertical, 0);
     grow.set_vexpand(true);
 
+    // Wrapping labels in the homogeneous grid break GTK's height measuring
+    let title = label(title, "energy__stat__title");
+    title.set_wrap(false);
+
+    let value = label(value, "energy__stat__value");
+    value.set_wrap(false);
+
     let stat = gtk::Box::new(gtk::Orientation::Vertical, 4);
     stat.add_css_class("energy__stat");
-    stat.append(&label(title, "energy__stat__title"));
+    stat.append(&title);
     stat.append(&grow);
-    stat.append(&label(value, "energy__stat__value"));
+    stat.append(&value);
 
     stat
 }
@@ -170,7 +182,7 @@ mod tests {
     fn formats_power() {
         assert_eq!(power(500.0), "500 W");
         assert_eq!(power(999.4), "999 W");
-        assert_eq!(power(2500.0), "2.50 kW");
+        assert_eq!(power(2500.0), "2,50 kW");
     }
 
     #[test]

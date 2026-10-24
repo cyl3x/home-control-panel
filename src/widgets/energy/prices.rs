@@ -1,19 +1,21 @@
-use super::ui::{detail, label};
+use super::ui::{cent, label};
 use crate::enviiq::Price;
 use crate::prelude::*;
+use crate::widgets::format::decimal;
 
 /// Smallest height the chart is useful at, above that it grows with the page
 const CHART_MIN_HEIGHT: i32 = 160;
 
-/// Rows the bars are measured in. Equally high rows let the bars keep their proportions
-/// at any height, which a fixed pixel height would not.
-const BAR_ROWS: i32 = 48;
+/// Rows per segment of the scale, the bars are measured in rows
+const SEGMENT_ROWS: i32 = 12;
 
-/// Segments the chart is divided into, which sets both the gridlines and the scale ticks
-const TICKS: i32 = 4;
+/// Most segments of the scale
+const MAX_SEGMENTS: i32 = 5;
 
 /// Width of the ct scale left of the bars
-const SCALE_WIDTH: i32 = 56;
+const SCALE_WIDTH: i32 = 64;
+
+const BAR_SPACING: i32 = 6;
 
 /// The exchange prices of the day as bars, with the current and the cheapest remaining slot marked.
 pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
@@ -33,52 +35,74 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
             .map(|(offset, _)| current + offset)
     });
 
-    let summary = match (current, cheapest) {
-        (Some(current), Some(cheapest)) if cheapest == current => {
-            format!("Jetzt {:.1} ct · am günstigsten", prices[current].price)
-        }
-        (Some(current), Some(cheapest)) => format!(
-            "Jetzt {:.1} ct · am günstigsten {} mit {:.1} ct",
-            prices[current].price,
-            prices[cheapest].from.format("%H:%M"),
-            prices[cheapest].price
-        ),
-        _ => format!("{min:.1} – {max:.1} ct/kWh"),
-    };
-
     let title = label("Börsenpreis heute", "energy__section__title");
     title.set_hexpand(true);
+    title.set_valign(gtk::Align::Start);
 
-    let summary = detail(&summary, None);
-    summary.set_valign(gtk::Align::End);
-    summary.set_wrap(false);
-
-    let header = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+    let header = gtk::Box::new(gtk::Orientation::Horizontal, 40);
     header.append(&title);
-    header.append(&summary);
+
+    match (current, cheapest) {
+        (Some(current), Some(cheapest)) if cheapest == current => {
+            header.append(&key(
+                Some("current"),
+                "Jetzt am günstigsten",
+                &cent(prices[current].price),
+            ));
+        }
+        (Some(current), Some(cheapest)) => {
+            header.append(&key(Some("current"), "Jetzt", &cent(prices[current].price)));
+            header.append(&key(
+                Some("cheapest"),
+                "Am günstigsten",
+                &format!(
+                    "{} · {}",
+                    prices[cheapest].from.format("%H:%M"),
+                    cent(prices[cheapest].price)
+                ),
+            ));
+        }
+        _ => {
+            header.append(&key(
+                None,
+                "Spanne",
+                &format!("{} – {}", decimal(min, 1), cent(max)),
+            ));
+        }
+    }
+
+    let (step, above, below) = scale(min, max);
+    let rows = SEGMENT_ROWS * (above + below);
+    let zero = SEGMENT_ROWS * above;
+    let digits = usize::from(step < 1.0);
 
     let bars = gtk::Grid::builder()
         .row_homogeneous(true)
         .column_homogeneous(true)
-        .column_spacing(6)
+        .column_spacing(BAR_SPACING)
         .height_request(CHART_MIN_HEIGHT)
+        .margin_start(SCALE_WIDTH)
         .vexpand(true)
         .hexpand(true)
         .build();
 
-    let hours = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    // Spans every row, so rows no bar reaches aren't collapsed
+    bars.attach(&gtk::Box::new(gtk::Orientation::Vertical, 0), 0, 0, 1, rows);
+
+    let hours = gtk::Box::new(gtk::Orientation::Horizontal, BAR_SPACING);
     hours.set_homogeneous(true);
 
     for (index, price) in prices.iter().enumerate() {
-        // Negative prices get the lowest bar
-        let ratio = if max > 0.0 {
-            (price.price.max(0.0) / max).clamp(0.0, 1.0)
-        } else {
-            0.0
-        };
+        let negative = price.price < 0.0;
+        let height = ((price.price.abs() / step * f64::from(SEGMENT_ROWS)).round() as i32).max(1);
 
-        let filled = ((ratio * f64::from(BAR_ROWS)).round() as i32).clamp(1, BAR_ROWS);
-        let empty = BAR_ROWS - filled;
+        let (row, height, free) = if negative {
+            let height = height.min(rows - zero);
+            (zero, height, zero)
+        } else {
+            let height = height.min(zero);
+            (zero - height, height, zero - height)
+        };
 
         let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
         bar.add_css_class("energy__bar");
@@ -92,17 +116,18 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
             bar.add_css_class("past");
         }
 
-        bars.attach(&bar, index as i32, empty, 1, filled);
+        bar.set_class_active("negative", negative);
 
-        // The price of the current hour sits right above its bar, so it can be read off.
-        // It spans the free rows, so it never forces the chart to grow.
-        if Some(index) == current && empty >= 2 {
-            let value = label(&format!("{:.1}", price.price), "energy__bar__value");
+        bars.attach(&bar, index as i32, row, 1, height);
+
+        // The price of the current hour, in the free rows above its bar
+        if Some(index) == current && free >= 2 {
+            let value = label(&decimal(price.price, 1), "energy__bar__value");
             value.set_halign(gtk::Align::Center);
             value.set_valign(gtk::Align::End);
             value.set_wrap(false);
 
-            bars.attach(&value, index as i32, 0, 1, empty);
+            bars.attach(&value, index as i32, 0, 1, free);
         }
 
         let hour = if price.from.minute() == 0 && price.from.hour() % 3 == 0 {
@@ -116,10 +141,8 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
         hours.append(&hour);
     }
 
-    // The gridlines behind the bars and the scale beside them are divided into the same
-    // number of segments, so a label always sits on its line
     let plot = gtk::Overlay::new();
-    plot.set_child(Some(&gridlines()));
+    plot.set_child(Some(&gridlines(step, above, below, digits)));
     plot.add_overlay(&bars);
     plot.set_measure_overlay(&bars, true);
     plot.set_vexpand(true);
@@ -127,26 +150,28 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
     let baseline = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     baseline.add_css_class("energy__price__baseline");
 
-    let plot_column = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    plot_column.set_hexpand(true);
-    plot_column.set_vexpand(true);
-    plot_column.append(&plot);
-    plot_column.append(&baseline);
-    plot_column.append(&hours);
+    let under = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    under.set_hexpand(true);
+    under.append(&baseline);
+    under.append(&hours);
 
-    let scale = scale(max);
-    scale.set_vexpand(true);
+    // Only a baseline below zero gets a label
+    let lowest = if below > 0 {
+        format!("{} ct", decimal(-step * f64::from(below), digits))
+    } else {
+        String::new()
+    };
 
-    let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    row.set_vexpand(true);
-    row.append(&scale);
-    row.append(&plot_column);
+    let bottom = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    bottom.append(&scale_label(&lowest));
+    bottom.append(&under);
 
     let chart = gtk::Box::new(gtk::Orientation::Vertical, 12);
     chart.add_css_class("energy__card");
     chart.set_vexpand(true);
     chart.append(&header);
-    chart.append(&row);
+    chart.append(&plot);
+    chart.append(&bottom);
 
     let section = gtk::Box::new(gtk::Orientation::Vertical, 0);
     section.append(&chart);
@@ -154,38 +179,113 @@ pub fn section(prices: &[Price], now: DateTime<Local>) -> Option<gtk::Box> {
     Some(section)
 }
 
-/// Dashed lines across the chart, one per segment.
-fn gridlines() -> gtk::Box {
+fn key(swatch: Option<&str>, title: &str, value: &str) -> gtk::Box {
+    let heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+
+    if let Some(class) = swatch {
+        let swatch = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        swatch.add_css_class("energy__swatch");
+        swatch.add_css_class(class);
+        swatch.set_valign(gtk::Align::Center);
+        heading.append(&swatch);
+    }
+
+    heading.append(&label(title, "energy__key__title"));
+
+    let value = label(value, "energy__key__value");
+    value.set_wrap(false);
+
+    let key = gtk::Box::new(gtk::Orientation::Vertical, 2);
+    key.append(&heading);
+    key.append(&value);
+
+    key
+}
+
+/// Dashed lines with their values from the top down, solid at zero.
+fn gridlines(step: f64, above: i32, below: i32, digits: usize) -> gtk::Box {
     let lines = gtk::Box::new(gtk::Orientation::Vertical, 0);
     lines.set_homogeneous(true);
     lines.set_hexpand(true);
 
-    for _ in 0..TICKS {
+    for segment in 0..above + below {
+        let value = step * f64::from(above - segment);
+
         let line = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        line.set_hexpand(true);
         line.add_css_class("energy__price__gridline");
-        lines.append(&line);
+        line.set_class_active("zero", segment == above);
+
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        row.append(&scale_label(&format!("{} ct", decimal(value, digits))));
+        row.append(&line);
+        lines.append(&row);
     }
 
     lines
 }
 
-/// The ct values of the gridlines, counting down from the highest price of the day.
-fn scale(max: f64) -> gtk::Box {
-    let scale = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    scale.set_homogeneous(true);
-    scale.set_width_request(SCALE_WIDTH);
+fn scale_label(text: &str) -> gtk::Label {
+    let label = label(text, "energy__price__scale");
+    label.set_valign(gtk::Align::Start);
+    label.set_wrap(false);
+    label.set_width_request(SCALE_WIDTH);
 
-    for tick in 0..TICKS {
-        let value = max * f64::from(TICKS - tick) / f64::from(TICKS);
+    label
+}
 
-        let label = label(&format!("{value:.0} ct"), "energy__price__scale");
-        label.set_valign(gtk::Align::Start);
-        label.set_wrap(false);
+/// The step and the segments above and below zero for the prices of the day.
+fn scale(min: f64, max: f64) -> (f64, i32, i32) {
+    let high = max.max(0.0);
+    let low = (-min).max(0.0);
+    let (step, _) = scale_step(high + low);
 
-        let cell = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        cell.append(&label);
-        scale.append(&cell);
+    let above = ((high / step).ceil() as i32).max(1);
+    let below = (low / step).ceil() as i32;
+
+    (step, above, below)
+}
+
+/// A step of 1, 2 or 5 times a power of ten and the segments it takes to reach `max`.
+fn scale_step(max: f64) -> (f64, i32) {
+    let max = max.max(1.0);
+    let magnitude = 10f64.powf((max / f64::from(MAX_SEGMENTS)).log10().floor());
+
+    for factor in [1.0, 2.0, 5.0, 10.0] {
+        let step = factor * magnitude;
+        let segments = (max / step).ceil() as i32;
+
+        if segments <= MAX_SEGMENTS {
+            return (step, segments.max(1));
+        }
     }
 
-    scale
+    (20.0 * magnitude, 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn picks_familiar_steps() {
+        assert_eq!(scale_step(41.3), (10.0, 5));
+        assert_eq!(scale_step(14.2), (5.0, 3));
+        assert_eq!(scale_step(30.0), (10.0, 3));
+        assert_eq!(scale_step(8.0), (2.0, 4));
+    }
+
+    #[test]
+    fn makes_room_below_zero() {
+        assert_eq!(scale(12.9, 41.3), (10.0, 5, 0));
+        assert_eq!(scale(-4.1, 38.0), (10.0, 4, 1));
+    }
+
+    #[test]
+    fn keeps_a_scale_without_positive_prices() {
+        let (step, segments) = scale_step(-3.0);
+
+        assert!((step - 0.2).abs() < 1e-9);
+        assert_eq!(segments, 5);
+    }
 }

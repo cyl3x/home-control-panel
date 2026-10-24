@@ -96,6 +96,7 @@ pub struct Screensaver {
     pub timeout: u16,
     #[serde(default)]
     pub exclude: Vec<StartEndTimes>,
+    /// Also switches the panel to its dark appearance
     #[serde(default)]
     pub dim: Vec<StartEndTimes>,
 }

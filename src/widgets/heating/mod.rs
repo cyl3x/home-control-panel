@@ -6,8 +6,9 @@ use gtk::glib;
 
 use crate::config;
 use crate::messaging::{self, HeatingMessage, Page, SwitcherMessage};
-use crate::myvaillant::{Command, Error, HeatingSystem, Service, Setpoint};
+use crate::myvaillant::{Action, Command, Error, HeatingSystem, Service, Setpoint};
 use crate::prelude::*;
+use crate::widgets::refresh::RefreshButton;
 
 mod cards;
 mod summary;
@@ -21,9 +22,55 @@ const SETPOINT_DELAY: u32 = 2;
 /// The cloud takes a few seconds to reflect changes, the HA integration waits 5 to 20 seconds
 const CHANGE_REFRESH_DELAY: u32 = 10;
 
+/// How long a failed change is noted in its card
+const FAILED_NOTE_DURATION: TimeDelta = TimeDelta::seconds(60);
+
+/// Where the note about a change is shown
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Target {
+    Zone(String, u32),
+    HotWater(String, u32),
+    System(String),
+}
+
+impl Target {
+    fn of_setpoint(setpoint: &Setpoint) -> Self {
+        match setpoint {
+            Setpoint::Zone { system_id, zone } => Self::Zone(system_id.clone(), *zone),
+            Setpoint::HotWater { system_id, index } => Self::HotWater(system_id.clone(), *index),
+        }
+    }
+
+    fn of_command(command: &Command) -> Self {
+        let system_id = command.system_id.clone();
+
+        match command.action {
+            Action::ZoneManualSetpoint { zone, .. }
+            | Action::ZoneQuickVeto { zone, .. }
+            | Action::CancelZoneQuickVeto { zone }
+            | Action::ZoneOperationMode { zone, .. } => Self::Zone(system_id, zone),
+            Action::HotWaterSetpoint { index, .. }
+            | Action::HotWaterOperationMode { index, .. } => Self::HotWater(system_id, index),
+            Action::HotWaterBoost { .. }
+            | Action::VentilationBoost { .. }
+            | Action::AwayMode { .. } => Self::System(system_id),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Note {
+    /// Collected or being sent
+    Sending,
+    /// Sent, the next fetch confirms it
+    Sent,
+    Failed(DateTime<Local>),
+}
+
 pub struct HeatingWidget {
     wrapper: gtk::Overlay,
     status: gtk::Label,
+    refresh: RefreshButton,
     /// Status and refresh button, shown next to the name of the first system
     status_bar: gtk::Box,
     systems_box: gtk::Box,
@@ -33,8 +80,11 @@ pub struct HeatingWidget {
     service: Arc<Mutex<Service>>,
     /// The last fetched systems including changes sent since
     systems: Vec<HeatingSystem>,
+    /// The last fetched systems, to revert to when a change fails
+    confirmed: Vec<HeatingSystem>,
     /// Setpoints changed with − and +, which are not sent yet
     pending: HashMap<Setpoint, (f64, glib::SourceId)>,
+    notes: HashMap<Target, Note>,
     fetching: bool,
     refresh_timeout: Option<glib::SourceId>,
     last_fetch: Option<DateTime<Local>>,
@@ -47,18 +97,13 @@ impl HeatingWidget {
             .css_classes(["heating__status"])
             .build();
 
-        let refresh_button = gtk::Button::from_icon_name("view-refresh-symbolic");
-        refresh_button.add_css_class("refresh");
-        refresh_button.set_valign(gtk::Align::Center);
-        refresh_button.connect_clicked(|_| {
-            messaging::send_message(HeatingMessage::Refresh);
-        });
+        let refresh = RefreshButton::new(|| messaging::send_message(HeatingMessage::Refresh));
 
         let status_bar = gtk::Box::new(gtk::Orientation::Horizontal, 12);
         status_bar.set_halign(gtk::Align::End);
         status_bar.set_hexpand(true);
         status_bar.append(&status);
-        status_bar.append(&refresh_button);
+        status_bar.append(refresh.widget());
 
         let systems_box = gtk::Box::new(gtk::Orientation::Vertical, 32);
         systems_box.add_css_class("heating__systems");
@@ -129,6 +174,7 @@ impl HeatingWidget {
         let mut widget = Self {
             wrapper,
             status,
+            refresh,
             status_bar,
             systems_box,
             spinner,
@@ -136,7 +182,9 @@ impl HeatingWidget {
 
             service: Arc::new(Mutex::new(service)),
             systems: Vec::new(),
+            confirmed: Vec::new(),
             pending: HashMap::new(),
+            notes: HashMap::new(),
             fetching: false,
             refresh_timeout: None,
             last_fetch: None,
@@ -146,6 +194,7 @@ impl HeatingWidget {
         if let Some((systems, fetched_at)) = cached {
             log::info!("Heating: showing cached systems from {fetched_at}");
 
+            widget.confirmed = systems.clone();
             widget.systems = systems;
             widget.last_fetch = Some(fetched_at);
             widget.last_success = Some(fetched_at);
@@ -182,13 +231,16 @@ impl HeatingWidget {
                     .is_some_and(|last| Local::now() - last < MIN_REFRESH_INTERVAL)
                 {
                     log::info!("Heating: skipping refresh, last fetch is too recent");
+                    self.refresh.acknowledge();
                     return;
                 }
 
+                self.refresh.set_busy(true);
                 self.fetch();
             }
             HeatingMessage::Update(result) => {
                 self.fetching = false;
+                self.refresh.set_busy(false);
                 self.spinner.set_visible(false);
 
                 messaging::send_message(SwitcherMessage::Fetched(Page::Heating, result.is_ok()));
@@ -199,7 +251,12 @@ impl HeatingWidget {
 
                         let now = Local::now();
                         self.last_success = Some(now);
+                        self.confirmed = systems.clone();
                         self.systems = systems;
+
+                        // The fetch shows whether sent changes are applied
+                        self.notes.retain(|_, note| *note != Note::Sent);
+
                         self.status
                             .set_text(&format!("Aktualisiert {}", cards::format_time(now)));
                         self.status.remove_css_class("error");
@@ -221,6 +278,9 @@ impl HeatingWidget {
                     remove_source(Some(timeout));
                 }
 
+                self.notes
+                    .insert(Target::of_setpoint(&setpoint), Note::Sending);
+
                 let key = setpoint.clone();
                 let timeout = glib::timeout_add_seconds_local_once(SETPOINT_DELAY, move || {
                     messaging::send_message(HeatingMessage::SendSetpoint(key));
@@ -237,16 +297,43 @@ impl HeatingWidget {
                 // Decided on the fetched state, e.g. whether a quick veto is already running
                 match setpoint.command(&self.systems, value) {
                     Some(command) => self.execute(command),
-                    None => self.render(),
+                    None => {
+                        self.notes.remove(&Target::of_setpoint(&setpoint));
+                        self.render();
+                    }
                 }
             }
             HeatingMessage::Execute(command) => self.execute(*command),
-            HeatingMessage::Executed(result) => {
-                if let Err(err) = *result {
-                    log::error!("Heating: failed to send change: {err}");
+            HeatingMessage::Executed(executed) => {
+                let (command, result) = *executed;
+                let target = Target::of_command(&command);
 
-                    self.show_error("Änderung fehlgeschlagen", &err);
+                match result {
+                    Ok(()) => {
+                        let tapping = self
+                            .pending
+                            .keys()
+                            .any(|setpoint| Target::of_setpoint(setpoint) == target);
+
+                        if !tapping {
+                            self.notes.insert(target, Note::Sent);
+                        }
+                    }
+                    Err(err) => {
+                        log::error!("Heating: failed to send change: {err}");
+
+                        self.systems = self.confirmed.clone();
+                        self.notes.insert(target, Note::Failed(Local::now()));
+                        self.show_error("Änderung fehlgeschlagen", &err);
+
+                        glib::timeout_add_seconds_local_once(
+                            FAILED_NOTE_DURATION.num_seconds() as u32,
+                            || messaging::send_message(HeatingMessage::ExpireNotes),
+                        );
+                    }
                 }
+
+                self.render();
 
                 // Confirms the change, or reverts the displayed one if it failed
                 remove_source(self.refresh_timeout.take());
@@ -254,6 +341,16 @@ impl HeatingWidget {
                     CHANGE_REFRESH_DELAY,
                     || messaging::send_message(HeatingMessage::Fetch),
                 ));
+            }
+            HeatingMessage::ExpireNotes => {
+                let now = Local::now();
+
+                self.notes.retain(|_, note| match note {
+                    Note::Failed(at) => now - *at < FAILED_NOTE_DURATION,
+                    _ => true,
+                });
+
+                self.render();
             }
         }
     }
@@ -268,7 +365,8 @@ impl HeatingWidget {
 
         self.fetching = true;
         self.last_fetch = Some(Local::now());
-        self.spinner.set_visible(true);
+
+        self.spinner.set_visible(self.last_success.is_none());
 
         let service = self.service.clone();
 
@@ -286,6 +384,8 @@ impl HeatingWidget {
         log::info!("Heating: sending {:?}", command.action);
 
         command.apply(&mut self.systems);
+        self.notes
+            .insert(Target::of_command(&command), Note::Sending);
         self.render();
 
         let service = self.service.clone();
@@ -296,7 +396,9 @@ impl HeatingWidget {
                 .unwrap_or_else(PoisonError::into_inner)
                 .execute(&command);
 
-            messaging::send_message(HeatingMessage::Executed(std::boxed::Box::new(result)));
+            messaging::send_message(HeatingMessage::Executed(std::boxed::Box::new((
+                command, result,
+            ))));
         });
     }
 
@@ -342,6 +444,7 @@ impl HeatingWidget {
                 system,
                 self.controls,
                 (index == 0).then_some(&self.status_bar),
+                &self.notes,
             ));
         }
     }

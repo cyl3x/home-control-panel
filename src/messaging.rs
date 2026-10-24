@@ -36,6 +36,7 @@ pub enum AppMessage {
 #[derive(Debug)]
 pub enum CalendarMessage {
     Fetch,
+    Tick,
     MonthPrev,
     MonthNext,
     SelectNow,
@@ -85,7 +86,8 @@ pub enum HeatingMessage {
     Step(Setpoint, i32),
     SendSetpoint(Setpoint),
     Execute(std::boxed::Box<Command>),
-    Executed(std::boxed::Box<Result<(), myvaillant::Error>>),
+    Executed(std::boxed::Box<(Command, Result<(), myvaillant::Error>)>),
+    ExpireNotes,
 }
 
 impl From<HeatingMessage> for AppMessage {

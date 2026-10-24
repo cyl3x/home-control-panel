@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use gtk::gio;
 use gtk::glib;
 
@@ -10,15 +11,13 @@ use crate::widgets::calendar::day::event_object::EventObject;
 mod event_object;
 
 /// The events of the selected day, with a header that names the day and counts them.
-///
-/// The list takes the whole height below the filters, so three or more events fit without
-/// scrolling.
 pub struct DayWidget {
     filter: Option<UuidFilter>,
     wrapper: gtk::Box,
     title: gtk::Label,
     count: gtk::Label,
     list: gtk::ListView,
+    scrolled_to: Option<(NaiveDate, u32)>,
 }
 
 impl DayWidget {
@@ -88,6 +87,7 @@ impl DayWidget {
             title,
             count,
             list,
+            scrolled_to: None,
         }
     }
 
@@ -121,10 +121,10 @@ impl DayWidget {
             0 => {
                 self.store().remove_all();
             }
+            // In one go, removing one by one shifts the indices
             len if len < self.model().n_items() => {
-                for idx in len..self.model().n_items() {
-                    self.store().remove(idx);
-                }
+                let surplus = self.model().n_items() - len;
+                self.store().splice(len, surplus, &[] as &[EventObject]);
             }
             _ => (),
         }
@@ -135,6 +135,31 @@ impl DayWidget {
             1 => "1 Termin".to_string(),
             len => format!("{len} Termine"),
         });
+
+        self.scroll_to_next(dates.selected);
+    }
+
+    /// Scroll to the first event that isn't over, but leave scrolling by hand alone.
+    fn scroll_to_next(&mut self, date: NaiveDate) {
+        let model = self.model();
+        let next = (0..model.n_items())
+            .find(|idx| {
+                model
+                    .item(*idx)
+                    .and_downcast::<EventObject>()
+                    .is_some_and(|event| !event.past())
+            })
+            .unwrap_or(0);
+
+        if self.scrolled_to == Some((date, next)) {
+            return;
+        }
+
+        self.scrolled_to = Some((date, next));
+
+        if model.n_items() > 0 {
+            self.list.scroll_to(next, gtk::ListScrollFlags::NONE, None);
+        }
     }
 
     fn model(&self) -> gtk::NoSelection {
@@ -217,13 +242,30 @@ fn bind(event: &EventObject, item: &gtk::Box) {
             .build();
     }
 
-    // Times are hidden rather than left empty, which keeps the rows of whole-day events tight
-    for (property, label) in [("start", &start), ("end", &end)] {
-        event
-            .bind_property(property, label, "visible")
-            .transform_to(|_, text: String| Some(!text.is_empty()))
-            .sync_create()
-            .build();
+    event
+        .bind_property("start", &start, "visible")
+        .transform_to(|_, text: String| Some(!text.is_empty()))
+        .sync_create()
+        .build();
+
+    for (property, label) in [("end", &end), ("description", &description)] {
+        let sync = glib::clone!(
+            #[strong]
+            label,
+            move |event: &EventObject| {
+                let text = event.property::<String>(property);
+                label.set_visible(!text.is_empty() && !event.past());
+            }
+        );
+
+        sync(event);
+
+        for notify in [property, "past"] {
+            event.connect_notify_local(Some(notify), {
+                let sync = sync.clone();
+                move |event, _| sync(event)
+            });
+        }
     }
 
     event
@@ -242,22 +284,14 @@ fn bind(event: &EventObject, item: &gtk::Box) {
         ),
     );
 
-    // The row steps back when the event is over. Whole-day events drop the time column,
-    // but keep their calendar's colored strip like every other row.
     for (property, class) in [("past", "past"), ("whole-days", "allday")] {
         event.connect_notify_local(
             Some(property),
             glib::clone!(
                 #[strong]
                 item,
-                #[strong]
-                times,
                 move |event: &EventObject, _| {
                     let active = event.property_value(property).get::<bool>().unwrap_or(false);
-
-                    if class == "allday" {
-                        times.set_visible(!active);
-                    }
 
                     item.set_class_active(class, active);
                 }
@@ -275,6 +309,7 @@ fn create_day_event() -> gtk::Box {
     let start = gtk::Label::new(None);
     start.add_css_class("calendar-day__item__time");
     start.set_halign(gtk::Align::End);
+    start.set_justify(gtk::Justification::Right);
 
     let end = gtk::Label::new(None);
     end.add_css_class("calendar-day__item__time__end");
@@ -313,7 +348,7 @@ fn create_day_event() -> gtk::Box {
     label_wrapper.append(&summary);
     label_wrapper.append(&description);
 
-    let chip = gtk::Label::new(Some("läuft"));
+    let chip = gtk::Label::new(Some("Läuft"));
     chip.add_css_class("calendar-day__item__chip");
     chip.set_valign(gtk::Align::Center);
     chip.set_visible(false);

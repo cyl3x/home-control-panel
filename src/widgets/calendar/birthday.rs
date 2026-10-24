@@ -13,6 +13,9 @@ const ICON_CAKE: char = '\u{f1fd}'; // cake-candles
 /// Birthdays further away than this are not worth a banner
 const WITHIN_DAYS: u64 = 7;
 
+/// Birthdays further away get a single line instead of the banner
+const BANNER_DAYS: i64 = 1;
+
 /// What the banner says about the next birthday, or all of them when they share a day.
 struct Birthday {
     /// Everyone whose birthday falls on `date`, in alphabetical order
@@ -82,6 +85,7 @@ fn format_date(date: NaiveDate) -> String {
 pub struct BirthdayWidget {
     filter: Option<UuidFilter>,
     wrapper: gtk::Box,
+    labels: gtk::Box,
     name: gtk::Label,
     date: gtk::Label,
     countdown: gtk::Label,
@@ -98,11 +102,13 @@ impl BirthdayWidget {
         let name = gtk::Label::builder()
             .halign(gtk::Align::Start)
             .ellipsize(gtk::pango::EllipsizeMode::End)
+            .valign(gtk::Align::Baseline)
             .css_classes(["calendar-birthday__name"])
             .build();
 
         let date = gtk::Label::builder()
             .halign(gtk::Align::Start)
+            .valign(gtk::Align::Baseline)
             .css_classes(["calendar-birthday__date"])
             .build();
 
@@ -128,6 +134,7 @@ impl BirthdayWidget {
         Self {
             filter: config.calendar.birthday.clone(),
             wrapper,
+            labels,
             name,
             date,
             countdown,
@@ -143,9 +150,19 @@ impl BirthdayWidget {
         let birthday = next(manager, self.filter.as_ref(), dates.today());
 
         if let Some(birthday) = &birthday {
+            let compact = birthday.in_days > BANNER_DAYS;
+
             self.name.set_label(&birthday.names());
             self.date.set_label(&format_date(birthday.date));
             self.countdown.set_label(&countdown(birthday.in_days));
+
+            self.wrapper.set_class_active("compact", compact);
+            self.labels.set_orientation(if compact {
+                gtk::Orientation::Horizontal
+            } else {
+                gtk::Orientation::Vertical
+            });
+            self.labels.set_spacing(if compact { 12 } else { 2 });
         }
 
         self.wrapper.set_visible(birthday.is_some());

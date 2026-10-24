@@ -86,6 +86,13 @@ impl CalendarWidget {
             glib::ControlFlow::Continue
         });
 
+        // Keeps past and running events up to date
+        glib::timeout_add_seconds(60, move || {
+            messaging::send_message(CalendarMessage::Tick);
+
+            glib::ControlFlow::Continue
+        });
+
         messaging::send_message(CalendarMessage::SelectNow);
         messaging::send_message(CalendarMessage::Fetch);
 
@@ -145,6 +152,10 @@ impl CalendarWidget {
                     }
                 });
             }
+            CalendarMessage::Tick => {
+                self.dates.now = chrono::Local::now();
+                self.update_calendar();
+            }
             CalendarMessage::UpdateMap(map) => {
                 if self.manager.set_map(*map) {
                     log::info!("Calendar: map changed and updated");
@@ -201,7 +212,7 @@ impl CalendarWidget {
         self.birthday_line
             .update_calendar(&self.manager, &self.dates);
 
-        log::info!("Calendar: updated for date {}", self.dates.selected);
+        log::debug!("Calendar: updated for date {}", self.dates.selected);
     }
 
     fn reset_dates_timeout(&mut self) {

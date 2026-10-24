@@ -21,7 +21,8 @@ const HUB_SIZE: i32 = 260;
 const LINE_SPACE: i32 = 80;
 /// Distance between the lines where they meet the house
 const LINE_SPREAD: f64 = 24.0;
-const ARROW_SIZE: f64 = 9.0;
+const ARROW_SIZE: f64 = 10.0;
+const IDLE_DASH: [f64; 2] = [6.0, 6.0];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Flow {
@@ -257,7 +258,7 @@ fn offline(icon: char, title: &str) -> (gtk::Box, Flow) {
             icon,
             title,
             "–",
-            Some(detail("Offline", Some("state-warn"))),
+            Some(detail("Offline", Some("state-error"))),
         ),
         Flow::Idle,
     )
@@ -355,10 +356,13 @@ fn curve(
     );
 
     if flow == Flow::Idle {
-        cr.set_source_rgba(red, green, blue, 0.25);
+        cr.set_source_rgba(red, green, blue, 0.45);
         cr.set_line_width(2.0);
+        cr.set_dash(&IDLE_DASH, 0.0);
+        cr.stroke()?;
+        cr.set_dash(&[], 0.0);
 
-        return cr.stroke();
+        return Ok(());
     }
 
     cr.set_source_rgb(red, green, blue);

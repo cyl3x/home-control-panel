@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 
 use chrono::TimeDelta;
+use gtk::glib;
 
 use crate::messaging::{self, Page, SwitcherMessage};
 use crate::prelude::*;
@@ -13,6 +14,10 @@ use crate::prelude::*;
 const STALE_AFTER: TimeDelta = TimeDelta::minutes(30);
 
 const ICON_CHEVRON: char = '\u{f054}'; // chevron-right
+const ICON_CLOCK: char = '\u{f017}'; // clock
+
+/// The same in every row, so the dividers line up
+const END_WIDTH: i32 = 76;
 
 pub struct SummaryWidget {
     wrapper: gtk::Box,
@@ -40,9 +45,24 @@ impl SummaryWidget {
             row.add_css_class("summary__row");
 
             let click = gtk::GestureClick::new();
-            click.connect_released(move |_, _, _, _| {
-                messaging::send_message(SwitcherMessage::Show(page));
-            });
+            click.connect_pressed(glib::clone!(
+                #[weak]
+                row,
+                move |_, _, _, _| row.add_css_class("pressed")
+            ));
+            click.connect_released(glib::clone!(
+                #[weak]
+                row,
+                move |_, _, _, _| {
+                    row.remove_css_class("pressed");
+                    messaging::send_message(SwitcherMessage::Show(page));
+                }
+            ));
+            click.connect_stopped(glib::clone!(
+                #[weak]
+                row,
+                move |_| row.remove_css_class("pressed")
+            ));
             row.add_controller(click);
 
             wrapper.append(&row);
@@ -56,7 +76,7 @@ impl SummaryWidget {
         &self.wrapper
     }
 
-    /// Replace the cards of the page, grayed out if the data was fetched too long ago.
+    /// Replace the cards of the page, outdated data is grayed out and gets its time.
     ///
     /// Without cards, e.g. before the first fetch, the row keeps its space empty.
     pub fn set(&self, page: Page, cards: &[gtk::Box], fetched_at: Option<DateTime<Local>>) {
@@ -82,25 +102,48 @@ impl SummaryWidget {
             row.append(&columns);
         }
 
-        // The chevron hints that the row opens its page
-        if !cards.is_empty() {
-            let chevron = gtk::Label::builder()
-                .label(ICON_CHEVRON.to_string())
-                .valign(gtk::Align::Center)
-                .css_classes(["summary__go", "icon"])
-                .build();
+        let stale = fetched_at.filter(|fetched_at| Local::now() - *fetched_at > STALE_AFTER);
 
-            row.append(&chevron);
+        if !cards.is_empty() {
+            row.append(&end(stale));
         }
 
         // An empty row keeps its space, but without the card behind it
         row.set_class_active("empty", cards.is_empty());
 
-        row.set_class_active(
-            "stale",
-            fetched_at.is_none_or(|fetched_at| Local::now() - fetched_at > STALE_AFTER),
-        );
+        row.set_class_active("stale", fetched_at.is_none() || stale.is_some());
     }
+}
+
+/// The chevron, with the time of outdated data around it.
+fn end(stale: Option<DateTime<Local>>) -> gtk::CenterBox {
+    let chevron = gtk::Label::builder()
+        .label(ICON_CHEVRON.to_string())
+        .css_classes(["summary__go", "icon"])
+        .build();
+
+    let end = gtk::CenterBox::new();
+    end.set_orientation(gtk::Orientation::Vertical);
+    end.add_css_class("summary__end");
+    end.set_width_request(END_WIDTH);
+    end.set_center_widget(Some(&chevron));
+
+    if let Some(fetched_at) = stale {
+        let clock = gtk::Label::builder()
+            .label(ICON_CLOCK.to_string())
+            .css_classes(["summary__stale", "icon"])
+            .build();
+
+        let time = gtk::Label::builder()
+            .label(fetched_at.format("%H:%M").to_string())
+            .css_classes(["summary__stale"])
+            .build();
+
+        end.set_start_widget(Some(&clock));
+        end.set_end_widget(Some(&time));
+    }
+
+    end
 }
 
 /// A card with a label, a large value and an optional line below it.

@@ -26,6 +26,8 @@ impl EventWidget {
         let wrapper = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         wrapper.add_css_class("calendar-event");
         wrapper.set_valign(gtk::Align::End);
+        // The strip's vexpand would otherwise take height from the day list
+        wrapper.set_vexpand(false);
         wrapper.append(&indicator);
         wrapper.append(&label);
 

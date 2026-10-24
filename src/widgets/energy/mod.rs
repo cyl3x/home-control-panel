@@ -7,6 +7,7 @@ use crate::config;
 use crate::enviiq::{Error, Overview, Service};
 use crate::messaging::{self, EnergyMessage, Page, SwitcherMessage};
 use crate::prelude::*;
+use crate::widgets::refresh::RefreshButton;
 
 mod flow;
 mod prices;
@@ -19,6 +20,7 @@ const MIN_REFRESH_INTERVAL: TimeDelta = TimeDelta::seconds(15);
 pub struct EnergyWidget {
     wrapper: gtk::Overlay,
     status: gtk::Label,
+    refresh: RefreshButton,
     /// Cards and prices, rebuilt on every update
     body: gtk::Box,
     spinner: gtk::Spinner,
@@ -37,12 +39,7 @@ impl EnergyWidget {
             .css_classes(["energy__status"])
             .build();
 
-        let refresh_button = gtk::Button::from_icon_name("view-refresh-symbolic");
-        refresh_button.add_css_class("refresh");
-        refresh_button.set_valign(gtk::Align::Center);
-        refresh_button.connect_clicked(|_| {
-            messaging::send_message(EnergyMessage::Refresh);
-        });
+        let refresh = RefreshButton::new(|| messaging::send_message(EnergyMessage::Refresh));
 
         let title = ui::label("Energie", "energy__title");
         title.set_hexpand(true);
@@ -50,7 +47,7 @@ impl EnergyWidget {
         let header = gtk::Box::new(gtk::Orientation::Horizontal, 12);
         header.append(&title);
         header.append(&status);
-        header.append(&refresh_button);
+        header.append(refresh.widget());
 
         let body = gtk::Box::new(gtk::Orientation::Vertical, 16);
         body.set_vexpand(true);
@@ -107,6 +104,7 @@ impl EnergyWidget {
         Self {
             wrapper,
             status,
+            refresh,
             body,
             spinner,
 
@@ -143,13 +141,16 @@ impl EnergyWidget {
                     .is_some_and(|last| Local::now() - last < MIN_REFRESH_INTERVAL)
                 {
                     log::info!("Energy: skipping refresh, last fetch is too recent");
+                    self.refresh.acknowledge();
                     return;
                 }
 
+                self.refresh.set_busy(true);
                 self.fetch();
             }
             EnergyMessage::Update(result) => {
                 self.fetching = false;
+                self.refresh.set_busy(false);
                 self.spinner.set_visible(false);
 
                 messaging::send_message(SwitcherMessage::Fetched(Page::Energy, result.is_ok()));
@@ -182,7 +183,8 @@ impl EnergyWidget {
 
         self.fetching = true;
         self.last_fetch = Some(Local::now());
-        self.spinner.set_visible(true);
+
+        self.spinner.set_visible(self.last_success.is_none());
 
         let service = self.service.clone();
 

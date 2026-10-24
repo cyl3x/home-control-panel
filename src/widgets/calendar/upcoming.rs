@@ -53,26 +53,30 @@ impl UpcomingWidget {
         let groups = gtk::Box::new(gtk::Orientation::Vertical, 24);
         groups.add_css_class("calendar-upcoming");
 
-        if let Some(events) = self.map_events(manager, now, now, false) {
-            groups.append(&Self::group("HEUTE", &events));
+        if let Some(events) = self.map_events(manager, now, now, false, true) {
+            groups.append(&Self::group("Heute", &events));
         }
 
         let tomorrow = now + Days::new(1);
-        if let Some(events) = self.map_events(manager, tomorrow, tomorrow, false) {
-            groups.append(&Self::group("MORGEN", &events));
+        if let Some(events) = self.map_events(manager, tomorrow, tomorrow, false, false) {
+            groups.append(&Self::group("Morgen", &events));
         }
 
         if now.weekday() == Weekday::Fri {
             let sunday = now + Days::new(2);
-            if let Some(events) = self.map_events(manager, sunday, sunday, false) {
-                groups.append(&Self::group("SONNTAG", &events));
+            if let Some(events) = self.map_events(manager, sunday, sunday, false, false) {
+                groups.append(&Self::group("Sonntag", &events));
             }
         } else if !matches!(now.weekday(), Weekday::Sat | Weekday::Sun) {
             let num = u64::from(now.weekday().num_days_from_monday());
-            if let Some(events) =
-                self.map_events(manager, now + Days::new(5 - num), now + Days::new(6 - num), true)
-            {
-                groups.append(&Self::group("NÄCHSTES WOCHENENDE", &events));
+            if let Some(events) = self.map_events(
+                manager,
+                now + Days::new(5 - num),
+                now + Days::new(6 - num),
+                true,
+                false,
+            ) {
+                groups.append(&Self::group("Nächstes Wochenende", &events));
             }
         }
 
@@ -96,16 +100,23 @@ impl UpcomingWidget {
     }
 
     /// `spans_days` tells whole-day events to name their weekday, which only helps
-    /// for groups that cover more than one day.
+    /// for groups that cover more than one day. `upcoming` leaves out events that are over.
     fn map_events(
         &self,
         manager: &Manager,
         from: NaiveDate,
         to: NaiveDate,
         spans_days: bool,
+        upcoming: bool,
     ) -> Option<gtk::Box> {
+        // Occurrences are in UTC
+        let now = Local::now().naive_utc();
+
         let events = manager
             .events_between(from, to, self.filter.as_ref())
+            .filter(|(_, occurrence, event)| {
+                !upcoming || **occurrence + (event.end - event.start) > now
+            })
             .map(|item| self.create_event(item, spans_days))
             .collect::<Vec<_>>();
 

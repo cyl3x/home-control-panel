@@ -8,13 +8,15 @@ use crate::prelude::*;
 /// Failed fetches in a row until a page is marked, single failures are usually just hiccups
 const FAILURES_UNTIL_MARKED: u32 = 3;
 
-/// Switches the pages of a stack like `gtk::StackSwitcher`, with a dot before the title
-/// of pages that fetch data: green while fetching works, red after repeated failures.
+const ICON_ALERT: char = '\u{f071}'; // triangle-exclamation
+
+/// Switches the pages of a stack like `gtk::StackSwitcher`, pages that fetch data get a
+/// warning sign after repeated failures.
 ///
 /// The buttons are pills in a recessed track, the date and time sit at the end of the bar.
 pub struct SwitcherWidget {
     wrapper: gtk::Box,
-    dots: HashMap<Page, gtk::Box>,
+    alerts: HashMap<Page, gtk::Label>,
     buttons: HashMap<Page, gtk::ToggleButton>,
     failures: HashMap<Page, u32>,
 }
@@ -32,7 +34,7 @@ impl SwitcherWidget {
         wrapper.append(&track);
         wrapper.append(&clock());
 
-        let mut dots = HashMap::new();
+        let mut alerts = HashMap::new();
         let mut buttons = HashMap::new();
         let mut group: Option<gtk::ToggleButton> = None;
 
@@ -49,11 +51,14 @@ impl SwitcherWidget {
                 .map(|(page, _)| *page);
 
             if let Some(page) = page {
-                let dot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-                dot.set_valign(gtk::Align::Center);
-                dot.add_css_class("switcher__dot");
-                content.append(&dot);
-                dots.insert(page, dot);
+                let alert = gtk::Label::builder()
+                    .label(ICON_ALERT.to_string())
+                    .valign(gtk::Align::Center)
+                    .visible(false)
+                    .css_classes(["switcher__alert", "icon"])
+                    .build();
+                content.append(&alert);
+                alerts.insert(page, alert);
             }
 
             content.append(&gtk::Label::new(Some(&title)));
@@ -83,7 +88,7 @@ impl SwitcherWidget {
 
         Self {
             wrapper,
-            dots,
+            alerts,
             buttons,
             failures: HashMap::new(),
         }
@@ -105,8 +110,8 @@ impl SwitcherWidget {
                     log::warn!("Switcher: {page:?} failed to fetch {failures} times in a row");
                 }
 
-                if let Some(dot) = self.dots.get(&page) {
-                    dot.set_class_active("failing", failing);
+                if let Some(alert) = self.alerts.get(&page) {
+                    alert.set_visible(failing);
                 }
             }
             SwitcherMessage::Show(page) => {

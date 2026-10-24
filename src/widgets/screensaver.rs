@@ -139,15 +139,17 @@ impl ScreensaverWidget {
                     self.last_activity = self.now;
                 }
 
-                if self
+                let dim = self
                     .config
                     .dim
                     .iter()
-                    .any(|dim| time >= dim.start && time <= dim.end)
-                {
-                    self.center_wrapper.add_css_class("dim");
-                } else {
-                    self.center_wrapper.remove_css_class("dim");
+                    .any(|dim| time >= dim.start && time <= dim.end);
+
+                self.center_wrapper.set_class_active("dim", dim);
+
+                // The panel goes dark at the same times
+                if let Some(root) = self.wrapper.root() {
+                    root.set_class_active("night", dim);
                 }
 
 

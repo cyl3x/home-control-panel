@@ -33,6 +33,8 @@ impl Video {
         let video_player = clapper_gtk::Video::new();
         video_player.set_visible(true);
         video_player.add_css_class("clapper");
+        // Without it the video ignores the rounded corners of its CSS
+        video_player.set_overflow(gtk::Overflow::Hidden);
 
         let player = video_player.player().unwrap();
         player.set_audio_enabled(false);

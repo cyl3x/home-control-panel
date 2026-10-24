@@ -4,6 +4,9 @@ use gtk::glib;
 use crate::calendar::Calendar;
 use crate::calendar::Event;
 
+/// Shown in place of the times, in two lines to fit their column
+const WHOLE_DAYS: &str = "ganzer\nTag";
+
 use glib::Object;
 
 mod imp {
@@ -109,7 +112,7 @@ impl Times {
 
         Self {
             start: if whole_days {
-                String::new()
+                WHOLE_DAYS.to_string()
             } else {
                 format_time(occurrence)
             },
@@ -119,7 +122,7 @@ impl Times {
             } else {
                 format_time(end)
             },
-            running: occurrence <= now && now < end,
+            running: !whole_days && occurrence <= now && now < end,
             past: end <= now,
             whole_days,
         }

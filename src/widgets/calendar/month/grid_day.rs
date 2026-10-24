@@ -70,6 +70,11 @@ impl GridDayWidget {
         let date = grid_start + Duration::days(self.idx as i64);
         self.label.set_label(&date.day().to_string());
 
+        // Rows entirely in the next month are left out
+        let row_start = grid_start + Duration::days((self.idx / 7 * 7) as i64);
+        self.wrapper
+            .set_visible(self.idx < 7 || dates.is_month(row_start));
+
         self.wrapper.remove_css_class("selected");
         self.wrapper.remove_css_class("today");
         self.wrapper.remove_css_class("not-month");
